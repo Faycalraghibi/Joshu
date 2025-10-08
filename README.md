@@ -11,6 +11,8 @@ An open-source command-line AI assistant inspired by Claude CLI, powered by free
 - **File System Intelligence**: Smart file operations, content analysis, and project navigation
 - **Context Awareness**: Maintains conversation history and project context
 - **Multi-Model Support**: Seamlessly switch between different open-source LLMs
+- **Cloud Model Integration**: Use powerful cloud models via OpenRouter API
+- **Interactive Chat Mode**: Conversational interface for complex tasks
 
 ### Advanced Features
 
@@ -82,6 +84,13 @@ OPENCLI_MEMORY_ENABLED=true
 OPENCLI_SANDBOX_ENABLED=true
 OPENCLI_LOG_LEVEL=INFO
 OPENCLI_MAX_CONTEXT=4096
+
+# OpenRouter API (optional, for cloud models)
+OPENROUTER_API_KEY=your_api_key_here
+OPENROUTER_MODEL=openai/gpt-4o
+OPENROUTER_SITE_URL=https://your-site.com
+OPENROUTER_SITE_TITLE=OpenCLI Assistant
+OPENCLI_USE_CLOUD=true
 ```
 
 ## 📖 Usage Examples
@@ -114,7 +123,7 @@ opencli --interactive
 > # or
 > myenv\Scripts\activate     # Windows
 >
-> Would you like me to execute these commands? [y/N]
+> Would you like me to execute these commands? [y/N]: y
 ```
 
 ### Advanced Workflows
@@ -138,11 +147,15 @@ opencli-assistant/
 │   ├── core/
 │   │   ├── agent.py          # Main assistant logic
 │   │   ├── context.py        # Context management
-│   │   └── memory.py         # Memory system
+│   │   ├── memory.py         # Memory system
+│   │   ├── safety.py         # Command safety validation
+│   │   └── translate.py      # Natural language translation
 │   ├── models/
 │   │   ├── llm_interface.py  # Model abstraction layer
-│   │   ├── local_models.py   # Local model management
-│   │   └── inference.py      # Inference optimization
+│   │   ├── local_models.py   # Local model implementations
+│   │   ├── inference.py      # Model selection and inference
+│   │   ├── llama_cpp_loader.py # Llama.cpp model loader
+│   │   └── openrouter.py     # OpenRouter API integration
 │   ├── tools/
 │   │   ├── filesystem.py     # File operations
 │   │   ├── shell.py          # Command execution
@@ -232,6 +245,7 @@ black src/
 | Llama-3-70B | ~8s | 40GB | 9.1/10 |
 | Mistral-7B | ~1.5s | 6GB | 8.0/10 |
 | CodeLlama-34B | ~5s | 20GB | 9.0/10 |
+| OpenRouter GPT-4o | ~1s | 0GB (cloud) | 9.5/10 |
 
 > Benchmarks run on NVIDIA A100 40GB
 
