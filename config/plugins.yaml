@@ -1,0 +1,6 @@
+plugins:
+  - name: example
+    enabled: true
+    module: plugins.example_plugin
+    class: MyCustomPlugin
+
