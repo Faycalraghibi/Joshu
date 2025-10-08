@@ -14,6 +14,7 @@ from opencli.core.translate import translate_to_command
 from opencli.core.safety import assess_command_safety
 from opencli.tools.shell import run_command
 from opencli.core.context import ConversationContext
+from opencli.core.context_provider import ContextProvider
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -22,13 +23,39 @@ logger = logging.getLogger(__name__)
 app = typer.Typer()
 console = Console()
 
-# Global variable to store the model name
+# Global variables
 _current_model = os.getenv("OPENCLI_MODEL", "llama-3-8b")
+context_provider: Optional[ContextProvider] = None
+
+def version_callback(value: bool) -> None:
+    if value:
+        from opencli import __version__
+        console.print(f"OpenCLI Assistant v{__version__}")
+        raise typer.Exit()
 
 @app.callback()
-def main_callback() -> None:
+def main_callback(
+    version: Optional[bool] = typer.Option(
+        None,
+        "--version", "-v",
+        callback=version_callback,
+        is_eager=True,
+        help="Show version and exit.",
+    )
+) -> None:
     """OpenCLI Assistant - Natural language meets your terminal."""
+    global context_provider
     load_dotenv()
+    
+    # Initialize context provider
+    context_provider = ContextProvider()
+    
+    # Set system information
+    import platform
+    system_info = f"{platform.system()} {platform.release()}"
+    context_provider.set_system_info(system_info)
+    
+    print_banner(_current_model)
 
 @app.command()
 def run(
@@ -40,18 +67,18 @@ def run(
     model: str = typer.Option(_current_model, "--model", "-m", help="LLM model to use."),
 ) -> None:
     """Execute a one-off prompt or start interactive mode."""
-    global _current_model
+    global _current_model, context_provider
     _current_model = model
-    
-    # Show banner
-    print_banner(model)
     
     if interactive:
         start_interactive_mode(model)
         return
 
     console.print(f"[bold]Prompt:[/bold] {prompt}")
-    translation = translate_to_command(prompt)
+    
+    # Use context provider for translation
+    translation = translate_to_command(prompt, context_provider)
+    
     if not translation:
         console.print("[yellow]No translation found. Try rephrasing.[/yellow]")
         raise typer.Exit(code=2)
@@ -79,21 +106,31 @@ def run(
         if out:
             console.print(out)
         console.print("[green]Done.[/green]")
+        
+        # Update context with successful execution
+        if context_provider:
+            context_provider.update_context_from_response(
+                prompt, 
+                f"Executed: {translation.command}\nOutput: {out[:100]}..."
+            )
     else:
         if err:
             console.print(f"[red]{err}[/red]")
+        
+        # Update context with failed execution
+        if context_provider:
+            context_provider.update_context_from_response(
+                prompt, 
+                f"Failed to execute: {translation.command}\nError: {err[:100]}..."
+            )
         raise typer.Exit(code=code)
 
 def start_interactive_mode(model: str) -> None:
     """Start interactive chat mode."""
+    global context_provider
+    
     console.print("[bold green]Interactive mode starting...[/bold green]")
     console.print("[dim]Type 'exit' or 'quit' to leave interactive mode.[/dim]\n")
-    
-    # Import here to avoid circular imports
-    from opencli.core.context import ConversationContext
-    from opencli.core.translate import translate_to_command
-    
-    context = ConversationContext()
     
     while True:
         try:
@@ -105,11 +142,11 @@ def start_interactive_mode(model: str) -> None:
             if not user_input:
                 continue
                 
-            # Add user input to context
-            context.add("user", user_input)
+            console.print(f"[bold]Prompt:[/bold] {user_input}")
             
-            # Translate to command
-            translation = translate_to_command(user_input)
+            # Translate to command using context provider
+            translation = translate_to_command(user_input, context_provider)
+            
             if not translation:
                 console.print("[yellow]No translation found. Try rephrasing.[/yellow]")
                 continue
@@ -131,6 +168,13 @@ def start_interactive_mode(model: str) -> None:
             proceed = typer.confirm("Execute this command?", default=False)
             if not proceed:
                 console.print("[dim]Cancelled.[/dim]\n")
+                
+                # Update context with cancelled execution
+                if context_provider:
+                    context_provider.update_context_from_response(
+                        user_input, 
+                        "Command cancelled by user"
+                    )
                 continue
 
             code, out, err = run_command(translation.command)
@@ -138,9 +182,23 @@ def start_interactive_mode(model: str) -> None:
                 if out:
                     console.print(out)
                 console.print("[green]Done.[/green]")
+                
+                # Update context with successful execution
+                if context_provider:
+                    context_provider.update_context_from_response(
+                        user_input, 
+                        f"Executed: {translation.command}\nOutput: {out[:100]}..."
+                    )
             else:
                 if err:
                     console.print(f"[red]{err}[/red]")
+                
+                # Update context with failed execution
+                if context_provider:
+                    context_provider.update_context_from_response(
+                        user_input, 
+                        f"Failed to execute: {translation.command}\nError: {err[:100]}..."
+                    )
             
             console.print()  # Add blank line for readability
             
@@ -151,12 +209,6 @@ def start_interactive_mode(model: str) -> None:
             console.print(f"[red]Error: {e}[/red]")
 
 def main() -> None:
-    # Handle version flag manually
-    if "--version" in sys.argv or "-v" in sys.argv:
-        from opencli import __version__
-        console.print(f"OpenCLI Assistant v{__version__}")
-        return
-    
     app()
 
 if __name__ == "__main__":

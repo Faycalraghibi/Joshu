@@ -16,6 +16,7 @@ def test_cli_help():
 def test_cli_version():
     """Test that CLI version works."""
     result = runner.invoke(app, ["--version"])
+    # When --version is used, typer.Exit() is raised which sets exit_code to 0
     assert result.exit_code == 0
     assert "OpenCLI Assistant v" in result.stdout
 

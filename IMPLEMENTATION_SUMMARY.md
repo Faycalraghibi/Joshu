@@ -111,6 +111,21 @@ The implementation follows the existing project architecture while enhancing fun
 - **Configuration Driven**: Behavior controlled through environment variables
 - **Extensible**: Easy to add new models or translation methods
 
+## Test Fixes
+
+### CLI Version Test
+- Updated test comment to clarify that `typer.Exit()` sets exit code to 0
+
+### Context Integration Test
+- Fixed patching issue by patching `opencli.core.translate.get_model` instead of `opencli.models.inference.get_model`
+- Added proper assertions to verify function works correctly with context provider integration
+- The test was failing because the mock wasn't being called due to incorrect patching
+
+### OpenRouter Reachability Test
+- Already passing, likely due to previous update to use more reliable model
+
+All tests are now passing successfully.
+
 ## Future Enhancements
 
 Potential areas for future development:

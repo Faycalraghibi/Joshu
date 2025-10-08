@@ -9,6 +9,7 @@ from typing import List, Optional, Tuple, Dict
 
 from opencli.models.openrouter import translate_command_with_openrouter
 from opencli.models.inference import get_model
+from opencli.core.context_provider import ContextProvider
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +56,7 @@ def get_system_info() -> str:
         return f"Unix-like ({system})"
 
 
-def translate_to_command(prompt: str) -> Optional[Translation]:
+def translate_to_command(prompt: str, context_provider: Optional[ContextProvider] = None) -> Optional[Translation]:
     text = prompt.strip()
     
     # First try pattern matching
@@ -75,7 +76,7 @@ def translate_to_command(prompt: str) -> Optional[Translation]:
         return Translation(command=command, explanation=explanation)
     
     # If pattern matching fails, try LLM-based translation
-    return translate_with_llm(prompt)
+    return translate_with_llm(prompt, context_provider)
 
 
 def adapt_command_for_windows(command: str) -> str:
@@ -101,11 +102,11 @@ def adapt_command_for_windows(command: str) -> str:
     return command
 
 
-def translate_with_llm(prompt: str) -> Optional[Translation]:
+def translate_with_llm(prompt: str, context_provider: Optional[ContextProvider] = None) -> Optional[Translation]:
     """Translate natural language to command using LLM."""
     try:
         # Try OpenRouter first
-        translation = translate_with_openrouter(prompt)
+        translation = translate_with_openrouter(prompt, context_provider)
         if translation:
             command = translation["command"]
             # Adapt command for Windows if needed
@@ -114,7 +115,7 @@ def translate_with_llm(prompt: str) -> Optional[Translation]:
             return Translation(command=command, explanation=translation["explanation"])
             
         # Fallback to local model
-        translation = translate_with_local_model(prompt)
+        translation = translate_with_local_model(prompt, context_provider)
         if translation:
             command = translation.command
             # Adapt command for Windows if needed
@@ -128,15 +129,108 @@ def translate_with_llm(prompt: str) -> Optional[Translation]:
     return None
 
 
-def translate_with_openrouter(prompt: str) -> Optional[Dict[str, str]]:
+def translate_with_openrouter(prompt: str, context_provider: Optional[ContextProvider] = None) -> Optional[Dict[str, str]]:
     """Translate using OpenRouter API."""
-    return translate_command_with_openrouter(prompt)
+    from opencli.models.openrouter import translate_command_with_openrouter as openrouter_translate
+    
+    # If we have a context provider, use it to enhance the translation
+    if context_provider:
+        # Update context with the current request
+        context_provider.add_to_history("user", prompt)
+        
+        # Get relevant context for the LLM
+        context_messages = context_provider.get_relevant_context(prompt)
+        
+        # Add the current prompt as a user message
+        context_messages.append({"role": "user", "content": prompt})
+        
+        # Use the enhanced context-aware translation
+        return translate_command_with_openrouter_context_aware(context_messages)
+    
+    # Fallback to original implementation
+    return openrouter_translate(prompt)
 
 
-def translate_with_local_model(prompt: str) -> Optional[Translation]:
-    """Translate using local model."""
+def translate_command_with_openrouter_context_aware(messages: List[Dict[str, str]]) -> Optional[Dict[str, str]]:
+    """Translate using OpenRouter API with context awareness."""
+    from opencli.models.openrouter import chat_completion
+    
     system_info = get_system_info()
     system_prompt = f"""You are a CLI assistant that translates natural language to shell commands.
+The user is on a {system_info} system. Generate appropriate commands for this platform.
+You have access to conversation history and user preferences to provide better responses.
+Respond ONLY with a JSON object containing "command" and "explanation" fields.
+Example response:
+{{"command": "dir", "explanation": "List all files and directories in the current directory"}}
+
+User request:"""
+    
+    # Prepend system prompt to messages
+    full_messages = [{"role": "system", "content": system_prompt}]
+    
+    # Add context messages, but make sure we don't duplicate system messages
+    for msg in messages:
+        if msg["role"] != "system" or "Example response" not in msg["content"]:
+            full_messages.append(msg)
+    
+    response = chat_completion(full_messages, temperature=0.1, max_tokens=256)
+    if not response:
+        return None
+        
+    try:
+        # Clean up the response to handle markdown code blocks
+        cleaned_response = response.strip()
+        if cleaned_response.startswith("```json"):
+            cleaned_response = cleaned_response[7:]  # Remove ```json
+        if cleaned_response.startswith("```"):
+            cleaned_response = cleaned_response[3:]  # Remove ```
+        if cleaned_response.endswith("```"):
+            cleaned_response = cleaned_response[:-3]  # Remove ```
+        
+        # Parse JSON response
+        data = json.loads(cleaned_response)
+        command = data.get("command", "").strip()
+        explanation = data.get("explanation", "").strip()
+        
+        if command and explanation:
+            return {"command": command, "explanation": explanation}
+    except json.JSONDecodeError:
+        logger.warning(f"Failed to parse OpenRouter response as JSON: {response}")
+        return None
+    
+    return None
+
+
+def translate_with_local_model(prompt: str, context_provider: Optional[ContextProvider] = None) -> Optional[Translation]:
+    """Translate using local model."""
+    system_info = get_system_info()
+    
+    # Build context-aware prompt
+    if context_provider:
+        context_messages = context_provider.get_relevant_context(prompt)
+        context_str = "\nConversation History:\n"
+        for msg in context_messages:
+            context_str += f"{msg['role']}: {msg['content']}\n"
+        
+        memory_entries = context_provider.memory_store.kv
+        if memory_entries:
+            context_str += "\nUser Preferences:\n"
+            for key, value in memory_entries.items():
+                context_str += f"- {key}: {value}\n"
+        
+        system_prompt = f"""You are a CLI assistant that translates natural language to shell commands.
+The user is on a {system_info} system. Generate appropriate commands for this platform.
+Use the following context to provide better responses:
+
+{context_str}
+
+Respond ONLY with a JSON object containing "command" and "explanation" fields.
+Example response:
+{{"command": "dir", "explanation": "List all files and directories in the current directory"}}
+
+User request:"""
+    else:
+        system_prompt = f"""You are a CLI assistant that translates natural language to shell commands.
 The user is on a {system_info} system. Generate appropriate commands for this platform.
 Respond ONLY with a JSON object containing "command" and "explanation" fields.
 Example response:

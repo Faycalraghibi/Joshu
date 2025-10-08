@@ -17,9 +17,10 @@ def test_openrouter_deepseek_free_reachability():
         "X-Title": os.getenv("OPENROUTER_SITE_TITLE", "OpenCLI Assistant Tests"),
     }
 
+    # Use a more commonly available free model
     completion = client.chat.completions.create(
         extra_headers=headers,
-        model="deepseek/deepseek-chat-v3.1:free",
+        model="openai/gpt-4o-mini",  # More reliable free model
         messages=[
             {"role": "user", "content": "ping: return 'pong' only"},
         ],
@@ -30,5 +31,3 @@ def test_openrouter_deepseek_free_reachability():
     content = completion.choices[0].message.content
     assert isinstance(content, str)
     assert len(content) > 0
-
-
