@@ -228,6 +228,26 @@ flake8 src/
 black src/
 ```
 
+### Automated Development Environment Setup
+
+For Windows users, you can use the PowerShell script:
+
+```powershell
+.\clean_install-dev.ps1
+```
+
+For Linux/Unix users, you can use the bash script:
+
+```bash
+./clean_install-dev.sh
+```
+
+Both scripts will:
+- Create a fresh virtual environment
+- Upgrade pip/setuptools/wheel
+- Install all runtime and development dependencies
+- Perform an editable install of the package
+
 ### Areas for Contribution
 
 - Model optimization and quantization

@@ -44,7 +44,7 @@ def test_context_provider_integration_in_translate_with_openrouter():
         
         # Should include system info, context, and user prompt
         assert len(call_args) >= 2  # At least system message and user message
-        assert any("Windows 10" in msg.get("content", "") for msg in call_args)
+        assert any("System Information: Windows 10" in msg.get("content", "") for msg in call_args)
         assert any("previous command" in msg.get("content", "") for msg in call_args)
 
 
@@ -69,7 +69,7 @@ def test_context_provider_integration_in_translate_with_local_model():
         prompt = mock_model.generate.call_args[0][0]  # First argument (prompt)
         
         # Should include context information
-        assert "Windows 10" in prompt
+        assert "Windows" in prompt  # System info from get_system_info()
         assert "previous command" in prompt
         assert "user_preference" in prompt
         

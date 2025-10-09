@@ -144,18 +144,22 @@ def translate_with_openrouter(prompt: str, context_provider: Optional[ContextPro
         # Add the current prompt as a user message
         context_messages.append({"role": "user", "content": prompt})
         
-        # Use the enhanced context-aware translation
-        return translate_command_with_openrouter_context_aware(context_messages)
+        # Use the enhanced context-aware translation with system info from context provider
+        system_info = context_provider.system_info if context_provider.system_info else None
+        return translate_command_with_openrouter_context_aware(context_messages, system_info)
     
     # Fallback to original implementation
     return openrouter_translate(prompt)
 
 
-def translate_command_with_openrouter_context_aware(messages: List[Dict[str, str]]) -> Optional[Dict[str, str]]:
+def translate_command_with_openrouter_context_aware(messages: List[Dict[str, str]], system_info: Optional[str] = None) -> Optional[Dict[str, str]]:
     """Translate using OpenRouter API with context awareness."""
     from opencli.models.openrouter import chat_completion
     
-    system_info = get_system_info()
+    # Use provided system_info or get it from the system
+    if system_info is None:
+        system_info = get_system_info()
+    
     system_prompt = f"""You are a CLI assistant that translates natural language to shell commands.
 The user is on a {system_info} system. Generate appropriate commands for this platform.
 You have access to conversation history and user preferences to provide better responses.
@@ -170,6 +174,8 @@ User request:"""
     
     # Add context messages, but make sure we don't duplicate system messages
     for msg in messages:
+        # Skip system messages that contain example responses to avoid duplication
+        # But keep system information messages as they contain valuable context
         if msg["role"] != "system" or "Example response" not in msg["content"]:
             full_messages.append(msg)
     
@@ -210,7 +216,9 @@ def translate_with_local_model(prompt: str, context_provider: Optional[ContextPr
         context_messages = context_provider.get_relevant_context(prompt)
         context_str = "\nConversation History:\n"
         for msg in context_messages:
-            context_str += f"{msg['role']}: {msg['content']}\n"
+            # Skip system messages that contain system information to avoid duplication
+            if msg["role"] != "system" or "System Information:" not in msg["content"]:
+                context_str += f"{msg['role']}: {msg['content']}\n"
         
         memory_entries = context_provider.memory_store.kv
         if memory_entries:
@@ -261,11 +269,6 @@ User request:"""
         
         logger.info(f"Cleaned response: {response}")
         
-        # Handle echo model response
-        if response.startswith("Echo:"):
-            # This is the echo model, try to generate a reasonable response
-            return generate_echo_response(prompt, system_info)
-        
         data = json.loads(response)
         command = data.get("command", "").strip()
         explanation = data.get("explanation", "").strip()
@@ -274,36 +277,5 @@ User request:"""
             return Translation(command=command, explanation=explanation)
     except (json.JSONDecodeError, Exception) as e:
         logger.warning(f"Local model translation failed: {e}")
-        # Try to generate a reasonable response as fallback
-        return generate_echo_response(prompt, get_system_info())
-    
-    return None
-
-
-def generate_echo_response(prompt: str, system_info: str) -> Optional[Translation]:
-    """Generate a reasonable response when the model fails."""
-    prompt_lower = prompt.lower()
-    
-    # Simple pattern matching for echo model fallback
-    if "display" in prompt_lower and ("readme" in prompt_lower or "file" in prompt_lower):
-        if system_info == "Windows":
-            return Translation(command="type readme.md", explanation="Display the content of readme.md file")
-        else:
-            return Translation(command="cat readme.md", explanation="Display the content of readme.md file")
-    elif "show" in prompt_lower and "content" in prompt_lower and "readme" in prompt_lower:
-        if system_info == "Windows":
-            return Translation(command="type README.md", explanation="Display the content of README.md file")
-        else:
-            return Translation(command="cat README.md", explanation="Display the content of README.md file")
-    elif "list" in prompt_lower and "files" in prompt_lower:
-        if system_info == "Windows":
-            return Translation(command="dir", explanation="List all files in current directory")
-        else:
-            return Translation(command="ls -la", explanation="List all files in current directory")
-    elif "current" in prompt_lower and "directory" in prompt_lower:
-        if system_info == "Windows":
-            return Translation(command="cd", explanation="Show current directory")
-        else:
-            return Translation(command="pwd", explanation="Show current directory")
     
     return None

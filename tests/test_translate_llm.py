@@ -3,7 +3,7 @@ import platform
 import builtins
 from unittest.mock import patch, MagicMock
 
-from opencli.core.translate import translate_to_command, translate_with_openrouter, translate_with_local_model, get_system_info, adapt_command_for_windows, generate_echo_response
+from opencli.core.translate import translate_to_command, translate_with_openrouter, translate_with_local_model, get_system_info, adapt_command_for_windows
 from opencli.models.llm_interface import LLM
 
 
@@ -117,31 +117,3 @@ def test_adapt_command_for_windows():
     # Test command that doesn't need adaptation
     assert adapt_command_for_windows("git status") == "git status"
 
-
-def test_generate_echo_response():
-    """Test echo response generation."""
-    system_info = get_system_info()
-    
-    # Test readme file display
-    result = generate_echo_response("display the content of readme.md file", system_info)
-    assert result is not None
-    if system_info == "Windows":
-        assert result.command == "type readme.md"
-    else:
-        assert result.command == "cat readme.md"
-    
-    # Test file listing
-    result = generate_echo_response("list all files", system_info)
-    assert result is not None
-    if system_info == "Windows":
-        assert result.command == "dir"
-    else:
-        assert result.command == "ls -la"
-    
-    # Test current directory
-    result = generate_echo_response("show current directory", system_info)
-    assert result is not None
-    if system_info == "Windows":
-        assert result.command == "cd"
-    else:
-        assert result.command == "pwd"
