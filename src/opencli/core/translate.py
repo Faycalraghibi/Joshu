@@ -10,6 +10,7 @@ from typing import List, Optional, Tuple, Dict
 from opencli.models.openrouter import translate_command_with_openrouter
 from opencli.models.inference import get_model
 from opencli.core.context_provider import ContextProvider
+from opencli.tools.system_info import get_system_info
 
 logger = logging.getLogger(__name__)
 
@@ -40,20 +41,79 @@ COMMON_PATTERNS: List[Tuple[re.Pattern[str], str, str]] = [
         'find . -name "*.py"',
         "Find all Python files recursively from the current directory.",
     ),
+    (
+        re.compile(r"(show|tell|what|give|provide)(\s+is)?\s+(me\s+)?(the\s+)?(conversation\s+)?(history|memory|context)\b", re.I),
+        'echo "Use the memory summary feature"',
+        "Provide a summary of the conversation history and memory.",
+    ),
 ]
 
 
-def get_system_info() -> str:
-    """Get information about the current system for command generation."""
-    system = platform.system()
-    if system == "Windows":
-        return "Windows"
-    elif system == "Darwin":
-        return "macOS"
-    elif system == "Linux":
-        return "Linux"
-    else:
-        return f"Unix-like ({system})"
+
+
+
+def generate_memory_summary_with_llm(context_provider: ContextProvider, prompt: str) -> Optional[Translation]:
+    """Generate a memory summary using the LLM."""
+    try:
+        # Get context summary from the context provider
+        context_summary = context_provider.generate_memory_summary()
+        
+        # Create a prompt for the LLM to summarize the context
+        summary_prompt = f"""You are a helpful assistant that summarizes conversation history and memory.
+        
+The user is asking for a summary of the conversation history and memory. Here's what we have:
+
+{context_summary}
+
+Please provide a natural, conversational summary of what we've discussed and what we know. Be concise but informative."""
+        
+        # Try to use OpenRouter first
+        from opencli.models.openrouter import chat_completion
+        messages = [
+            {"role": "system", "content": "You are a helpful assistant that summarizes conversation history and memory."},
+            {"role": "user", "content": summary_prompt}
+        ]
+        
+        response = chat_completion(messages, temperature=0.3, max_tokens=500)
+        if response:
+            # Handle echo model response
+            if response.startswith("Echo:"):
+                # Use the context summary directly
+                return Translation(
+                    command=f"echo \"\"\"{context_summary}\"\"\"", 
+                    explanation="Displaying conversation history and memory summary"
+                )
+            # Return a command that will display the summary
+            return Translation(
+                command=f"echo \"\"\"{response}\"\"\"", 
+                explanation="Displaying conversation history and memory summary"
+            )
+        
+        # Fallback to local model
+        model = get_model("default")
+        if model:
+            response = model.generate(summary_prompt)
+            if response:
+                # Handle echo model response
+                if response.startswith("Echo:"):
+                    # Use the context summary directly
+                    return Translation(
+                        command=f"echo \"\"\"{context_summary}\"\"\"", 
+                        explanation="Displaying conversation history and memory summary"
+                    )
+                return Translation(
+                    command=f"echo \"\"\"{response}\"\"\"", 
+                    explanation="Displaying conversation history and memory summary"
+                )
+    except Exception as e:
+        logger.warning(f"Failed to generate memory summary with LLM: {e}")
+    
+    # Fallback to simple context summary
+    context_summary = context_provider.generate_memory_summary()
+    return Translation(
+        command=f"echo \"\"\"{context_summary}\"\"\"", 
+        explanation="Displaying conversation history and memory summary"
+    )
 
 
 def translate_to_command(prompt: str, context_provider: Optional[ContextProvider] = None) -> Optional[Translation]:
@@ -64,14 +124,31 @@ def translate_to_command(prompt: str, context_provider: Optional[ContextProvider
         m = pattern.search(text)
         if not m:
             continue
+        
+        # Special handling for memory/history requests
+        if re.search(r"(show|tell|what|give|provide)(\s+is)?\s+(me\s+)?(the\s+)?(conversation\s+)?(history|memory|context)\b", text, re.I):
+            if context_provider:
+                # Generate memory summary using LLM
+                return generate_memory_summary_with_llm(context_provider, prompt)
+            else:
+                command = template
+                if "{size}" in template and m.groups():
+                    size = m.group(1)
+                    command = template.format(size=size)
+                
+                # Adapt command for Windows if needed
+                if platform.system() == "Windows":
+                    command = adapt_command_for_windows(command)
+                    
+                return Translation(command=command, explanation=explanation)
+        
         command = template
         if "{size}" in template and m.groups():
             size = m.group(1)
             command = template.format(size=size)
         
         # Adapt command for Windows if needed
-        if platform.system() == "Windows":
-            command = adapt_command_for_windows(command)
+        command = adapt_command_for_windows(command)
             
         return Translation(command=command, explanation=explanation)
     
@@ -79,8 +156,17 @@ def translate_to_command(prompt: str, context_provider: Optional[ContextProvider
     return translate_with_llm(prompt, context_provider)
 
 
-def adapt_command_for_windows(command: str) -> str:
+def adapt_command_for_windows(command: str, system_info: Optional[str] = None) -> str:
     """Adapt Unix commands for Windows."""
+    # If system_info is not provided, detect it
+    if system_info is None:
+        from opencli.tools.system_info import get_system_info
+        system_info = get_system_info()
+    
+    # If we're not on Windows, no adaptation is needed
+    if "Windows" not in system_info:
+        return command
+    
     # Common Unix to Windows command mappings
     if command.startswith("ls"):
         return command.replace("ls", "dir")
@@ -110,8 +196,7 @@ def translate_with_llm(prompt: str, context_provider: Optional[ContextProvider] 
         if translation:
             command = translation["command"]
             # Adapt command for Windows if needed
-            if platform.system() == "Windows":
-                command = adapt_command_for_windows(command)
+            command = adapt_command_for_windows(command)
             return Translation(command=command, explanation=translation["explanation"])
             
         # Fallback to local model
@@ -119,8 +204,7 @@ def translate_with_llm(prompt: str, context_provider: Optional[ContextProvider] 
         if translation:
             command = translation.command
             # Adapt command for Windows if needed
-            if platform.system() == "Windows":
-                command = adapt_command_for_windows(command)
+            command = adapt_command_for_windows(command)
             return Translation(command=command, explanation=translation.explanation)
             
     except Exception as e:

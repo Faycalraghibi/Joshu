@@ -51,8 +51,8 @@ def main_callback(
     context_provider = ContextProvider()
     
     # Set system information
-    import platform
-    system_info = f"{platform.system()} {platform.release()}"
+    from opencli.tools.system_info import get_detailed_system_info
+    system_info = get_detailed_system_info()
     context_provider.set_system_info(system_info)
     
     print_banner(_current_model)

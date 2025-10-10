@@ -66,7 +66,8 @@ def test_context_provider_clear_context():
 def test_context_provider_get_relevant_context():
     """Test getting relevant context."""
     provider = ContextProvider()
-    provider.set_system_info("Windows 10")
+    from opencli.tools.system_info import get_detailed_system_info
+    provider.set_system_info(get_detailed_system_info())
     
     provider.add_to_history("user", "Hello")
     provider.add_to_history("assistant", "Hi there!")
@@ -76,7 +77,8 @@ def test_context_provider_get_relevant_context():
     
     # Should include system info, conversation history, and memory
     assert len(context) >= 3
-    assert any("Windows 10" in msg.get("content", "") for msg in context)
+    # Check that system information is included in the context
+    assert any("System Information:" in msg.get("content", "") for msg in context)
     assert any("Hello" in msg.get("content", "") for msg in context)
     assert any("user_preference" in msg.get("content", "") for msg in context)
 

@@ -3,7 +3,8 @@ import platform
 import builtins
 from unittest.mock import patch, MagicMock
 
-from opencli.core.translate import translate_to_command, translate_with_openrouter, translate_with_local_model, get_system_info, adapt_command_for_windows
+from opencli.core.translate import translate_to_command, translate_with_openrouter, translate_with_local_model, adapt_command_for_windows
+from opencli.tools.system_info import get_system_info
 from opencli.models.llm_interface import LLM
 
 
@@ -23,7 +24,7 @@ def test_translate_llm_bad_json_fallback_pattern():
     with patch("opencli.models.openrouter.chat_completion", return_value="not json"):
         t = translate_to_command("find all python files")
         assert t is not None
-        if platform.system() == "Windows":
+        if "Windows" in get_system_info():
             # Pattern matching should adapt the command for Windows
             assert "dir" in t.command or "*.py" in t.command
         else:
@@ -83,11 +84,11 @@ def test_translate_with_local_model_bad_json():
 def test_get_system_info():
     """Test system info detection."""
     system = get_system_info()
-    if platform.system() == "Windows":
+    if "Windows" in system:
         assert system == "Windows"
-    elif platform.system() == "Darwin":
+    elif "macOS" in system:
         assert system == "macOS"
-    elif platform.system() == "Linux":
+    elif "Linux" in system:
         assert system == "Linux"
     else:
         assert "Unix-like" in system

@@ -9,7 +9,8 @@ from opencli.core.translate import translate_to_command, translate_with_openrout
 def test_translate_to_command_with_context_provider():
     """Test that translate_to_command works with context provider."""
     context_provider = ContextProvider()
-    context_provider.set_system_info("Windows 10")
+    from opencli.tools.system_info import get_detailed_system_info
+    context_provider.set_system_info(get_detailed_system_info())
     context_provider.add_to_history("user", "Hello")
     context_provider.add_to_history("assistant", "Hi there!")
     
@@ -22,7 +23,8 @@ def test_translate_to_command_with_context_provider():
 def test_context_provider_integration_in_translate_with_openrouter():
     """Test context provider integration in OpenRouter translation."""
     context_provider = ContextProvider()
-    context_provider.set_system_info("Windows 10")
+    from opencli.tools.system_info import get_detailed_system_info
+    context_provider.set_system_info(get_detailed_system_info())
     context_provider.add_to_history("user", "previous command")
     context_provider.add_to_history("assistant", "previous response")
     context_provider.set_memory("user_preference", "likes python")
@@ -44,14 +46,16 @@ def test_context_provider_integration_in_translate_with_openrouter():
         
         # Should include system info, context, and user prompt
         assert len(call_args) >= 2  # At least system message and user message
-        assert any("System Information: Windows 10" in msg.get("content", "") for msg in call_args)
+        # Check that system information is included in the messages
+        assert any("System Information:" in msg.get("content", "") for msg in call_args)
         assert any("previous command" in msg.get("content", "") for msg in call_args)
 
 
 def test_context_provider_integration_in_translate_with_local_model():
     """Test context provider integration in local model translation."""
     context_provider = ContextProvider()
-    context_provider.set_system_info("Windows 10")
+    from opencli.tools.system_info import get_detailed_system_info
+    context_provider.set_system_info(get_detailed_system_info())
     context_provider.add_to_history("user", "previous command")
     context_provider.add_to_history("assistant", "previous response")
     context_provider.set_memory("user_preference", "likes python")

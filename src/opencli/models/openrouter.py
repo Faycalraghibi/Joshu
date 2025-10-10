@@ -7,20 +7,11 @@ import platform
 from typing import Any, Dict, List, Optional
 
 from openai import OpenAI
+from opencli.tools.system_info import get_system_info
 
 logger = logging.getLogger(__name__)
 
-def get_system_info() -> str:
-    """Get information about the current system for command generation."""
-    system = platform.system()
-    if system == "Windows":
-        return "Windows"
-    elif system == "Darwin":
-        return "macOS"
-    elif system == "Linux":
-        return "Linux"
-    else:
-        return f"Unix-like ({system})"
+
 
 
 def get_openrouter_client() -> Optional[OpenAI]:

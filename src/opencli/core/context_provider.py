@@ -207,3 +207,35 @@ class ContextProvider:
             "system_info": self.system_info,
             "recent_history": self.conversation_context.messages[-5:] if self.conversation_context.messages else []
         }
+    
+    def generate_memory_summary(self) -> str:
+        """
+        Generate a human-readable summary of the conversation history and memory.
+        
+        Returns:
+            String summary of the context
+        """
+        summary_parts = []
+        
+        # Add system information
+        if self.system_info:
+            summary_parts.append(f"System: {self.system_info}")
+        
+        # Add conversation history summary
+        if self.conversation_context.messages:
+            summary_parts.append(f"Conversation history ({len(self.conversation_context.messages)} interactions):")
+            # Show last 5 interactions
+            for msg in self.conversation_context.messages[-5:]:
+                summary_parts.append(f"  {msg['role'].title()}: {msg['content'][:100]}{'...' if len(msg['content']) > 100 else ''}")
+        else:
+            summary_parts.append("No conversation history.")
+        
+        # Add memory entries
+        if self.memory_store.kv:
+            summary_parts.append(f"Memory entries ({len(self.memory_store.kv)} items):")
+            for key, value in self.memory_store.kv.items():
+                summary_parts.append(f"  {key}: {value[:100]}{'...' if len(value) > 100 else ''}")
+        else:
+            summary_parts.append("No memory entries.")
+        
+        return "\n".join(summary_parts)
