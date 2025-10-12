@@ -2,7 +2,15 @@ import unittest
 import tempfile
 import os
 from pathlib import Path
+from unittest.mock import patch, MagicMock
+import io
+import sys
+
+# Add src to path so we can import opencli modules
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+
 from opencli.core.config import ConfigManager, OpenCLIConfig, get_config_manager
+from opencli.ui.cli import app
 
 
 class TestConfig(unittest.TestCase):
@@ -12,6 +20,10 @@ class TestConfig(unittest.TestCase):
         # Create a temporary directory for test config
         self.test_dir = tempfile.mkdtemp()
         self.test_config_path = Path(self.test_dir) / "config.yaml"
+        
+        # Capture stdout/stderr for testing
+        self.stdout = io.StringIO()
+        self.stderr = io.StringIO()
     
     def tearDown(self):
         """Clean up test fixtures."""
@@ -121,6 +133,246 @@ class TestConfig(unittest.TestCase):
         config_manager1 = get_config_manager()
         config_manager2 = get_config_manager()
         self.assertIs(config_manager1, config_manager2)
+    
+    # CLI Command Tests
+    def test_config_list_command(self):
+        """Test the config --list command."""
+        # Capture output
+        with patch('sys.stdout', self.stdout), patch('sys.stderr', self.stderr):
+            try:
+                app(['config', '--list'], standalone_mode=False)
+            except SystemExit:
+                pass  # Typer raises SystemExit, which is expected
+        
+        output = self.stdout.getvalue()
+        # Check that output contains expected configuration keys
+        self.assertIn("Current Configuration:", output)
+        self.assertIn("model:", output)
+        self.assertIn("safety_mode:", output)
+        self.assertIn("auto_execute:", output)
+    
+    def test_config_get_command(self):
+        """Test the config --get command."""
+        # Capture output
+        with patch('sys.stdout', self.stdout), patch('sys.stderr', self.stderr):
+            try:
+                app(['config', '--get', 'model'], standalone_mode=False)
+            except SystemExit:
+                pass  # Typer raises SystemExit, which is expected
+        
+        output = self.stdout.getvalue()
+        # Check that output contains the model value
+        self.assertIn("model:", output)
+        self.assertIn("llama-3-8b", output)
+    
+    def test_config_get_nonexistent_key(self):
+        """Test the config --get command with nonexistent key."""
+        # Capture output
+        with patch('sys.stdout', self.stdout), patch('sys.stderr', self.stderr):
+            try:
+                app(['config', '--get', 'nonexistent'], standalone_mode=False)
+            except SystemExit:
+                pass  # Typer raises SystemExit, which is expected
+        
+        output = self.stdout.getvalue()
+        # Check that output contains warning about nonexistent key
+        self.assertIn("Configuration key 'nonexistent' not found", output)
+    
+    def test_config_set_command(self):
+        """Test the config --set command."""
+        # Capture output
+        with patch('sys.stdout', self.stdout), patch('sys.stderr', self.stderr):
+            try:
+                app(['config', '--set', 'temperature=0.5'], standalone_mode=False)
+            except SystemExit:
+                pass  # Typer raises SystemExit, which is expected
+        
+        output = self.stdout.getvalue()
+        # Check that output confirms the setting
+        self.assertIn("Set temperature = 0.5", output)
+        
+        # Verify the value was actually set by getting it
+        stdout_get = io.StringIO()
+        with patch('sys.stdout', stdout_get), patch('sys.stderr', self.stderr):
+            try:
+                app(['config', '--get', 'temperature'], standalone_mode=False)
+            except SystemExit:
+                pass  # Typer raises SystemExit, which is expected
+        
+        output_get = stdout_get.getvalue()
+        self.assertIn("temperature: 0.5", output_get)
+    
+    def test_config_set_invalid_format(self):
+        """Test the config --set command with invalid format."""
+        # Capture output
+        with patch('sys.stdout', self.stdout), patch('sys.stderr', self.stderr):
+            try:
+                app(['config', '--set', 'invalidformat'], standalone_mode=False)
+            except SystemExit as e:
+                self.assertEqual(e.code, 1)  # Should exit with code 1
+                pass  # Typer raises SystemExit, which is expected
+        
+        output = self.stdout.getvalue()  # Error message goes to stdout, not stderr
+        # Check that output contains error message
+        self.assertIn("Invalid format", output)
+    
+    def test_config_reset_command(self):
+        """Test the config --reset command."""
+        # First set a value
+        with patch('sys.stdout', io.StringIO()), patch('sys.stderr', io.StringIO()):
+            try:
+                app(['config', '--set', 'temperature=0.8'], standalone_mode=False)
+            except SystemExit:
+                pass  # Typer raises SystemExit, which is expected
+        
+        # Then reset
+        with patch('sys.stdout', self.stdout), patch('sys.stderr', self.stderr):
+            try:
+                app(['config', '--reset'], standalone_mode=False)
+            except SystemExit:
+                pass  # Typer raises SystemExit, which is expected
+        
+        output = self.stdout.getvalue()
+        # Check that output confirms reset
+        self.assertIn("Configuration reset to defaults", output)
+        
+        # Verify the value was reset by getting it
+        stdout_get = io.StringIO()
+        with patch('sys.stdout', stdout_get), patch('sys.stderr', self.stderr):
+            try:
+                app(['config', '--get', 'temperature'], standalone_mode=False)
+            except SystemExit:
+                pass  # Typer raises SystemExit, which is expected
+        
+        output_get = stdout_get.getvalue()
+        self.assertIn("temperature: 0.1", output_get)  # Default value
+    
+    def test_config_edit_command_success(self):
+        """Test the config --edit command when editor is available."""
+        # Mock subprocess.run to simulate successful editor launch
+        with patch('subprocess.run') as mock_run, \
+             patch('sys.stdout', self.stdout), \
+             patch('sys.stderr', self.stderr):
+            mock_run.return_value = MagicMock(returncode=0)
+            try:
+                app(['config', '--edit'], standalone_mode=False)
+            except SystemExit:
+                pass  # Typer raises SystemExit, which is expected
+        
+        output = self.stdout.getvalue()
+        # Check that output confirms edit
+        self.assertIn("Configuration file edited and reloaded", output)
+    
+    def test_config_edit_command_failure(self):
+        """Test the config --edit command when editor is not available."""
+        # Mock subprocess.run to simulate editor failure
+        with patch('subprocess.run') as mock_run, \
+             patch('sys.stdout', self.stdout), \
+             patch('sys.stderr', self.stderr):
+            mock_run.side_effect = Exception("Editor not found")
+            try:
+                app(['config', '--edit'], standalone_mode=False)
+            except SystemExit:
+                pass  # Typer raises SystemExit, which is expected
+        
+        output = self.stdout.getvalue()
+        # Check that output shows error and manual edit suggestion
+        self.assertIn("Failed to open editor", output)
+        self.assertIn("You can manually edit", output)
+    
+    def test_config_no_options(self):
+        """Test the config command with no options."""
+        # Capture output
+        with patch('sys.stdout', self.stdout), patch('sys.stderr', self.stderr):
+            try:
+                app(['config'], standalone_mode=False)
+            except SystemExit:
+                pass  # Typer raises SystemExit, which is expected
+        
+        output = self.stdout.getvalue()
+        # Check that output shows help message
+        self.assertIn("OpenCLI Configuration Manager", output)
+        self.assertIn("Use --help for more information", output)
+    
+    def test_config_set_boolean_values(self):
+        """Test the config --set command with boolean values."""
+        test_cases = [
+            ('true', True),
+            ('True', True),
+            ('false', False),
+            ('False', False),
+        ]
+        
+        for input_val, expected in test_cases:
+            with self.subTest(input_val=input_val):
+                # Capture output
+                stdout = io.StringIO()
+                with patch('sys.stdout', stdout), patch('sys.stderr', self.stderr):
+                    try:
+                        app(['config', '--set', f'safety_mode={input_val}'], standalone_mode=False)
+                    except SystemExit:
+                        pass  # Typer raises SystemExit, which is expected
+                
+                output = stdout.getvalue()
+                # Check that output confirms the setting
+                self.assertIn(f"Set safety_mode = {expected}", output)
+                
+                # Verify the value was actually set by getting it
+                stdout_get = io.StringIO()
+                with patch('sys.stdout', stdout_get), patch('sys.stderr', self.stderr):
+                    try:
+                        app(['config', '--get', 'safety_mode'], standalone_mode=False)
+                    except SystemExit:
+                        pass  # Typer raises SystemExit, which is expected
+                
+                output_get = stdout_get.getvalue()
+                self.assertIn(f"safety_mode: {expected}", output_get)
+    
+    def test_config_set_numeric_values(self):
+        """Test the config --set command with numeric values."""
+        test_cases = [
+            ('4096', 4096),  # integer
+            ('0.8', 0.8),    # float
+        ]
+        
+        for input_val, expected in test_cases:
+            with self.subTest(input_val=input_val):
+                # Capture output
+                stdout = io.StringIO()
+                with patch('sys.stdout', stdout), patch('sys.stderr', self.stderr):
+                    try:
+                        app(['config', '--set', f'max_tokens={input_val}'], standalone_mode=False)
+                    except SystemExit:
+                        pass  # Typer raises SystemExit, which is expected
+                
+                output = stdout.getvalue()
+                # Check that output confirms the setting
+                self.assertIn(f"Set max_tokens = {expected}", output)
+                
+                # Verify the value was actually set by getting it
+                stdout_get = io.StringIO()
+                with patch('sys.stdout', stdout_get), patch('sys.stderr', self.stderr):
+                    try:
+                        app(['config', '--get', 'max_tokens'], standalone_mode=False)
+                    except SystemExit:
+                        pass  # Typer raises SystemExit, which is expected
+                
+                output_get = stdout_get.getvalue()
+                self.assertIn(f"max_tokens: {expected}", output_get)
+    
+    def test_config_set_invalid_key(self):
+        """Test the config --set command with invalid key."""
+        # Capture output
+        with patch('sys.stdout', self.stdout), patch('sys.stderr', self.stderr):
+            try:
+                app(['config', '--set', 'invalid_key=true'], standalone_mode=False)
+            except SystemExit as e:
+                self.assertEqual(e.code, 1)  # Should exit with code 1
+                pass  # Typer raises SystemExit, which is expected
+        
+        output = self.stdout.getvalue()
+        # Check that output contains error message
+        self.assertIn("Invalid configuration key: invalid_key", output)
 
 
 if __name__ == '__main__':

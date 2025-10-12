@@ -129,7 +129,12 @@ def config(
     if edit:
         # Open configuration file in editor
         config_path = config_manager.get_config_path()
-        editor = os.environ.get("EDITOR", "nano")  # Default to nano if EDITOR not set
+        # Use appropriate default editor based on OS
+        if os.name == 'nt':  # Windows
+            editor = os.environ.get("EDITOR", "notepad")
+        else:  # Unix-like systems
+            editor = os.environ.get("EDITOR", "nano")
+        
         try:
             import subprocess
             subprocess.run([editor, str(config_path)])
@@ -140,7 +145,7 @@ def config(
             console.print(f"[red]Failed to open editor: {e}[/red]")
             console.print(f"[yellow]You can manually edit: {config_path}[/yellow]")
         return
-    
+
     # If no options provided, show help
     console.print("[bold]OpenCLI Configuration Manager[/bold]")
     console.print("Use --help for more information.")
@@ -148,7 +153,7 @@ def config(
 
 @app.command()
 def run(
-    prompt: str = typer.Argument(..., help="Instruction or task to execute."),
+    prompt: str = typer.Argument(None, help="Instruction or task to execute."),
     interactive: bool = typer.Option(
         False, "--interactive", "-i", help="Start interactive chat mode."
     ),
@@ -176,9 +181,16 @@ def run(
     if not yes:
         yes = config_manager.get("auto_execute", False)
     
+    # Handle interactive mode
     if interactive:
         start_interactive_mode(model, sandbox)
         return
+    
+    # For non-interactive mode, prompt is required
+    if not prompt:
+        console.print("[red]Error: Prompt is required for non-interactive mode.[/red]")
+        console.print("[dim]Use --interactive or -i for interactive mode without a prompt.[/dim]")
+        raise typer.Exit(code=1)
 
     console.print(f"[bold]Prompt:[/bold] {prompt}")
     

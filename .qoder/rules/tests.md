@@ -1,3 +1,7 @@
+---
+trigger: always_on
+alwaysApply: true
+---
 # Project Rules Observed Throughout Development
 
 This document outlines all the technical constraints, specifications, and best practices that have been consistently followed throughout the development of the OpenCLI Assistant project from its inception to the current state.

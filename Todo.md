@@ -101,6 +101,9 @@ auto_execute: false
 max_tokens: 4096
 temperature: 0.1
 history_size: 100
+log_level: "INFO"
+memory_enabled: true
+sandbox_enabled: true
 ```
 
 **Features:**
