@@ -64,7 +64,7 @@ opencli --help
 
 The assistant supports multiple open-source models:
 
-``yaml
+```
 # config/models.yaml
 models:
   default: "llama-3-8b"
@@ -80,7 +80,7 @@ models:
 
 OpenCLI supports user-level configuration through a YAML file located at `~/.opencli/config.yaml`:
 
-``yaml
+```
 # ~/.opencli/config.yaml
 model: "llama-3-8b"
 safety_mode: true
@@ -128,7 +128,7 @@ opencli config --edit
 
 ### Environment Configuration
 
-``env
+```
 # .env file
 OPENCLI_MODEL=llama-3-8b
 OPENCLI_MEMORY_ENABLED=true
@@ -168,7 +168,7 @@ opencli "explain what this regex does: ^[a-zA-Z0-9+_.-]+@[a-zA-Z0-9.-]+$"
 
 ### Interactive Mode
 
-``bash
+```bash
 opencli --interactive
 
 > You: How do I set up a virtual environment?
@@ -187,7 +187,7 @@ opencli --interactive
 
 OpenCLI includes advanced safety features to protect against destructive commands:
 
-``bash
+```bash
 # Safety features in action
 opencli "delete all files in /home"
 → ⚠️  DANGER: This command could delete important files
@@ -198,6 +198,24 @@ opencli "delete all files in /home"
 opencli --sandbox "delete all files"
 → ⚠️  Sandbox mode: All destructive commands are blocked
 → Command execution prevented for safety
+```
+
+### Help and Documentation
+
+OpenCLI provides comprehensive help and documentation:
+
+```bash
+# Show usage examples
+opencli --examples
+
+# Show command categories
+opencli --commands
+
+# Show examples for a specific category
+opencli --commands file
+
+# Explain a specific command
+opencli --explain "tar"
 ```
 
 ### Advanced Workflows

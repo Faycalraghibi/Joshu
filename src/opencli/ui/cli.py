@@ -3,7 +3,8 @@ from __future__ import annotations
 import os
 import sys
 import logging
-from typing import Optional
+from pathlib import Path
+from typing import Optional, List
 
 import typer
 from rich.console import Console
@@ -15,12 +16,13 @@ from opencli.core.safety import assess_command_safety
 from opencli.tools.shell import run_command
 from opencli.core.context import ConversationContext
 from opencli.core.context_provider import ContextProvider
+from opencli.tools.code_editor import CodeEditor, CodeEdit
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = typer.Typer()
+app = typer.Typer(no_args_is_help=True)  # Show help when no args provided
 console = Console()
 
 # Global variables
@@ -63,6 +65,85 @@ def main_callback(
     context_provider.set_system_info(system_info)
     
     print_banner(_current_model)
+
+
+def execute_prompt(prompt: str) -> None:
+    """Execute a prompt directly."""
+    global _current_model, context_provider
+    
+    # Get configuration manager
+    from opencli.core.config import get_config_manager
+    config_manager = get_config_manager()
+    
+    # Get current model and settings
+    model = config_manager.get("model", "llama-3-8b")
+    sandbox = config_manager.get("sandbox_enabled", True)
+    auto_execute = config_manager.get("auto_execute", False)
+    
+    console.print(f"[bold]Prompt:[/bold] {prompt}")
+    
+    # Use context provider for translation with specified model
+    translation = translate_to_command(prompt, context_provider, model)
+    
+    if not translation:
+        console.print("[yellow]No translation found. Try rephrasing.[/yellow]")
+        raise typer.Exit(code=2)
+
+    console.print(f"[bold]Proposed command:[/bold] [cyan]{translation.command}[/cyan]")
+    console.print(f"[dim]{translation.explanation}[/dim]\n")
+    report = assess_command_safety(translation.command, sandbox)
+    
+    # Enhanced safety feedback
+    if not report.safe:
+        if report.danger_level == "CRITICAL":
+            console.print("[bold red]⚠️  DANGER: This command could cause serious damage[/bold red]")
+        elif report.danger_level == "HIGH":
+            console.print("[bold yellow]⚠️  WARNING: This command is potentially dangerous[/bold yellow]")
+        elif report.danger_level == "MEDIUM":
+            console.print("[yellow]⚠️  CAUTION: This command requires careful consideration[/yellow]")
+        else:
+            console.print("[yellow]⚠️  Command flagged for review[/yellow]")
+            
+        for r in report.reasons:
+            console.print(f" - {r}")
+        if report.suggested_alternative:
+            console.print(
+                f"[yellow]Suggested safer alternative:[/yellow] {report.suggested_alternative}"
+            )
+        raise typer.Exit(code=3)
+
+    # If auto_execute is enabled or user confirms, execute the command
+    if auto_execute:
+        console.print("[dim]Auto-executing command (auto_execute enabled in config)[/dim]")
+    else:
+        proceed = typer.confirm("Execute this command?", default=False)
+        if not proceed:
+            console.print("[dim]Cancelled.[/dim]\n")
+            raise typer.Exit()
+
+    code, out, err = run_command(translation.command)
+    if code == 0:
+        if out:
+            console.print(out)
+        console.print("[green]Done.[/green]")
+        
+        # Update context with successful execution
+        if context_provider:
+            context_provider.update_context_from_response(
+                prompt, 
+                f"Executed: {translation.command}\nOutput: {out[:100]}..."
+            )
+    else:
+        if err:
+            console.print(f"[red]{err}[/red]")
+        
+        # Update context with failed execution
+        if context_provider:
+            context_provider.update_context_from_response(
+                prompt, 
+                f"Failed to execute: {translation.command}\nError: {err[:100]}..."
+            )
+        raise typer.Exit(code=code)
 
 
 @app.command()
@@ -153,7 +234,7 @@ def config(
 
 @app.command()
 def run(
-    prompt: str = typer.Argument(None, help="Instruction or task to execute."),
+    prompt: Optional[str] = typer.Argument(None, help="Instruction or task to execute."),
     interactive: bool = typer.Option(
         False, "--interactive", "-i", help="Start interactive chat mode."
     ),
@@ -164,25 +245,21 @@ def run(
     """Execute a one-off prompt or start interactive mode."""
     global _current_model, context_provider
     
-    # Get configuration manager
-    from opencli.core.config import get_config_manager
-    config_manager = get_config_manager()
-    
-    # Use provided model or fall back to configured model
-    if model is None:
-        model = config_manager.get("model", "llama-3-8b")
-    _current_model = model
-    
-    # Use provided sandbox setting or fall back to configured setting
-    if sandbox is None:
-        sandbox = config_manager.get("sandbox_enabled", True)
-    
-    # Use configured auto_execute setting if --yes not provided
-    if not yes:
-        yes = config_manager.get("auto_execute", False)
-    
     # Handle interactive mode
     if interactive:
+        # Get configuration manager
+        from opencli.core.config import get_config_manager
+        config_manager = get_config_manager()
+        
+        # Use provided model or fall back to configured model
+        if model is None:
+            model = config_manager.get("model", "llama-3-8b")
+        _current_model = model
+        
+        # Use provided sandbox setting or fall back to configured setting
+        if sandbox is None:
+            sandbox = config_manager.get("sandbox_enabled", True)
+        
         start_interactive_mode(model, sandbox)
         return
     
@@ -191,18 +268,94 @@ def run(
         console.print("[red]Error: Prompt is required for non-interactive mode.[/red]")
         console.print("[dim]Use --interactive or -i for interactive mode without a prompt.[/dim]")
         raise typer.Exit(code=1)
+    
+    # Execute the prompt
+    execute_prompt(prompt)
 
-    console.print(f"[bold]Prompt:[/bold] {prompt}")
+
+@app.command()
+def history(
+    limit: int = typer.Option(10, "--limit", "-n", help="Number of history entries to show."),
+) -> None:
+    """Show command execution history."""
+    global context_provider
+    
+    # Initialize context provider if not already initialized
+    if context_provider is None:
+        context_provider = ContextProvider()
+    
+    # Get conversation history
+    history_messages = context_provider.conversation_context.messages
+    
+    if not history_messages:
+        console.print("[yellow]No history available.[/yellow]")
+        return
+    
+    # Filter to only show user commands (not assistant responses)
+    user_commands = [msg for msg in history_messages if msg["role"] == "user"]
+    
+    if not user_commands:
+        console.print("[yellow]No command history available.[/yellow]")
+        return
+    
+    # Limit to the requested number of entries
+    user_commands = user_commands[-limit:]
+    
+    console.print(f"[bold]Command History (last {len(user_commands)} entries):[/bold]")
+    for i, msg in enumerate(user_commands, 1):
+        console.print(f"  {i}. {msg['content']}")
+
+
+@app.command()
+def repeat_last() -> None:
+    """Repeat the last executed command."""
+    global context_provider, _current_model
+    
+    # Initialize context provider if not already initialized
+    if context_provider is None:
+        context_provider = ContextProvider()
+    
+    # Get configuration manager
+    from opencli.core.config import get_config_manager
+    config_manager = get_config_manager()
+    
+    # Get current model and sandbox settings
+    model = config_manager.get("model", "llama-3-8b")
+    sandbox = config_manager.get("sandbox_enabled", True)
+    auto_execute = config_manager.get("auto_execute", False)
+    
+    # Get conversation history
+    history_messages = context_provider.conversation_context.messages
+    
+    if not history_messages:
+        console.print("[yellow]No history available to repeat.[/yellow]")
+        raise typer.Exit(code=1)
+    
+    # Find the last user command
+    last_command = None
+    for msg in reversed(history_messages):
+        if msg["role"] == "user":
+            last_command = msg["content"]
+            break
+    
+    if not last_command:
+        console.print("[yellow]No previous command found to repeat.[/yellow]")
+        raise typer.Exit(code=1)
+    
+    console.print(f"[bold]Repeating last command:[/bold] {last_command}")
     
     # Use context provider for translation with specified model
-    translation = translate_to_command(prompt, context_provider, model)
+    from opencli.core.translate import translate_to_command
+    translation = translate_to_command(last_command, context_provider, model)
     
     if not translation:
-        console.print("[yellow]No translation found. Try rephrasing.[/yellow]")
+        console.print("[yellow]No translation found for the last command.[/yellow]")
         raise typer.Exit(code=2)
 
     console.print(f"[bold]Proposed command:[/bold] [cyan]{translation.command}[/cyan]")
     console.print(f"[dim]{translation.explanation}[/dim]\n")
+    
+    from opencli.core.safety import assess_command_safety
     report = assess_command_safety(translation.command, sandbox)
     
     # Enhanced safety feedback
@@ -225,7 +378,7 @@ def run(
         raise typer.Exit(code=3)
 
     # If auto_execute is enabled or user confirms, execute the command
-    if yes:
+    if auto_execute:
         console.print("[dim]Auto-executing command (auto_execute enabled in config)[/dim]")
     else:
         proceed = typer.confirm("Execute this command?", default=False)
@@ -233,6 +386,7 @@ def run(
             console.print("[dim]Cancelled.[/dim]\n")
             raise typer.Exit()
 
+    from opencli.tools.shell import run_command
     code, out, err = run_command(translation.command)
     if code == 0:
         if out:
@@ -242,7 +396,7 @@ def run(
         # Update context with successful execution
         if context_provider:
             context_provider.update_context_from_response(
-                prompt, 
+                last_command, 
                 f"Executed: {translation.command}\nOutput: {out[:100]}..."
             )
     else:
@@ -252,10 +406,530 @@ def run(
         # Update context with failed execution
         if context_provider:
             context_provider.update_context_from_response(
-                prompt, 
+                last_command, 
                 f"Failed to execute: {translation.command}\nError: {err[:100]}..."
             )
         raise typer.Exit(code=code)
+
+
+@app.command()
+def explain_last() -> None:
+    """Explain the last executed command."""
+    global context_provider, _current_model
+    
+    # Initialize context provider if not already initialized
+    if context_provider is None:
+        context_provider = ContextProvider()
+    
+    # Get configuration manager
+    from opencli.core.config import get_config_manager
+    config_manager = get_config_manager()
+    
+    # Get current model
+    model = config_manager.get("model", "llama-3-8b")
+    
+    # Get conversation history
+    history_messages = context_provider.conversation_context.messages
+    
+    if not history_messages:
+        console.print("[yellow]No history available to explain.[/yellow]")
+        raise typer.Exit(code=1)
+    
+    # Find the last user-assistant interaction
+    last_user_command = None
+    last_assistant_response = None
+    
+    # Iterate through messages in reverse to find the last interaction
+    for i in range(len(history_messages) - 1, -1, -1):
+        msg = history_messages[i]
+        if msg["role"] == "assistant" and not last_assistant_response:
+            last_assistant_response = msg["content"]
+        elif msg["role"] == "user" and not last_user_command:
+            last_user_command = msg["content"]
+        
+        # If we found both, we can break
+        if last_user_command and last_assistant_response:
+            break
+    
+    if not last_user_command or not last_assistant_response:
+        console.print("[yellow]No complete command history found to explain.[/yellow]")
+        raise typer.Exit(code=1)
+    
+    console.print(f"[bold]Last Command:[/bold] {last_user_command}")
+    console.print(f"[bold]Explanation:[/bold] {last_assistant_response}")
+
+
+@app.command()
+def examples() -> None:
+    """Show usage examples for OpenCLI."""
+    console.print("[bold]OpenCLI Usage Examples[/bold]\n")
+    
+    console.print("[cyan]Basic Commands:[/cyan]")
+    console.print("  opencli \"list all python files modified in the last week\"")
+    console.print("  opencli \"create a backup of my project directory\"")
+    console.print("  opencli \"show me memory usage of running processes\"\n")
+    
+    console.print("[cyan]File System Intelligence:[/cyan]")
+    console.print("  opencli \"show me the structure of this project\"")
+    console.print("  opencli \"find configuration files\"")
+    console.print("  opencli \"what's in the log directory?\"")
+    console.print("  opencli \"backup my source code\"\n")
+    
+    console.print("[cyan]Code Generation:[/cyan]")
+    console.print("  opencli \"write a python function to parse CSV files\"")
+    console.print("  opencli \"debug this bash script: ./deploy.sh\"")
+    console.print("  opencli \"explain what this regex does: ^[a-zA-Z0-9+_.-]+@[a-zA-Z0-9.-]+$\"\n")
+    
+    console.print("[cyan]Interactive Mode:[/cyan]")
+    console.print("  opencli --interactive\n")
+    
+    console.print("[cyan]Safety Features:[/cyan]")
+    console.print("  opencli \"delete all files in /home\"  # Will be blocked for safety")
+    console.print("  opencli --sandbox \"delete all files\"  # Sandbox mode for testing\n")
+    
+    console.print("[cyan]Configuration:[/cyan]")
+    console.print("  opencli config --list")
+    console.print("  opencli config --set auto_execute=true")
+    console.print("  opencli config --edit\n")
+
+
+@app.command()
+def commands(
+    category: str = typer.Argument(None, help="Category of commands to show (e.g., file, system, network)")
+) -> None:
+    """Show available command categories and examples."""
+    console.print("[bold]OpenCLI Command Categories[/bold]\n")
+    
+    if category is None:
+        # Show all categories
+        console.print("[cyan]Available Categories:[/cyan]")
+        console.print("  file      - File system operations")
+        console.print("  system    - System information and management")
+        console.print("  network   - Network operations")
+        console.print("  process   - Process management")
+        console.print("  security  - Security-related commands")
+        console.print("  git       - Git version control")
+        console.print("  docker    - Docker container management")
+        console.print("\nUse 'opencli --commands [category]' to see examples for a specific category.\n")
+        return
+    
+    category = category.lower()
+    
+    if category == "file":
+        console.print("[bold]File System Commands:[/bold]")
+        console.print("  List files:                    opencli \"list all files in current directory\"")
+        console.print("  Find files:                    opencli \"find all python files\"")
+        console.print("  Show directory structure:      opencli \"show me the structure of this project\"")
+        console.print("  Check disk usage:              opencli \"show disk usage of current directory\"")
+        console.print("  Find large files:              opencli \"find large files over 100MB\"")
+        console.print("  Backup files:                  opencli \"backup my source code\"")
+    elif category == "system":
+        console.print("[bold]System Commands:[/bold]")
+        console.print("  System information:            opencli \"show system information\"")
+        console.print("  Memory usage:                  opencli \"show memory usage\"")
+        console.print("  CPU information:               opencli \"show CPU information\"")
+        console.print("  Network interfaces:            opencli \"list network interfaces\"")
+        console.print("  Running processes:             opencli \"show running processes\"")
+    elif category == "network":
+        console.print("[bold]Network Commands:[/bold]")
+        console.print("  Check connectivity:            opencli \"check if google.com is reachable\"")
+        console.print("  Port scanning:                 opencli \"scan open ports on localhost\"")
+        console.print("  Download file:                 opencli \"download https://example.com/file.txt\"")
+        console.print("  Check IP address:              opencli \"what is my IP address\"")
+    elif category == "process":
+        console.print("[bold]Process Management Commands:[/bold]")
+        console.print("  List processes:                opencli \"show running processes\"")
+        console.print("  Kill process:                  opencli \"kill process named python\"")
+        console.print("  Monitor process:               opencli \"monitor process with PID 1234\"")
+    elif category == "security":
+        console.print("[bold]Security Commands:[/bold]")
+        console.print("  Check file permissions:        opencli \"check permissions of config.yaml\"")
+        console.print("  Generate password:             opencli \"generate a secure password\"")
+        console.print("  Check open ports:              opencli \"list open network ports\"")
+    elif category == "git":
+        console.print("[bold]Git Commands:[/bold]")
+        console.print("  Git status:                    opencli \"show git status\"")
+        console.print("  Git commit:                    opencli \"commit changes with message 'Update README'\"")
+        console.print("  Git push:                      opencli \"push changes to remote repository\"")
+        console.print("  Git branch:                    opencli \"create new branch feature/new-feature\"")
+    elif category == "docker":
+        console.print("[bold]Docker Commands:[/bold]")
+        console.print("  List containers:               opencli \"list running docker containers\"")
+        console.print("  Start container:               opencli \"start container named my-app\"")
+        console.print("  Stop container:                opencli \"stop container with ID abc123\"")
+        console.print("  Build image:                   opencli \"build docker image from Dockerfile\"")
+    else:
+        console.print(f"[yellow]Unknown category: {category}[/yellow]")
+        console.print("[cyan]Available Categories:[/cyan]")
+        console.print("  file, system, network, process, security, git, docker")
+
+
+@app.command()
+def explain(
+    command: str = typer.Argument(..., help="Command or topic to explain")
+) -> None:
+    """Explain a specific command or topic."""
+    # Get configuration manager
+    from opencli.core.config import get_config_manager
+    config_manager = get_config_manager()
+    
+    # Get current model
+    model = config_manager.get("model", "llama-3-8b")
+    
+    # Use context provider if available
+    global context_provider
+    
+    # Create a prompt to explain the command
+    prompt = f"Explain the '{command}' command in a clear and concise way. Include common usage examples and important options."
+    
+    # Use the translation system to get an explanation
+    from opencli.core.translate import translate_to_command
+    translation = translate_to_command(prompt, context_provider, model)
+    
+    if translation and translation.command.startswith("echo"):
+        # Extract the explanation from the echo command
+        import re
+        match = re.search(r'echo\s+["\']{3}(.*?)["\']{3}', translation.command, re.DOTALL)
+        if match:
+            explanation = match.group(1)
+            console.print(f"[bold]Explanation of '{command}':[/bold]\n{explanation}")
+            return
+    
+    # Fallback to a direct explanation
+    explanations = {
+        "tar": "The tar command is used to create and manipulate tar archives. Common usage:\n"
+               "  tar -czf archive.tar.gz directory/    # Create compressed archive\n"
+               "  tar -xzf archive.tar.gz               # Extract compressed archive\n"
+               "  tar -tf archive.tar.gz                # List contents of archive",
+        "git": "Git is a distributed version control system. Common commands:\n"
+               "  git status          # Show working directory status\n"
+               "  git add .           # Stage all changes\n"
+               "  git commit -m \"message\"  # Commit staged changes\n"
+               "  git push            # Push commits to remote repository\n"
+               "  git pull            # Pull changes from remote repository",
+        "docker": "Docker is a containerization platform. Common commands:\n"
+                  "  docker run image    # Run a container from an image\n"
+                  "  docker ps           # List running containers\n"
+                  "  docker build .      # Build an image from Dockerfile\n"
+                  "  docker stop id      # Stop a running container",
+        "ls": "The ls command lists directory contents. Common usage:\n"
+             "  ls -la              # List all files with details\n"
+             "  ls *.py             # List only Python files\n"
+             "  ls -R               # List files recursively",
+        "grep": "The grep command searches for patterns in files. Common usage:\n"
+                "  grep pattern file   # Search for pattern in file\n"
+                "  grep -r pattern .   # Search recursively in current directory\n"
+                "  grep -i pattern file # Case-insensitive search",
+    }
+    
+    if command.lower() in explanations:
+        console.print(f"[bold]Explanation of '{command}':[/bold]\n{explanations[command.lower()]}")
+    else:
+        console.print(f"[yellow]No specific explanation available for '{command}'.[/yellow]")
+        console.print("Try asking about common commands like: tar, git, docker, ls, grep")
+
+
+@app.command()
+def code(
+    prompt: str = typer.Argument(..., help="Code generation or editing prompt"),
+    file: Optional[str] = typer.Option(None, "--file", "-f", help="File to edit or create"),
+    language: Optional[str] = typer.Option(None, "--language", "-l", help="Programming language"),
+    dry_run: bool = typer.Option(False, "--dry-run", "-d", help="Show what would be done without making changes"),
+) -> None:
+    """Generate, edit, explain, debug, or refactor code based on natural language prompts."""
+    console.print(f"[bold]Code Assistant:[/bold] {prompt}")
+    
+    # Import code editor
+    from opencli.tools.code_editor import CodeEditor
+    editor = CodeEditor()
+    
+    # Get configuration
+    from opencli.core.config import get_config_manager
+    config_manager = get_config_manager()
+    model = config_manager.get("model", "llama-3-8b")
+    
+    # Use context provider if available
+    global context_provider
+    
+    # Determine what kind of operation this is based on the prompt
+    prompt_lower = prompt.lower()
+    
+    if file:
+        # File-specific operations
+        if "edit" in prompt_lower or "modify" in prompt_lower or "update" in prompt_lower:
+            # File editing operation
+            _handle_file_edit(editor, prompt, file, language, dry_run)
+        elif "create" in prompt_lower or "generate" in prompt_lower or "write" in prompt_lower:
+            # File creation operation
+            _handle_file_create(editor, prompt, file, language, dry_run)
+        else:
+            # Default to editing if file is specified
+            _handle_file_edit(editor, prompt, file, language, dry_run)
+    else:
+        # General code operations
+        if "explain" in prompt_lower or "what does this code do" in prompt_lower:
+            # Code explanation
+            _handle_code_explanation(editor, prompt, dry_run)
+        elif ("debug" in prompt_lower or "fix" in prompt_lower) and "error" in prompt_lower:
+            # Code debugging - only trigger if both debug/fix and error are present
+            _handle_code_debugging(editor, prompt, dry_run)
+        elif "refactor" in prompt_lower or "optimize" in prompt_lower or "improve" in prompt_lower:
+            # Code refactoring
+            _handle_code_refactoring(editor, prompt, dry_run)
+        else:
+            # Default to code generation
+            _handle_code_generation(editor, prompt, language, dry_run)
+
+
+def _handle_file_edit(editor: CodeEditor, prompt: str, file_path: str, language: Optional[str], dry_run: bool) -> None:
+    """Handle file editing operations."""
+    console.print(f"[bold]Editing file:[/bold] {file_path}")
+    
+    try:
+        # Determine language if not specified
+        if not language:
+            path = Path(file_path)
+            language = editor.get_language_from_extension(path.suffix)
+        
+        # Read current file content
+        if os.path.exists(file_path):
+            current_content, file_language = editor.read_file(file_path)
+            if not language:
+                language = file_language
+        else:
+            current_content = ""
+            console.print(f"[yellow]File {file_path} does not exist. Creating new file.[/yellow]")
+        
+        # For now, we'll use a simple approach
+        # In a real implementation, we would use an LLM to understand what changes to make
+        new_content = f"{current_content}\n# Added by OpenCLI: {prompt}\n"
+        
+        if dry_run:
+            console.print(f"[bold]Proposed changes:[/bold]")
+            console.print(f"Append: # Added by OpenCLI: {prompt}")
+        else:
+            # Apply the edit
+            edit = CodeEdit(
+                file_path=file_path,
+                operation="modify" if os.path.exists(file_path) else "create",
+                content=new_content
+            )
+            
+            if editor.apply_edit(edit):
+                console.print("[green]File updated successfully.[/green]")
+            else:
+                console.print("[red]Failed to update file.[/red]")
+                
+    except Exception as e:
+        console.print(f"[red]Error editing file: {e}[/red]")
+
+
+def _handle_file_create(editor: CodeEditor, prompt: str, file_path: str, language: Optional[str], dry_run: bool) -> None:
+    """Handle file creation operations."""
+    console.print(f"[bold]Creating file:[/bold] {file_path}")
+    
+    try:
+        # Determine language if not specified
+        if not language:
+            path = Path(file_path)
+            language = editor.get_language_from_extension(path.suffix)
+        
+        # Generate code
+        generated_code = editor.generate_code(prompt, language)
+        
+        if dry_run:
+            console.print(f"[bold]Proposed content:[/bold]")
+            console.print(generated_code)
+        else:
+            # Write the file
+            if editor.write_file(file_path, generated_code):
+                console.print("[green]File created successfully.[/green]")
+            else:
+                console.print("[red]Failed to create file.[/red]")
+                
+    except Exception as e:
+        console.print(f"[red]Error creating file: {e}[/red]")
+
+
+def _handle_code_explanation(editor: CodeEditor, prompt: str, dry_run: bool) -> None:
+    """Handle code explanation operations."""
+    console.print("[bold]Code Explanation:[/bold]")
+    
+    # Extract code from prompt if present
+    # Try to extract code from the prompt
+    code_to_explain = ""
+    language = "python"  # Default to Python
+    
+    # Simple heuristic to extract code from prompt
+    if ":" in prompt:
+        # Assume format is "explain this code: [code]"
+        parts = prompt.split(":", 1)
+        if len(parts) > 1:
+            code_to_explain = parts[1].strip()
+    else:
+        # Assume the entire prompt after "explain" is the code
+        code_to_explain = prompt.replace("explain", "", 1).replace("this", "", 1).replace("code", "", 1).strip()
+    
+    # If we couldn't extract code, provide a generic response
+    if not code_to_explain:
+        explanation = "Please provide the code you'd like explained. Use the format: 'explain this code: [your code here]'"
+    else:
+        # Use the editor to explain the code
+        explanation = editor.explain_code(code_to_explain, language)
+    
+    console.print(explanation)
+
+
+def _handle_code_debugging(editor: CodeEditor, prompt: str, dry_run: bool) -> None:
+    """Handle code debugging operations."""
+    console.print("[bold]Code Debugging:[/bold]")
+    
+    # Extract code and error from prompt if present
+    code_to_debug = ""
+    error_message = ""
+    language = "python"  # Default to Python
+    
+    # Simple heuristic to extract code and error from prompt
+    if "error:" in prompt.lower():
+        # Assume format is "debug this error: [error message] in [code]"
+        parts = prompt.split("error:", 1)
+        if len(parts) > 1:
+            error_and_code = parts[1].strip()
+            # Try to separate error from code
+            if "in" in error_and_code:
+                error_parts = error_and_code.split("in", 1)
+                error_message = error_parts[0].strip()
+                code_to_debug = error_parts[1].strip()
+            else:
+                error_message = error_and_code
+    elif "bug" in prompt.lower() or "fix" in prompt.lower():
+        # Assume format is "fix this bug in [code]"
+        parts = prompt.split("in", 1)
+        if len(parts) > 1:
+            code_to_debug = parts[1].strip()
+    
+    # If we couldn't extract code, provide a generic response
+    if not code_to_debug:
+        # Try to extract any code-like content
+        import re
+        code_pattern = r'([\w\s\(\)\[\]\{\}\=\+\-\*\/\<\>\!\,\.:;\"\'\_\n\t]+)'
+        matches = re.findall(code_pattern, prompt)
+        if matches:
+            code_to_debug = matches[-1].strip()
+    
+    if not code_to_debug:
+        debugging_info = "Please provide the code you'd like debugged. Use formats like: 'debug this error: [error message] in [your code here]' or 'fix this bug in [your code here]'"
+    else:
+        # Use the editor to debug the code
+        debugging_info = editor.debug_code(code_to_debug, error_message, language)
+    
+    console.print(debugging_info)
+
+
+def _handle_code_refactoring(editor: CodeEditor, prompt: str, dry_run: bool) -> None:
+    """Handle code refactoring operations."""
+    console.print("[bold]Code Refactoring:[/bold]")
+    
+    # Extract code and refactoring goal from prompt
+    code_to_refactor = ""
+    refactoring_goal = ""
+    language = "python"  # Default to Python
+    
+    # Simple heuristic to extract code and goal from prompt
+    prompt_lower = prompt.lower()
+    if "refactor" in prompt_lower or "optimize" in prompt_lower or "improve" in prompt_lower:
+        # Try to extract the goal (what comes after the action word)
+        action_words = ["refactor", "optimize", "improve"]
+        for word in action_words:
+            if word in prompt_lower:
+                parts = prompt.split(word, 1)
+                if len(parts) > 1:
+                    refactoring_goal = parts[1].strip()
+                    break
+        
+        # Try to extract code (look for code after "code:")
+        if "code:" in prompt:
+            parts = prompt.split("code:", 1)
+            if len(parts) > 1:
+                code_to_refactor = parts[1].strip()
+        else:
+            # Try to extract any code-like content at the end
+            import re
+            # Look for function definitions or code blocks
+            code_patterns = [
+                r'(def\s+\w+\s*\([^)]*\):[\s\S]*?)(?=\s*$)',
+                r'([\w\s\(\)\[\]\{\}\=\+\-\*\/\<\>\!\,\.:;\"\'\_\n\t]+)$'
+            ]
+            
+            for pattern in code_patterns:
+                matches = re.findall(pattern, prompt, re.MULTILINE)
+                if matches:
+                    code_to_refactor = matches[-1].strip()
+                    break
+    
+    # If we couldn't extract code, provide a generic response
+    if not code_to_refactor:
+        refactoring_info = "Please provide the code you'd like refactored. Use formats like: 'refactor this code to be more efficient: [your code here]'"
+    else:
+        # Use the editor to refactor the code
+        refactoring_info = editor.refactor_code(code_to_refactor, refactoring_goal, language)
+    
+    console.print(refactoring_info)
+
+
+def _handle_code_generation(editor: CodeEditor, prompt: str, language: Optional[str], dry_run: bool) -> None:
+    """Handle code generation operations."""
+    console.print("[bold]Code Generation:[/bold]")
+    
+    # Determine language if not specified
+    if not language:
+        # Try to infer language from prompt
+        prompt_lower = prompt.lower()
+        if "python" in prompt_lower:
+            language = "python"
+        elif "javascript" in prompt_lower or "js" in prompt_lower:
+            language = "javascript"
+        elif "bash" in prompt_lower or "shell" in prompt_lower:
+            language = "bash"
+        else:
+            language = "python"  # Default to Python
+    
+    # Generate code
+    generated_code = editor.generate_code(prompt, language)
+    
+    if dry_run:
+        console.print(f"[bold]Generated {language} code:[/bold]")
+        console.print(generated_code)
+    else:
+        # Show the generated code and ask if user wants to save it
+        console.print(f"[bold]Generated {language} code:[/bold]")
+        console.print(generated_code)
+        
+        if typer.confirm("Save this code to a file?"):
+            default_filename = f"generated_code.{_get_extension_for_language(language)}"
+            filename = typer.prompt("Enter filename", default=default_filename)
+            
+            if editor.write_file(filename, generated_code):
+                console.print(f"[green]Code saved to {filename}[/green]")
+            else:
+                console.print("[red]Failed to save code.[/red]")
+
+
+def _get_extension_for_language(language: str) -> str:
+    """Get file extension for a programming language."""
+    extensions = {
+        "python": "py",
+        "javascript": "js",
+        "typescript": "ts",
+        "bash": "sh",
+        "yaml": "yaml",
+        "json": "json",
+        "markdown": "md",
+        "html": "html",
+        "css": "css"
+    }
+    return extensions.get(language.lower(), "txt")
+
 
 def start_interactive_mode(model: str, sandbox: bool = False) -> None:
     """Start interactive chat mode."""
@@ -364,8 +1038,55 @@ def start_interactive_mode(model: str, sandbox: bool = False) -> None:
         except Exception as e:
             console.print(f"[red]Error: {e}[/red]")
 
+
 def main() -> None:
+    """Main entry point."""
+    import sys
+    
+    # If no arguments or first argument is not a command, treat as prompt
+    if len(sys.argv) > 1:
+        first_arg = sys.argv[1]
+        # List of known commands
+        known_commands = ["config", "run", "history", "repeat-last", "explain-last", "examples", "commands", "explain", "code", "--help", "-h", "--version", "-v"]
+        
+        # If first argument is not a known command, treat all arguments as a prompt
+        if first_arg not in known_commands and not first_arg.startswith("-"):
+            # Join all arguments as a single prompt
+            prompt = " ".join(sys.argv[1:])
+            
+            # Initialize
+            load_dotenv()
+            
+            # Initialize configuration manager
+            from opencli.core.config import get_config_manager
+            config_manager = get_config_manager()
+            
+            # Set current model from configuration
+            global _current_model, context_provider
+            _current_model = config_manager.get("model", "llama-3-8b")
+            
+            # Initialize context provider
+            context_provider = ContextProvider()
+            
+            # Set system information
+            from opencli.tools.system_info import get_detailed_system_info
+            system_info = get_detailed_system_info()
+            context_provider.set_system_info(system_info)
+            
+            print_banner(_current_model)
+            
+            # Execute the prompt directly
+            try:
+                execute_prompt(prompt)
+            except Exception as e:
+                console.print(f"[red]Error: {e}[/red]")
+                sys.exit(1)
+            
+            sys.exit(0)
+    
+    # Otherwise, let Typer handle normally
     app()
+
 
 if __name__ == "__main__":
     main()
