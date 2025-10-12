@@ -20,6 +20,7 @@ An open-source command-line AI assistant inspired by Claude CLI, powered by free
 - **Computer Use**: GUI automation and visual interface interaction (coming soon)
 - **Plugin Architecture**: Extensible system for custom tools and workflows
 - **Memory System**: Personalized assistance that learns your preferences
+- **Enhanced Command Safety**: Advanced safety validation with danger level detection
 - **Sandbox Environment**: Safe code execution with proper isolation
 
 ## 🚀 Quick Start
@@ -63,7 +64,7 @@ opencli --help
 
 The assistant supports multiple open-source models:
 
-```yaml
+``yaml
 # config/models.yaml
 models:
   default: "llama-3-8b"
@@ -75,9 +76,59 @@ models:
     - gemma-2-9b      # Lightweight, efficient
 ```
 
+### User Configuration
+
+OpenCLI supports user-level configuration through a YAML file located at `~/.opencli/config.yaml`:
+
+``yaml
+# ~/.opencli/config.yaml
+model: "llama-3-8b"
+safety_mode: true
+auto_execute: false
+max_tokens: 4096
+temperature: 0.1
+history_size: 100
+log_level: "INFO"
+memory_enabled: true
+sandbox_enabled: true
+```
+
+Configuration options:
+- **model**: Default LLM model to use
+- **safety_mode**: Enable/disable safety checks (recommended: true)
+- **auto_execute**: Automatically execute safe commands without confirmation
+- **max_tokens**: Maximum tokens for LLM responses
+- **temperature**: LLM temperature setting (0.0-1.0)
+- **history_size**: Number of conversation history items to maintain
+- **log_level**: Logging level (DEBUG, INFO, WARN, ERROR)
+- **memory_enabled**: Enable/disable conversation memory
+- **sandbox_enabled**: Enable/disable sandbox mode for testing
+
+### CLI Configuration Management
+
+Manage your configuration directly from the command line:
+
+```bash
+# List all configuration options
+opencli config --list
+
+# Get a specific configuration value
+opencli config --get model
+
+# Set a configuration value
+opencli config --set model=llama-3-70b
+opencli config --set auto_execute=true
+
+# Reset configuration to defaults
+opencli config --reset
+
+# Edit configuration file directly
+opencli config --edit
+```
+
 ### Environment Configuration
 
-```env
+``env
 # .env file
 OPENCLI_MODEL=llama-3-8b
 OPENCLI_MEMORY_ENABLED=true
@@ -97,11 +148,17 @@ OPENCLI_USE_CLOUD=true
 
 ### Basic Commands
 
-```bash
+``bash
 # Natural language commands
 opencli "list all python files modified in the last week"
 opencli "create a backup of my project directory"
 opencli "show me memory usage of running processes"
+
+# File system intelligence
+opencli "show me the structure of this project"
+opencli "find configuration files"
+opencli "what's in the log directory?"
+opencli "backup my source code"
 
 # Code generation
 opencli "write a python function to parse CSV files"
@@ -111,7 +168,7 @@ opencli "explain what this regex does: ^[a-zA-Z0-9+_.-]+@[a-zA-Z0-9.-]+$"
 
 ### Interactive Mode
 
-```bash
+``bash
 opencli --interactive
 
 > You: How do I set up a virtual environment?
@@ -126,9 +183,26 @@ opencli --interactive
 > Would you like me to execute these commands? [y/N]: y
 ```
 
+### Safety Features
+
+OpenCLI includes advanced safety features to protect against destructive commands:
+
+``bash
+# Safety features in action
+opencli "delete all files in /home"
+→ ⚠️  DANGER: This command could delete important files
+→ Command blocked for safety. Did you mean to delete files in current directory?
+→ Suggested safer alternative: rm -i *.tmp
+
+# Sandbox mode for testing
+opencli --sandbox "delete all files"
+→ ⚠️  Sandbox mode: All destructive commands are blocked
+→ Command execution prevented for safety
+```
+
 ### Advanced Workflows
 
-```bash
+``bash
 # Project analysis
 opencli "analyze this codebase and suggest improvements"
 
@@ -141,7 +215,7 @@ opencli "monitor system health and alert if issues found"
 
 ## 🏗️ Architecture
 
-```text
+```
 opencli-assistant/
 ├── src/
 │   ├── core/
@@ -232,7 +306,7 @@ black src/
 
 For Windows users, you can use the PowerShell script:
 
-```powershell
+```
 .\clean_install-dev.ps1
 ```
 
@@ -271,7 +345,8 @@ Both scripts will:
 
 ## 🛡️ Security
 
-- **Sandbox Execution**: All code runs in isolated environments
+- **Enhanced Command Safety**: Multi-level danger detection for destructive commands
+- **Sandbox Execution**: All code runs in isolated environments with optional sandbox mode
 - **Input Validation**: Comprehensive prompt injection protection
 - **Audit Logging**: Complete operation history for security review
 - **Permission System**: Granular control over file system access

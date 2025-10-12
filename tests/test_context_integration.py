@@ -61,12 +61,12 @@ def test_context_provider_integration_in_translate_with_local_model():
     context_provider.set_memory("user_preference", "likes python")
     
     # Mock the local model with a command that doesn't match patterns
-    with patch("opencli.core.translate.get_model") as mock_get_model:
+    with patch("opencli.models.inference.get_model") as mock_get_model:
         mock_model = MagicMock()
         mock_model.generate.return_value = '{"command": "echo Hello World", "explanation": "Print greeting"}'
         mock_get_model.return_value = mock_model
         
-        result = translate_with_local_model("say hello", context_provider)
+        result = translate_with_local_model("say hello", context_provider, "default")
         
         # Verify that the model was called
         mock_model.generate.assert_called_once()

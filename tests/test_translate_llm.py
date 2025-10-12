@@ -59,10 +59,10 @@ def test_translate_with_local_model_success():
         def generate(self, prompt: str, **kwargs):
             return '{"command": "date", "explanation": "Show current date and time"}'
     
-    with patch("opencli.core.translate.get_model") as mock_get_model:
+    with patch("opencli.models.inference.get_model") as mock_get_model:
         mock_get_model.return_value = MockLLM()
         
-        t = translate_with_local_model("show current date")
+        t = translate_with_local_model("show current date", model_name="default")
         assert t is not None
         assert t.command == "date"
         assert t.explanation == "Show current date and time"
@@ -74,10 +74,10 @@ def test_translate_with_local_model_bad_json():
         def generate(self, prompt: str, **kwargs):
             return "not json"
     
-    with patch("opencli.core.translate.get_model") as mock_get_model:
+    with patch("opencli.models.inference.get_model") as mock_get_model:
         mock_get_model.return_value = MockLLM()
         
-        t = translate_with_local_model("show current date")
+        t = translate_with_local_model("show current date", model_name="default")
         assert t is None
 
 

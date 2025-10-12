@@ -46,6 +46,27 @@ COMMON_PATTERNS: List[Tuple[re.Pattern[str], str, str]] = [
         'echo "Use the memory summary feature"',
         "Provide a summary of the conversation history and memory.",
     ),
+    # File operations patterns
+    (
+        re.compile(r"(show\s+me\s+|display\s+|list\s+)?(the\s+)?(structure|tree)\s+of\s+(this\s+)?(project|directory)\b", re.I),
+        'echo "Use the directory structure feature"',
+        "Show the directory structure of the current project.",
+    ),
+    (
+        re.compile(r"find\s+(configuration|config)\s+files\b", re.I),
+        'echo "Use the configuration file finder feature"',
+        "Find configuration files in the current directory.",
+    ),
+    (
+        re.compile(r"(what\'?s\s+in\s+|show\s+me\s+|list\s+)(the\s+)?(log|logs)\s+(directory|folder)\b", re.I),
+        'echo "Use the log directory listing feature"',
+        "Show contents of the log directory.",
+    ),
+    (
+        re.compile(r"(backup|copy)\s+(my\s+)?(source\s+)?code\b", re.I),
+        'echo "Use the backup feature"',
+        "Create a backup of your source code.",
+    ),
 ]
 
 
@@ -116,7 +137,8 @@ Please provide a natural, conversational summary of what we've discussed and wha
     )
 
 
-def translate_to_command(prompt: str, context_provider: Optional[ContextProvider] = None) -> Optional[Translation]:
+def translate_to_command(prompt: str, context_provider: Optional[ContextProvider] = None, 
+                        model_name: str = "default") -> Optional[Translation]:
     text = prompt.strip()
     
     # First try pattern matching
@@ -137,10 +159,89 @@ def translate_to_command(prompt: str, context_provider: Optional[ContextProvider
                     command = template.format(size=size)
                 
                 # Adapt command for Windows if needed
-                if platform.system() == "Windows":
-                    command = adapt_command_for_windows(command)
+                command = adapt_command_for_windows(command)
                     
                 return Translation(command=command, explanation=explanation)
+        
+        # Special handling for file operations
+        if re.search(r"(show\s+me\s+|display\s+|list\s+)?(the\s+)?(structure|tree)\s+of\s+(this\s+)?(project|directory)\b", text, re.I):
+            # Handle directory structure requests
+            from opencli.tools.filesystem import get_directory_structure
+            import json
+            import os
+            structure = get_directory_structure(os.getcwd())
+            formatted_structure = json.dumps(structure, indent=2)
+            return Translation(
+                command=f'echo """{formatted_structure}"""',
+                explanation="Displaying the directory structure of the current project."
+            )
+        
+        if re.search(r"find\s+(configuration|config)\s+files\b", text, re.I):
+            # Handle configuration file requests
+            from opencli.tools.filesystem import find_files_by_extension
+            import os
+            config_files = []
+            config_extensions = ['.conf', '.cfg', '.config', '.ini', '.yaml', '.yml', '.json', '.toml', '.xml']
+            for ext in config_extensions:
+                config_files.extend(find_files_by_extension(os.getcwd(), ext))
+            
+            if config_files:
+                files_list = "\n".join(config_files)
+                return Translation(
+                    command=f'echo """{files_list}"""',
+                    explanation="Found configuration files in the current directory."
+                )
+            else:
+                return Translation(
+                    command='echo "No configuration files found in the current directory."',
+                    explanation="No configuration files were found."
+                )
+        
+        if re.search(r"(what\'?s\s+in\s+|show\s+me\s+|list\s+)(the\s+)?(log|logs)\s+(directory|folder)\b", text, re.I):
+            # Handle log directory requests
+            from opencli.tools.filesystem import list_directory_contents, format_directory_listing
+            import os
+            log_dirs = ['log', 'logs', 'Log', 'Logs']
+            found = False
+            for log_dir in log_dirs:
+                log_path = os.path.join(os.getcwd(), log_dir)
+                if os.path.exists(log_path) and os.path.isdir(log_path):
+                    files = list_directory_contents(log_path)
+                    formatted_listing = format_directory_listing(files)
+                    return Translation(
+                        command=f'echo """Contents of {log_dir}/:\n{formatted_listing}"""',
+                        explanation=f"Displaying contents of the {log_dir} directory."
+                    )
+            
+            # If no log directory found, list files that look like log files
+            from opencli.tools.filesystem import find_files_by_extension
+            log_files = []
+            log_extensions = ['.log', '.out', '.err']
+            for ext in log_extensions:
+                log_files.extend(find_files_by_extension(os.getcwd(), ext))
+            
+            if log_files:
+                files_list = "\n".join(log_files)
+                return Translation(
+                    command=f'echo """Log files found:\n{files_list}"""',
+                    explanation="Found log files in the current directory."
+                )
+            else:
+                return Translation(
+                    command='echo "No log directory or log files found in the current directory."',
+                    explanation="No log directory or log files were found."
+                )
+        
+        if re.search(r"(backup|copy)\s+(my\s+)?(source\s+)?code\b", text, re.I):
+            # Handle backup requests
+            import os
+            from datetime import datetime
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_dir = f"backup_{timestamp}"
+            return Translation(
+                command=f'echo "To backup your source code, create a copy of your project directory to {backup_dir}"',
+                explanation=f"Suggest creating a backup of your source code in a {backup_dir} directory."
+            )
         
         command = template
         if "{size}" in template and m.groups():
@@ -153,7 +254,7 @@ def translate_to_command(prompt: str, context_provider: Optional[ContextProvider
         return Translation(command=command, explanation=explanation)
     
     # If pattern matching fails, try LLM-based translation
-    return translate_with_llm(prompt, context_provider)
+    return translate_with_llm(prompt, context_provider, model_name)
 
 
 def adapt_command_for_windows(command: str, system_info: Optional[str] = None) -> str:
@@ -188,11 +289,12 @@ def adapt_command_for_windows(command: str, system_info: Optional[str] = None) -
     return command
 
 
-def translate_with_llm(prompt: str, context_provider: Optional[ContextProvider] = None) -> Optional[Translation]:
+def translate_with_llm(prompt: str, context_provider: Optional[ContextProvider] = None, 
+                      model_name: str = "default") -> Optional[Translation]:
     """Translate natural language to command using LLM."""
     try:
         # Try OpenRouter first
-        translation = translate_with_openrouter(prompt, context_provider)
+        translation = translate_with_openrouter(prompt, context_provider, model_name)
         if translation:
             command = translation["command"]
             # Adapt command for Windows if needed
@@ -200,7 +302,7 @@ def translate_with_llm(prompt: str, context_provider: Optional[ContextProvider] 
             return Translation(command=command, explanation=translation["explanation"])
             
         # Fallback to local model
-        translation = translate_with_local_model(prompt, context_provider)
+        translation = translate_with_local_model(prompt, context_provider, model_name)
         if translation:
             command = translation.command
             # Adapt command for Windows if needed
@@ -213,7 +315,8 @@ def translate_with_llm(prompt: str, context_provider: Optional[ContextProvider] 
     return None
 
 
-def translate_with_openrouter(prompt: str, context_provider: Optional[ContextProvider] = None) -> Optional[Dict[str, str]]:
+def translate_with_openrouter(prompt: str, context_provider: Optional[ContextProvider] = None, 
+                             model_name: str = "default") -> Optional[Dict[str, str]]:
     """Translate using OpenRouter API."""
     from opencli.models.openrouter import translate_command_with_openrouter as openrouter_translate
     
@@ -230,13 +333,13 @@ def translate_with_openrouter(prompt: str, context_provider: Optional[ContextPro
         
         # Use the enhanced context-aware translation with system info from context provider
         system_info = context_provider.system_info if context_provider.system_info else None
-        return translate_command_with_openrouter_context_aware(context_messages, system_info)
+        return translate_command_with_openrouter_context_aware(context_messages, system_info, model_name)
     
     # Fallback to original implementation
     return openrouter_translate(prompt)
 
 
-def translate_command_with_openrouter_context_aware(messages: List[Dict[str, str]], system_info: Optional[str] = None) -> Optional[Dict[str, str]]:
+def translate_command_with_openrouter_context_aware(messages: List[Dict[str, str]], system_info: Optional[str] = None, model_name: str = "default") -> Optional[Dict[str, str]]:
     """Translate using OpenRouter API with context awareness."""
     from opencli.models.openrouter import chat_completion
     
@@ -263,14 +366,15 @@ User request:"""
         if msg["role"] != "system" or "Example response" not in msg["content"]:
             full_messages.append(msg)
     
-    response = chat_completion(full_messages, temperature=0.1, max_tokens=256)
+    # Use the specified model
+    response = chat_completion(full_messages, model=model_name, temperature=0.1, max_tokens=256)
     if not response:
         return None
         
     try:
         # Clean up the response to handle markdown code blocks
         cleaned_response = response.strip()
-        if cleaned_response.startswith("```json"):
+        if cleaned_response.startswith("``json"):
             cleaned_response = cleaned_response[7:]  # Remove ```json
         if cleaned_response.startswith("```"):
             cleaned_response = cleaned_response[3:]  # Remove ```
@@ -291,8 +395,10 @@ User request:"""
     return None
 
 
-def translate_with_local_model(prompt: str, context_provider: Optional[ContextProvider] = None) -> Optional[Translation]:
+def translate_with_local_model(prompt: str, context_provider: Optional[ContextProvider] = None, 
+                              model_name: str = "default") -> Optional[Translation]:
     """Translate using local model."""
+    from opencli.models.inference import get_model
     system_info = get_system_info()
     
     # Build context-aware prompt
@@ -333,7 +439,7 @@ User request:"""
     full_prompt = f"{system_prompt}\n{prompt}"
     
     try:
-        model = get_model("default")
+        model = get_model(model_name)
         response = model.generate(full_prompt)
         
         if not response:

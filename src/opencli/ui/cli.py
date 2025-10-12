@@ -44,8 +44,15 @@ def main_callback(
     )
 ) -> None:
     """OpenCLI Assistant - Natural language meets your terminal."""
-    global context_provider
+    global context_provider, _current_model
     load_dotenv()
+    
+    # Initialize configuration manager
+    from opencli.core.config import get_config_manager
+    config_manager = get_config_manager()
+    
+    # Set current model from configuration
+    _current_model = config_manager.get("model", "llama-3-8b")
     
     # Initialize context provider
     context_provider = ContextProvider()
@@ -57,6 +64,88 @@ def main_callback(
     
     print_banner(_current_model)
 
+
+@app.command()
+def config(
+    list_config: bool = typer.Option(False, "--list", "-l", help="List all configuration options."),
+    get: Optional[str] = typer.Option(None, "--get", "-g", help="Get a specific configuration value."),
+    set: Optional[str] = typer.Option(None, "--set", "-s", help="Set a configuration value (format: key=value)."),
+    reset: bool = typer.Option(False, "--reset", "-r", help="Reset configuration to defaults."),
+    edit: bool = typer.Option(False, "--edit", "-e", help="Open configuration file in editor."),
+) -> None:
+    """Manage OpenCLI configuration."""
+    from opencli.core.config import get_config_manager
+    
+    config_manager = get_config_manager()
+    
+    if list_config:
+        # List all configuration options
+        console.print("[bold]Current Configuration:[/bold]")
+        config_dict = config_manager.config.to_dict()
+        for key, value in config_dict.items():
+            console.print(f"  {key}: {value}")
+        return
+    
+    if get:
+        # Get specific configuration value
+        value = config_manager.get(get)
+        if value is not None:
+            console.print(f"{get}: {value}")
+        else:
+            console.print(f"[yellow]Configuration key '{get}' not found.[/yellow]")
+        return
+    
+    if set:
+        # Set configuration value
+        if "=" not in set:
+            console.print("[red]Invalid format. Use key=value[/red]")
+            raise typer.Exit(code=1)
+        
+        key, value = set.split("=", 1)
+        
+        # Try to convert value to appropriate type
+        if value.lower() in ("true", "false"):
+            value = value.lower() == "true"
+        elif value.isdigit():
+            value = int(value)
+        elif value.replace(".", "").isdigit():
+            value = float(value)
+        
+        if config_manager.set(key, value):
+            config_manager.save_config()
+            console.print(f"[green]Set {key} = {value}[/green]")
+        else:
+            console.print(f"[red]Invalid configuration key: {key}[/red]")
+            raise typer.Exit(code=1)
+        return
+    
+    if reset:
+        # Reset configuration to defaults
+        config_manager.reset_to_defaults()
+        config_manager.save_config()
+        console.print("[green]Configuration reset to defaults.[/green]")
+        return
+    
+    if edit:
+        # Open configuration file in editor
+        config_path = config_manager.get_config_path()
+        editor = os.environ.get("EDITOR", "nano")  # Default to nano if EDITOR not set
+        try:
+            import subprocess
+            subprocess.run([editor, str(config_path)])
+            # Reload config after editing
+            config_manager.load_config()
+            console.print("[green]Configuration file edited and reloaded.[/green]")
+        except Exception as e:
+            console.print(f"[red]Failed to open editor: {e}[/red]")
+            console.print(f"[yellow]You can manually edit: {config_path}[/yellow]")
+        return
+    
+    # If no options provided, show help
+    console.print("[bold]OpenCLI Configuration Manager[/bold]")
+    console.print("Use --help for more information.")
+
+
 @app.command()
 def run(
     prompt: str = typer.Argument(..., help="Instruction or task to execute."),
@@ -64,20 +153,37 @@ def run(
         False, "--interactive", "-i", help="Start interactive chat mode."
     ),
     yes: bool = typer.Option(False, "--yes", "-y", help="Execute without confirmation if safe."),
-    model: str = typer.Option(_current_model, "--model", "-m", help="LLM model to use."),
+    model: str = typer.Option(None, "--model", "-m", help="LLM model to use."),
+    sandbox: bool = typer.Option(None, "--sandbox", "-s", help="Enable sandbox mode for testing (blocks all destructive commands)."),
 ) -> None:
     """Execute a one-off prompt or start interactive mode."""
     global _current_model, context_provider
+    
+    # Get configuration manager
+    from opencli.core.config import get_config_manager
+    config_manager = get_config_manager()
+    
+    # Use provided model or fall back to configured model
+    if model is None:
+        model = config_manager.get("model", "llama-3-8b")
     _current_model = model
     
+    # Use provided sandbox setting or fall back to configured setting
+    if sandbox is None:
+        sandbox = config_manager.get("sandbox_enabled", True)
+    
+    # Use configured auto_execute setting if --yes not provided
+    if not yes:
+        yes = config_manager.get("auto_execute", False)
+    
     if interactive:
-        start_interactive_mode(model)
+        start_interactive_mode(model, sandbox)
         return
 
     console.print(f"[bold]Prompt:[/bold] {prompt}")
     
-    # Use context provider for translation
-    translation = translate_to_command(prompt, context_provider)
+    # Use context provider for translation with specified model
+    translation = translate_to_command(prompt, context_provider, model)
     
     if not translation:
         console.print("[yellow]No translation found. Try rephrasing.[/yellow]")
@@ -85,9 +191,19 @@ def run(
 
     console.print(f"[bold]Proposed command:[/bold] [cyan]{translation.command}[/cyan]")
     console.print(f"[dim]{translation.explanation}[/dim]\n")
-    report = assess_command_safety(translation.command)
+    report = assess_command_safety(translation.command, sandbox)
+    
+    # Enhanced safety feedback
     if not report.safe:
-        console.print("[red]Command flagged as risky:[/red]")
+        if report.danger_level == "CRITICAL":
+            console.print("[bold red]⚠️  DANGER: This command could cause serious damage[/bold red]")
+        elif report.danger_level == "HIGH":
+            console.print("[bold yellow]⚠️  WARNING: This command is potentially dangerous[/bold yellow]")
+        elif report.danger_level == "MEDIUM":
+            console.print("[yellow]⚠️  CAUTION: This command requires careful consideration[/yellow]")
+        else:
+            console.print("[yellow]⚠️  Command flagged for review[/yellow]")
+            
         for r in report.reasons:
             console.print(f" - {r}")
         if report.suggested_alternative:
@@ -96,10 +212,14 @@ def run(
             )
         raise typer.Exit(code=3)
 
-    proceed = yes or typer.confirm("Execute this command?", default=False)
-    if not proceed:
-        console.print("[dim]Cancelled.[/dim]\n")
-        raise typer.Exit()
+    # If auto_execute is enabled or user confirms, execute the command
+    if yes:
+        console.print("[dim]Auto-executing command (auto_execute enabled in config)[/dim]")
+    else:
+        proceed = typer.confirm("Execute this command?", default=False)
+        if not proceed:
+            console.print("[dim]Cancelled.[/dim]\n")
+            raise typer.Exit()
 
     code, out, err = run_command(translation.command)
     if code == 0:
@@ -125,11 +245,19 @@ def run(
             )
         raise typer.Exit(code=code)
 
-def start_interactive_mode(model: str) -> None:
+def start_interactive_mode(model: str, sandbox: bool = False) -> None:
     """Start interactive chat mode."""
     global context_provider
     
-    console.print("[bold green]Interactive mode starting...[/bold green]")
+    # Get configuration manager
+    from opencli.core.config import get_config_manager
+    config_manager = get_config_manager()
+    
+    # Use configured auto_execute setting
+    auto_execute = config_manager.get("auto_execute", False)
+    
+    mode_text = " (sandbox mode)" if sandbox else ""
+    console.print(f"[bold green]Interactive mode starting...{mode_text}[/bold green]")
     console.print("[dim]Type 'exit' or 'quit' to leave interactive mode.[/dim]\n")
     
     while True:
@@ -144,8 +272,8 @@ def start_interactive_mode(model: str) -> None:
                 
             console.print(f"[bold]Prompt:[/bold] {user_input}")
             
-            # Translate to command using context provider
-            translation = translate_to_command(user_input, context_provider)
+            # Translate to command using context provider with specified model
+            translation = translate_to_command(user_input, context_provider, model)
             
             if not translation:
                 console.print("[yellow]No translation found. Try rephrasing.[/yellow]")
@@ -154,9 +282,19 @@ def start_interactive_mode(model: str) -> None:
             console.print(f"[bold]Proposed command:[/bold] [cyan]{translation.command}[/cyan]")
             console.print(f"[dim]{translation.explanation}[/dim]\n")
             
-            report = assess_command_safety(translation.command)
+            report = assess_command_safety(translation.command, sandbox)
+            
+            # Enhanced safety feedback
             if not report.safe:
-                console.print("[red]Command flagged as risky:[/red]")
+                if report.danger_level == "CRITICAL":
+                    console.print("[bold red]⚠️  DANGER: This command could cause serious damage[/bold red]")
+                elif report.danger_level == "HIGH":
+                    console.print("[bold yellow]⚠️  WARNING: This command is potentially dangerous[/bold yellow]")
+                elif report.danger_level == "MEDIUM":
+                    console.print("[yellow]⚠️  CAUTION: This command requires careful consideration[/yellow]")
+                else:
+                    console.print("[yellow]⚠️  Command flagged for review[/yellow]")
+                    
                 for r in report.reasons:
                     console.print(f" - {r}")
                 if report.suggested_alternative:
@@ -165,7 +303,13 @@ def start_interactive_mode(model: str) -> None:
                     )
                 continue
 
-            proceed = typer.confirm("Execute this command?", default=False)
+            # If auto_execute is enabled, execute without confirmation
+            if auto_execute:
+                console.print("[dim]Auto-executing command (auto_execute enabled in config)[/dim]")
+                proceed = True
+            else:
+                proceed = typer.confirm("Execute this command?", default=False)
+                
             if not proceed:
                 console.print("[dim]Cancelled.[/dim]\n")
                 
