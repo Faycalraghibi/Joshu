@@ -151,6 +151,155 @@ opencli --explain "tar command"
 
 ***
 
+# 🧠 TODO.md — Advanced Claude-like CLI Integration Roadmap
+
+> **Reference Docs**  
+>
+> - [CLI Reference](https://docs.claude.com/en/docs/claude-code/cli-reference)  
+> - [Interactive Mode](https://docs.claude.com/en/docs/claude-code/interactive-mode)  
+> - [Slash Commands](https://docs.claude.com/en/docs/claude-code/slash-commands)  
+> - [Checkpointing](https://docs.claude.com/en/docs/claude-code/checkpointing)  
+> - [Hooks](https://docs.claude.com/en/docs/claude-code/hooks)
+
+---
+
+## ✅ Core Features (Already Implemented)
+
+- [x] Natural Language → CLI Command Translation  
+- [x] Interactive Chat Mode  
+- [x] Local Model Context Switching  
+- [x] Command Validation & Safety Layer  
+- [x] File System Operations (list, read, edit, permissions)  
+- [x] Contextual History & Auto-suggestions  
+- [x] Built-in Help and Docs lookup  
+
+---
+
+## 🚀 New Advanced Feature Targets
+
+### 1. CLI/SDK Parity
+
+*(Ref: [CLI Reference](https://docs.claude.com/en/docs/claude-code/cli-reference))*
+
+- Implement all `opencli` flags and command options:
+  - `-p`, `--resume`, `--add-dir`, `--agents`, `--output-format`, `--verbose`, etc.
+- Add update/version management and session persistence.
+- Introduce flexible input/output formats (text, JSON, streaming).
+- Enable contextual model switching: `--model <name>`.
+- Support directory scoping and multi-path inclusion.
+- Integrate fine-grained tool permission modes (`--allowedTools`, `--disallowedTools`).
+
+---
+
+### 2. Enhanced Interactive Mode
+
+*(Ref: [Interactive Mode](https://docs.claude.com/en/docs/claude-code/interactive-mode))*
+
+- Support multiline input, reverse search, and navigation (`Ctrl+R`, `Ctrl+J`, etc.).
+- Add keyboard shortcuts for:
+  - Exit / Clear / Verbose toggle / Bash background (`Ctrl+B`).
+- Implement Vim-style **NORMAL/INSERT** modes for power users.
+- Per-directory persistent command history with `/clear` and `/history`.
+- Add direct bash integration with `!` and file injection with `@file`.
+
+---
+
+### 3. Slash Commands
+
+*(Ref: [Slash Commands](https://docs.claude.com/en/docs/claude-code/slash-commands))*
+
+- Core commands to support:
+  `/add-dir`, `/agents`, `/clear`, `/config`, `/doctor`, `/model`, `/permissions`, `/review`, `/rewind`, `/usage`, `/vim`
+- Namespaced slash command system (`/plugin:cmd`).
+- Autodiscovery of project or user-defined slash commands.
+- Support for arguments, environment substitution, and file injection (`$1`, `@filename`).
+- Integrate permission control, per-command model selection, and disable logic.
+
+---
+
+### 4. Checkpointing & Undo System
+
+*(Ref: [Checkpointing](https://docs.claude.com/en/docs/claude-code/checkpointing))*
+
+- Create automatic checkpoints after each edit or command execution.  
+- Implement `/rewind` or `Esc Esc` shortcuts for state restoration.  
+- Multi-level checkpoint depth (configurable).  
+- Handle non-checkpointable actions (e.g., shell commands) gracefully.  
+- Persistent checkpoint tracking per session ID.
+
+---
+
+### 5. Hooks Framework
+
+*(Ref: [Hooks](https://docs.claude.com/en/docs/claude-code/hooks))*
+
+- Add event-driven hook system:
+  - `PreToolUse`, `PostToolUse`, `SessionStart`, `SessionEnd`, `PreCompact`, etc.
+- Allow hook registration at user, project, or plugin levels.
+- Implement both **blocking** (modify context) and **non-blocking** (observe) hooks.
+- Secure sandboxing for all shell or script hooks.
+- Include a debug/log mode for hook tracing.
+
+---
+
+### 6. Agents & Subagents
+
+- Allow agent definitions with independent:
+  - Prompts, models, and tool sets.
+- Enable subagent invocation for task delegation (e.g., reviewing, debugging).
+- Context switching between agents mid-session.
+
+---
+
+### 7. Plugin & Skills Ecosystem
+
+- Introduce a lightweight plugin API for third-party skill injection.
+- Namespace and register custom slash commands + hooks from plugins.
+- Implement `/plugin install`, `/plugin list`, `/plugin remove`.
+
+---
+
+### 8. Security, Permissions & Policy Layer
+
+- Sandbox all external or destructive commands.
+- Request confirmation for critical operations.
+- Audit and log all system-level actions with contextual metadata.
+- Implement `--permission-mode` levels (strict, relaxed, manual).
+
+---
+
+## 🧩 Development Checklist
+
+- [ ] Implement CLI flags and options (parity with Claude Code CLI).  
+- [ ] Integrate interactive REPL shortcuts (cross-terminal testing).  
+- [ ] Add slash command parser and runtime registry.  
+- [ ] Develop checkpoint manager with serialization and restore logic.  
+- [ ] Design secure event-based hook system.  
+- [ ] Introduce subagent orchestration layer.  
+- [ ] Prototype plugin system and skill discovery mechanism.  
+- [ ] Write internal docs with official references.  
+
+---
+
+## 📚 Always Refer
+
+When in doubt, consult:
+
+- [CLI Reference](https://docs.claude.com/en/docs/claude-code/cli-reference)  
+- [Interactive Mode](https://docs.claude.com/en/docs/claude-code/interactive-mode)  
+- [Slash Commands](https://docs.claude.com/en/docs/claude-code/slash-commands)  
+- [Checkpointing](https://docs.claude.com/en/docs/claude-code/checkpointing)  
+- [Hooks](https://docs.claude.com/en/docs/claude-code/hooks)
+
+---
+
+### 🧭 Notes
+
+This document serves as the **living specification** for building Claude-like CLI parity within your assistant.  
+Update it as new subfeatures roll out or existing ones reach completion.
+
+
+
 ## 🚧 MVP Feature Boundaries (What to EXCLUDE Initially)
 
 ### Not in MVP v1
