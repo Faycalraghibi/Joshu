@@ -10,6 +10,33 @@ import typer
 from rich.console import Console
 from dotenv import load_dotenv
 
+# Add prompt_toolkit imports with proper error handling
+try:
+    from prompt_toolkit import PromptSession
+    from prompt_toolkit.history import FileHistory, InMemoryHistory
+    from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
+    from prompt_toolkit.key_binding import KeyBindings
+    from prompt_toolkit.keys import Keys
+    from prompt_toolkit.styles import Style
+    from prompt_toolkit.formatted_text import HTML
+    from prompt_toolkit.application import run_in_terminal
+    from prompt_toolkit.buffer import Buffer
+    from prompt_toolkit.enums import EditingMode
+    PROMPT_TOOLKIT_AVAILABLE = True
+except ImportError:
+    PromptSession = None
+    FileHistory = None
+    InMemoryHistory = None
+    AutoSuggestFromHistory = None
+    KeyBindings = None
+    Keys = None
+    Style = None
+    HTML = None
+    run_in_terminal = None
+    Buffer = None
+    EditingMode = None
+    PROMPT_TOOLKIT_AVAILABLE = False
+
 from .display import print_banner
 from opencli.core.translate import translate_to_command
 from opencli.core.safety import assess_command_safety
@@ -91,6 +118,14 @@ def execute_prompt(prompt: str) -> None:
 
     console.print(f"[bold]Proposed command:[/bold] [cyan]{translation.command}[/cyan]")
     console.print(f"[dim]{translation.explanation}[/dim]\n")
+    
+    # Check if this is a code generation request that should use the code command
+    if "code command" in translation.explanation.lower() or "code' command" in translation.explanation.lower():
+        console.print("[yellow]💡 Tip: For code generation requests, use the 'code' command:[/yellow]")
+        console.print(f"[yellow]   opencli code \"{prompt}\"[/yellow]")
+        console.print("[yellow]This will generate the code directly instead of trying to translate to a shell command.[/yellow]")
+        raise typer.Exit(code=0)
+
     report = assess_command_safety(translation.command, sandbox)
     
     # Enhanced safety feedback
@@ -230,6 +265,30 @@ def config(
     # If no options provided, show help
     console.print("[bold]OpenCLI Configuration Manager[/bold]")
     console.print("Use --help for more information.")
+
+
+@app.command()
+def interactive(
+    model: str = typer.Option(None, "--model", "-m", help="LLM model to use."),
+    sandbox: bool = typer.Option(None, "--sandbox", "-s", help="Enable sandbox mode for testing (blocks all destructive commands)."),
+) -> None:
+    """Start interactive chat mode directly."""
+    global _current_model, context_provider
+    
+    # Get configuration manager
+    from opencli.core.config import get_config_manager
+    config_manager = get_config_manager()
+    
+    # Use provided model or fall back to configured model
+    if model is None:
+        model = config_manager.get("model", "llama-3-8b")
+    _current_model = model
+    
+    # Use provided sandbox setting or fall back to configured setting
+    if sandbox is None:
+        sandbox = config_manager.get("sandbox_enabled", True)
+    
+    start_interactive_mode(model, sandbox)
 
 
 @app.command()
@@ -756,7 +815,7 @@ def _handle_code_explanation(editor: CodeEditor, prompt: str, dry_run: bool) -> 
     console.print("[bold]Code Explanation:[/bold]")
     
     # Extract code from prompt if present
-    # Try to extract code from the prompt
+    # Try to extract code from prompt
     code_to_explain = ""
     language = "python"  # Default to Python
     
@@ -924,7 +983,7 @@ def _get_extension_for_language(language: str) -> str:
         "bash": "sh",
         "yaml": "yaml",
         "json": "json",
-        "markdown": "md",
+        "plain": "txt",
         "html": "html",
         "css": "css"
     }
@@ -938,6 +997,27 @@ def start_interactive_mode(model: str, sandbox: bool = False) -> None:
     # Get configuration manager
     from opencli.core.config import get_config_manager
     config_manager = get_config_manager()
+    
+    # Use configured auto_execute setting
+    auto_execute = config_manager.get("auto_execute", False)
+    
+    # Check if enhanced interactive mode is enabled
+    enhanced_interactive = config_manager.get("enhanced_interactive", True)
+    
+    if enhanced_interactive:
+        try:
+            from opencli.ui.enhanced_interactive import start_enhanced_interactive_mode
+            start_enhanced_interactive_mode(model, sandbox)
+            return
+        except ImportError:
+            pass  # Fall back to basic mode if enhanced mode is not available
+    
+    start_basic_interactive_mode(model, sandbox, config_manager)
+
+
+def start_basic_interactive_mode(model: str, sandbox: bool, config_manager) -> None:
+    """Start basic interactive chat mode (backward compatibility)."""
+    global context_provider
     
     # Use configured auto_execute setting
     auto_execute = config_manager.get("auto_execute", False)
@@ -1037,7 +1117,6 @@ def start_interactive_mode(model: str, sandbox: bool = False) -> None:
             break
         except Exception as e:
             console.print(f"[red]Error: {e}[/red]")
-
 
 def main() -> None:
     """Main entry point."""

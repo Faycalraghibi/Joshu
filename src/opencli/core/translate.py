@@ -67,10 +67,24 @@ COMMON_PATTERNS: List[Tuple[re.Pattern[str], str, str]] = [
         'echo "Use the backup feature"',
         "Create a backup of your source code.",
     ),
+    # Code generation patterns
+    (
+        re.compile(r"(give|show|provide|write|generate|code)\s+(me\s+)?(the\s+)?(binary\s+search|code|program|script).*\b(python|javascript|java|c\+\+|c#|go|rust|php|ruby|swift)\b", re.I),
+        'echo "Use the code command: opencli code \\"your request\\""', 
+        "This is a code generation request. Use the 'code' command instead.",
+    ),
+    (
+        re.compile(r"(give|show|provide|write|generate|code)\s+(me\s+)?(the\s+)?(.*\s+)?(code|program|script)\b", re.I),
+        'echo "Use the code command: opencli code \\"your request\\""', 
+        "This is a code generation request. Use the 'code' command instead.",
+    ),
+    # Additional pattern for questions about coding
+    (
+        re.compile(r"(can\s+(you\s+)?(please\s+)?(code|write|generate))|(.*\bcode\b.*\bpython\b)", re.I),
+        'echo "Use the code command: opencli code \\"your request\\""', 
+        "This is a code generation request. Use the 'code' command instead.",
+    ),
 ]
-
-
-
 
 
 def generate_memory_summary_with_llm(context_provider: ContextProvider, prompt: str) -> Optional[Translation]:
@@ -141,11 +155,24 @@ def translate_to_command(prompt: str, context_provider: Optional[ContextProvider
                         model_name: str = "default") -> Optional[Translation]:
     text = prompt.strip()
     
+    # Log the prompt for debugging
+    logger.info(f"Translating prompt: {text}")
+    
     # First try pattern matching
     for pattern, template, explanation in COMMON_PATTERNS:
         m = pattern.search(text)
         if not m:
             continue
+        
+        logger.info(f"Pattern matched: {pattern.pattern}")
+        
+        # Special handling for code generation requests
+        if re.search(r"(give|show|provide|write|generate)\s+(me\s+)?(the\s+)?(binary\s+search|code|program|script).*\b(python|javascript|java|c\+\+|c#|go|rust|php|ruby|swift)\b", text, re.I) or \
+           re.search(r"(give|show|provide|write|generate)\s+(me\s+)?(the\s+)?(.*\s+)?(code|program|script)\b", text, re.I):
+            return Translation(
+                command=template,
+                explanation=explanation
+            )
         
         # Special handling for memory/history requests
         if re.search(r"(show|tell|what|give|provide)(\s+is)?\s+(me\s+)?(the\s+)?(conversation\s+)?(history|memory|context)\b", text, re.I):

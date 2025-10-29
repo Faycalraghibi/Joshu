@@ -146,6 +146,35 @@ OPENCLI_USE_CLOUD=true
 
 ## 📖 Usage Examples
 
+### Usage
+
+OpenCLI can be used in several ways:
+
+### Direct Command Translation
+```bash
+opencli "list all python files modified in the last day"
+opencli "show disk usage"
+opencli "find large files over 100mb"
+```
+
+### Code Generation
+For code generation requests, use the `code` command:
+```bash
+opencli code "write a binary search function in python"
+opencli code "create a REST API with Flask"
+opencli code "generate a React component for a todo list"
+```
+
+### Interactive Mode
+Start interactive mode for continuous conversation:
+```bash
+opencli interactive
+# or
+opencli run --interactive
+# or
+opencli run -i
+```
+
 ### Basic Commands
 
 ``bash

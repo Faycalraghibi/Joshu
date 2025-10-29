@@ -19,7 +19,7 @@ def get_openrouter_client(model_name: Optional[str] = None) -> Optional[OpenAI]:
     api_key = None
     if model_name:
         # Check for model-specific API keys
-        if "deepseek" in model_name.lower():
+        if "deepseek/deepseek-chat-v3.1:free" in model_name.lower():
             api_key = os.getenv("DEEPSEEK_API_KEY")
         elif "tongyi" in model_name.lower():
             api_key = os.getenv("TONGYI_API_KEY")

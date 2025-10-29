@@ -25,6 +25,12 @@ DEFAULT_CONFIG = {
     "log_level": "INFO",
     "memory_enabled": True,
     "sandbox_enabled": True,
+    # Enhanced interactive mode settings
+    "enhanced_interactive": True,
+    "multiline_input": True,
+    "vim_mode": False,
+    "persistent_history": True,
+    "history_limit": 1000,
 }
 
 
@@ -40,6 +46,12 @@ class OpenCLIConfig:
     log_level: str = "INFO"
     memory_enabled: bool = True
     sandbox_enabled: bool = True
+    # Enhanced interactive mode settings
+    enhanced_interactive: bool = True
+    multiline_input: bool = True
+    vim_mode: bool = False
+    persistent_history: bool = True
+    history_limit: int = 1000
 
     @classmethod
     def from_dict(cls, config_dict: Dict[str, Any]) -> "OpenCLIConfig":

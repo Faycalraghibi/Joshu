@@ -67,7 +67,17 @@ def get_model(model_name: str) -> LLM:
                         {"role": "user", "content": prompt}
                     ]
                     response = chat_completion(messages, model=self.model_name)
-                    return response or "No response from OpenRouter"
+                    if response:
+                        return response
+                    else:
+                        # Return a proper JSON response when API call fails
+                        import json
+                        # Extract just the user request part from the prompt for a cleaner error message
+                        user_request = prompt.split("\nUser request:\n")[-1] if "\nUser request:\n" in prompt else prompt
+                        return json.dumps({
+                            "command": "echo \"API connection failed\"",
+                            "explanation": f"Failed to get response from OpenRouter API for request: '{user_request}'. Please check your configuration or try again later."
+                        })
             
             model = OpenRouterModel(model_name)
             _model_cache[model_name] = model
