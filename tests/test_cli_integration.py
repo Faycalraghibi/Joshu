@@ -10,7 +10,7 @@ def test_cli_help():
     """Test that CLI help works."""
     result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0
-    assert "Joshu Assistant" in result.stdout
+    assert "Joshu - Natural language meets your terminal." in result.stdout
 
 
 def test_cli_version():
@@ -18,7 +18,7 @@ def test_cli_version():
     result = runner.invoke(app, ["--version"])
     # When --version is used, typer.Exit() is raised which sets exit_code to 0
     assert result.exit_code == 0
-    assert "Joshu Assistant v" in result.stdout
+    assert "Joshu v" in result.stdout
 
 
 @patch('joshu.ui.cli.translate_to_command')

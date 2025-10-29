@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
-Script to fix Joshu configuration by updating the model to a working one.
+Script to update Joshu configuration to use the GLM model.
 """
 
 import os
 import yaml
 from pathlib import Path
 
-def fix_config():
-    """Fix the Joshu configuration by updating to a working model."""
+def update_config():
+    """Update the Joshu configuration to use the GLM model."""
     # Default config location: ~/.joshu/config.yaml
     config_path = Path.home() / ".joshu" / "config.yaml"
     
@@ -21,16 +21,16 @@ def fix_config():
         with open(config_path, 'r') as f:
             config = yaml.safe_load(f) or {}
         
-        # Update model to a working one
+        # Update model to GLM
         old_model = config.get('model', 'unknown')
-        config['model'] = 'openai/gpt-4o-mini'
+        config['model'] = 'z-ai/glm-4.5-air:free'
         
         # Save updated config
         config_path.parent.mkdir(parents=True, exist_ok=True)
         with open(config_path, 'w') as f:
             yaml.dump(config, f, default_flow_style=False, sort_keys=False)
         
-        print(f"Successfully updated model from '{old_model}' to 'openai/gpt-4o-mini'")
+        print(f"Successfully updated model from '{old_model}' to 'z-ai/glm-4.5-air:free'")
         return True
         
     except Exception as e:
@@ -38,4 +38,4 @@ def fix_config():
         return False
 
 if __name__ == "__main__":
-    fix_config()
+    update_config()

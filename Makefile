@@ -22,5 +22,5 @@ run:
 	joshu run "show disk usage of current directory" -y
 
 clean:
-	rm -rf .venv .OpenCLIvenv dist build *.egg-info .pytest_cache
+	rm -rf .venv .joshuvenv dist build *.egg-info .pytest_cache
 

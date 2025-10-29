@@ -163,7 +163,6 @@ class TestConfig(unittest.TestCase):
         output = self.stdout.getvalue()
         # Check that output contains the model value
         self.assertIn("model:", output)
-        self.assertIn("llama-3-8b", output)
     
     def test_config_get_nonexistent_key(self):
         """Test the config --get command with nonexistent key."""

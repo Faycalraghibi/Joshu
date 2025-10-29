@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Verification script for OpenCLI implementation.
+Verification script for Joshu implementation.
 This script verifies that all the core functionality works correctly.
 """
 
@@ -9,12 +9,12 @@ import sys
 import json
 from unittest.mock import patch, MagicMock
 
-# Add src to path so we can import opencli modules
+# Add src to path so we can import joshu modules
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
 def test_translate_with_pattern_matching():
     """Test that pattern matching still works."""
-    from opencli.core.translate import translate_to_command
+    from joshu.core.translate import translate_to_command
     
     # Test pattern matching
     translation = translate_to_command("show disk usage of current directory")
@@ -26,7 +26,7 @@ def test_translate_with_pattern_matching():
 
 def test_translate_with_llm_fallback():
     """Test that LLM fallback works."""
-    from opencli.core.translate import translate_to_command
+    from joshu.core.translate import translate_to_command
     
     # Mock OpenRouter response for a command that doesn't match patterns
     mock_response = json.dumps({
@@ -34,7 +34,7 @@ def test_translate_with_llm_fallback():
         "explanation": "List all running Python processes"
     })
     
-    with patch("opencli.models.openrouter.chat_completion", return_value=mock_response):
+    with patch("joshu.models.openrouter.chat_completion", return_value=mock_response):
         translation = translate_to_command("show all python processes")
         assert translation is not None
         assert translation.command == "ps aux | grep python"
@@ -44,7 +44,7 @@ def test_translate_with_llm_fallback():
 
 def test_openrouter_integration():
     """Test OpenRouter integration."""
-    from opencli.models.openrouter import chat_completion
+    from joshu.models.openrouter import chat_completion
     
     # Test that the function exists and can be called
     messages = [{"role": "user", "content": "test"}]
@@ -56,8 +56,8 @@ def test_openrouter_integration():
 
 def test_local_model_fallback():
     """Test local model fallback."""
-    from opencli.models.inference import get_model
-    from opencli.models.llm_interface import LLM
+    from joshu.models.inference import get_model
+    from joshu.models.llm_interface import LLM
     
     # Should fall back to EchoModel when no local model is available
     model = get_model("test")
@@ -69,7 +69,7 @@ def test_local_model_fallback():
 
 def test_safety_checks():
     """Test safety checks."""
-    from opencli.core.safety import assess_command_safety
+    from joshu.core.safety import assess_command_safety
     
     # Test safe command
     report = assess_command_safety("ls -la")
@@ -84,7 +84,7 @@ def test_safety_checks():
 
 def test_context_management():
     """Test context management."""
-    from opencli.core.context import ConversationContext
+    from joshu.core.context import ConversationContext
     
     context = ConversationContext()
     context.add("user", "hello")
@@ -100,7 +100,7 @@ def test_context_management():
 
 
 if __name__ == "__main__":
-    print("Verifying OpenCLI implementation...\n")
+    print("Verifying Joshu implementation...\n")
     
     try:
         test_translate_with_pattern_matching()
@@ -110,7 +110,7 @@ if __name__ == "__main__":
         test_safety_checks()
         test_context_management()
         
-        print("\n🎉 All tests passed! OpenCLI implementation is working correctly.")
+        print("\n🎉 All tests passed! Joshu implementation is working correctly.")
         print("\nKey features implemented:")
         print("  ✅ Natural Language Command Translation with LLM integration")
         print("  ✅ Interactive Chat Mode")

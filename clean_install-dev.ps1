@@ -1,7 +1,7 @@
 Param()
 $ErrorActionPreference = "Stop"
 
-# Clean dev install for OpenCLI Assistant on Windows PowerShell
+# Clean dev install for Joshu Assistant on Windows PowerShell
 # - Creates fresh venv at .venv
 # - Upgrades pip/setuptools/wheel
 # - Installs runtime + dev requirements
@@ -18,7 +18,7 @@ Set-Location $projectRoot
 Write-Host "[info] Project root: $projectRoot"
 
 $py = Resolve-Python
-$venvDir = ".OpenCLIvenv"
+$venvDir = ".joshuvenv"
 
 if (Test-Path $venvDir) {
   Write-Host "[info] Removing existing venv: $venvDir"

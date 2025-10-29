@@ -1,4 +1,4 @@
-# 🎯 MVP Core Features for OpenCLI Assistant
+# 🎯 MVP Core Features for Joshu Assistant
 
 ## 1. **Natural Language Command Translation** [Priority: CRITICAL] ✅ COMPLETED
 

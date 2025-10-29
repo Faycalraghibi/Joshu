@@ -1,8 +1,8 @@
-# OpenCLI Comprehensive Implementation Summary
+# Joshu Comprehensive Implementation Summary
 
 ## Overview
 
-OpenCLI is a CLI assistant that translates natural language to shell commands using LLMs. This document provides a comprehensive summary of all core features implemented in the project.
+Joshu is a CLI assistant that translates natural language to shell commands using LLMs. This document provides a comprehensive summary of all core features implemented in the project.
 
 ## Core Features Implementation
 
@@ -28,7 +28,7 @@ OpenCLI is a CLI assistant that translates natural language to shell commands us
 
 #### Core Commands
 - **run**: Execute one-off prompts or start interactive mode
-- **config**: Manage OpenCLI configuration
+- **config**: Manage Joshu configuration
 - **history**: Show command execution history
 - **repeat-last**: Repeat the last executed command
 - **explain-last**: Explain the last executed command
@@ -265,7 +265,7 @@ To use the OpenRouter API integration, set the following environment variables i
 OPENROUTER_API_KEY=your_api_key_here
 OPENROUTER_MODEL=openai/gpt-4o
 OPENROUTER_SITE_URL=https://your-site.com
-OPENROUTER_SITE_TITLE=OpenCLI Assistant
+OPENROUTER_SITE_TITLE=Joshu Assistant
 OPENCLI_USE_CLOUD=true
 ```
 
@@ -498,6 +498,6 @@ Each core component is implemented as a separate module:
 
 ## Conclusion
 
-OpenCLI successfully implements all MVP features with robust error handling, comprehensive testing, and a user-friendly CLI interface. The system provides accurate command translation with appropriate safety measures while maintaining extensibility for future enhancements. The addition of code generation and editing features makes it a comprehensive tool for developers, with intelligent file operations providing additional value for file system interactions.
+Joshu successfully implements all MVP features with robust error handling, comprehensive testing, and a user-friendly CLI interface. The system provides accurate command translation with appropriate safety measures while maintaining extensibility for future enhancements. The addition of code generation and editing features makes it a comprehensive tool for developers, with intelligent file operations providing additional value for file system interactions.
 
 All technical rules and feature requirements have been successfully implemented and observed. The project meets all specified constraints and delivers the complete MVP feature set as outlined in Todo.md.

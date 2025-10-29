@@ -26,7 +26,7 @@ def test_enhanced_interactive_mode_import():
 
 def test_enhanced_interactive_mode_fallback():
     """Test that enhanced interactive mode falls back to basic mode when prompt_toolkit is not available."""
-    with patch('joshu.ui.cli.PROMPT_TOOLKIT_AVAILABLE', False), \
+    with patch('joshu.ui.enhanced_interactive.PROMPT_TOOLKIT_AVAILABLE', False), \
          patch('joshu.ui.cli.start_basic_interactive_mode') as mock_basic_mode, \
          patch('rich.console.Console.print') as mock_print:
         
@@ -34,7 +34,7 @@ def test_enhanced_interactive_mode_fallback():
         config_manager = MagicMock()
         
         # Import after ensuring prompt_toolkit is available
-        from joshu.ui.cli import start_enhanced_interactive_mode
+        from joshu.ui.enhanced_interactive import start_enhanced_interactive_mode
         start_enhanced_interactive_mode("test-model", False, config_manager)
         
         # Should call the basic mode function

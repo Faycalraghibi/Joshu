@@ -22,7 +22,6 @@ try:
     from prompt_toolkit.application import run_in_terminal
     from prompt_toolkit.buffer import Buffer
     from prompt_toolkit.enums import EditingMode
-    PROMPT_TOOLKIT_AVAILABLE = True
 except ImportError:
     PromptSession = None
     FileHistory = None
@@ -35,7 +34,6 @@ except ImportError:
     run_in_terminal = None
     Buffer = None
     EditingMode = None
-    PROMPT_TOOLKIT_AVAILABLE = False
 
 from .display import print_banner
 from joshu.core.translate import translate_to_command
@@ -44,6 +42,14 @@ from joshu.tools.shell import run_command
 from joshu.core.context import ConversationContext
 from joshu.core.context_provider import ContextProvider
 from joshu.tools.code_editor import CodeEditor, CodeEdit
+
+# Import the enhanced interactive mode function
+try:
+    from joshu.ui.enhanced_interactive import start_enhanced_interactive_mode
+    PROMPT_TOOLKIT_AVAILABLE = True
+except ImportError:
+    start_enhanced_interactive_mode = None
+    PROMPT_TOOLKIT_AVAILABLE = False
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -1007,7 +1013,7 @@ def start_interactive_mode(model: str, sandbox: bool = False) -> None:
     if enhanced_interactive:
         try:
             from joshu.ui.enhanced_interactive import start_enhanced_interactive_mode
-            start_enhanced_interactive_mode(model, sandbox)
+            start_enhanced_interactive_mode(model, sandbox, config_manager)
             return
         except ImportError:
             pass  # Fall back to basic mode if enhanced mode is not available

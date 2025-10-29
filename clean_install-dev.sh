@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Clean dev install for OpenCLI Assistant on Linux/Unix
-# - Creates fresh venv at .OpenCLIvenv
+# Clean dev install for Joshu Assistant on Linux/Unix
+# - Creates fresh venv at .joshuvenv
 # - Upgrades pip/setuptools/wheel
 # - Installs runtime + dev requirements
 # - Editable install of the package
@@ -27,7 +27,7 @@ echo "[info] Project root: $PROJECT_ROOT"
 cd "$PROJECT_ROOT"
 
 PY=$(resolve_python)
-VENV_DIR=".OpenCLIvenv"
+VENV_DIR=".joshuvenv"
 
 # Remove existing venv if it exists
 if [ -d "$VENV_DIR" ]; then

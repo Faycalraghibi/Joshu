@@ -62,7 +62,7 @@ def test_help_command():
     """Test the built-in help command."""
     result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0
-    assert "Joshu Assistant" in result.output
+    assert "Joshu - Natural language meets your terminal." in result.output
     # Check that our new commands are listed
     assert "commands" in result.output
     assert "examples" in result.output
