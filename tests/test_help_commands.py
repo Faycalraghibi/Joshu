@@ -1,6 +1,6 @@
 import pytest
 from typer.testing import CliRunner
-from src.opencli.ui.cli import app
+from src.joshu.ui.cli import app
 
 runner = CliRunner()
 
@@ -9,7 +9,7 @@ def test_examples_command():
     """Test the examples command."""
     result = runner.invoke(app, ["examples"])
     assert result.exit_code == 0
-    assert "OpenCLI Usage Examples" in result.output
+    assert "Joshu Usage Examples" in result.output
     assert "Basic Commands:" in result.output
     assert "File System Intelligence:" in result.output
     assert "Code Generation:" in result.output
@@ -19,7 +19,7 @@ def test_commands_command():
     """Test the commands command without category."""
     result = runner.invoke(app, ["commands"])
     assert result.exit_code == 0
-    assert "OpenCLI Command Categories" in result.output
+    assert "Joshu Command Categories" in result.output
     assert "Available Categories:" in result.output
     assert "file" in result.output
     assert "system" in result.output
@@ -62,7 +62,7 @@ def test_help_command():
     """Test the built-in help command."""
     result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0
-    assert "OpenCLI Assistant" in result.output
+    assert "Joshu Assistant" in result.output
     # Check that our new commands are listed
     assert "commands" in result.output
     assert "examples" in result.output

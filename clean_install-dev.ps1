@@ -53,6 +53,6 @@ Write-Host "     `$env:OPENROUTER_SITE_TITLE = \"Your Site\""
 Write-Host "  2) Run tests:"
 Write-Host "     pytest -q"
 Write-Host "  3) Use the CLI:"
-Write-Host "     opencli run \"show disk usage of current directory\" -y"
+Write-Host "     joshu run \"show disk usage of current directory\" -y"
 
 

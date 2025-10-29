@@ -2,14 +2,14 @@ import pytest
 import platform
 from unittest.mock import patch, MagicMock
 
-from opencli.core.translate import translate_to_command
-from opencli.core.context_provider import ContextProvider
+from joshu.core.translate import translate_to_command
+from joshu.core.context_provider import ContextProvider
 
 
 def test_memory_summary_feature():
     """Test the memory summary feature when asking about history/memory."""
     context_provider = ContextProvider()
-    from opencli.tools.system_info import get_detailed_system_info
+    from joshu.tools.system_info import get_detailed_system_info
     context_provider.set_system_info(get_detailed_system_info())
     
     # Add some conversation history
@@ -23,7 +23,7 @@ def test_memory_summary_feature():
     context_provider.set_memory("last_command", "dir")
     
     # Mock the LLM calls to avoid hanging
-    with patch("opencli.models.openrouter.chat_completion") as mock_chat_completion:
+    with patch("joshu.models.openrouter.chat_completion") as mock_chat_completion:
         mock_chat_completion.return_value = "This is a mock summary of the conversation history and memory."
         
         # Test various ways of asking for memory/history
@@ -43,7 +43,7 @@ def test_memory_summary_feature():
             assert "summary" in translation.explanation.lower()
             
     # Test with echo model response
-    with patch("opencli.models.openrouter.chat_completion") as mock_chat_completion:
+    with patch("joshu.models.openrouter.chat_completion") as mock_chat_completion:
         mock_chat_completion.return_value = "Echo: You are a helpful assistant..."
         
         translation = translate_to_command("show me the history", context_provider)

@@ -1,6 +1,6 @@
-# OpenCLI Assistant 🤖
+# Joshu 🤖
 
-An open-source command-line AI assistant inspired by Claude CLI, powered by free large language models. Transform your terminal into an intelligent workspace where natural language meets powerful automation.
+An AI command-line assistant powered by free large language models. Transform your terminal into an intelligent workspace where natural language meets powerful automation.
 
 ## 🌟 Features
 
@@ -35,8 +35,8 @@ An open-source command-line AI assistant inspired by Claude CLI, powered by free
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/opencli-assistant.git
-cd opencli-assistant
+git clone https://github.com/yourusername/joshu-assistant.git
+cd joshu-assistant
 
 # Install dependencies
 pip install -r requirements.txt
@@ -49,13 +49,13 @@ python setup.py install
 
 ```bash
 # Start the assistant
-opencli
+joshu
 
 # Or with specific model
-opencli --model llama-3-70b
+joshu --model llama-3-70b
 
 # Get help
-opencli --help
+joshu --help
 ```
 
 ## 🔧 Configuration
@@ -78,10 +78,10 @@ models:
 
 ### User Configuration
 
-OpenCLI supports user-level configuration through a YAML file located at `~/.opencli/config.yaml`:
+Joshu supports user-level configuration through a YAML file located at `~/.joshu/config.yaml`:
 
 ```
-# ~/.opencli/config.yaml
+# ~/.joshu/config.yaml
 model: "llama-3-8b"
 safety_mode: true
 auto_execute: false
@@ -110,95 +110,95 @@ Manage your configuration directly from the command line:
 
 ```bash
 # List all configuration options
-opencli config --list
+joshu config --list
 
 # Get a specific configuration value
-opencli config --get model
+joshu config --get model
 
 # Set a configuration value
-opencli config --set model=llama-3-70b
-opencli config --set auto_execute=true
+joshu config --set model=llama-3-70b
+joshu config --set auto_execute=true
 
 # Reset configuration to defaults
-opencli config --reset
+joshu config --reset
 
 # Edit configuration file directly
-opencli config --edit
+joshu config --edit
 ```
 
 ### Environment Configuration
 
 ```
 # .env file
-OPENCLI_MODEL=llama-3-8b
-OPENCLI_MEMORY_ENABLED=true
-OPENCLI_SANDBOX_ENABLED=true
-OPENCLI_LOG_LEVEL=INFO
-OPENCLI_MAX_CONTEXT=4096
+JOSHU_MODEL=llama-3-8b
+JOSHU_MEMORY_ENABLED=true
+JOSHU_SANDBOX_ENABLED=true
+JOSHU_LOG_LEVEL=INFO
+JOSHU_MAX_CONTEXT=4096
 
 # OpenRouter API (optional, for cloud models)
 OPENROUTER_API_KEY=your_api_key_here
 OPENROUTER_MODEL=openai/gpt-4o
 OPENROUTER_SITE_URL=https://your-site.com
-OPENROUTER_SITE_TITLE=OpenCLI Assistant
-OPENCLI_USE_CLOUD=true
+OPENROUTER_SITE_TITLE=Joshu Assistant
+JOSHU_USE_CLOUD=true
 ```
 
 ## 📖 Usage Examples
 
 ### Usage
 
-OpenCLI can be used in several ways:
+Joshu can be used in several ways:
 
 ### Direct Command Translation
 ```bash
-opencli "list all python files modified in the last day"
-opencli "show disk usage"
-opencli "find large files over 100mb"
+joshu "list all python files modified in the last day"
+joshu "show disk usage"
+joshu "find large files over 100mb"
 ```
 
 ### Code Generation
 For code generation requests, use the `code` command:
 ```bash
-opencli code "write a binary search function in python"
-opencli code "create a REST API with Flask"
-opencli code "generate a React component for a todo list"
+joshu code "write a binary search function in python"
+joshu code "create a REST API with Flask"
+joshu code "generate a React component for a todo list"
 ```
 
 ### Interactive Mode
 Start interactive mode for continuous conversation:
 ```bash
-opencli interactive
+joshu interactive
 # or
-opencli run --interactive
+joshu run --interactive
 # or
-opencli run -i
+joshu run -i
 ```
 
 ### Basic Commands
 
 ``bash
 # Natural language commands
-opencli "list all python files modified in the last week"
-opencli "create a backup of my project directory"
-opencli "show me memory usage of running processes"
+joshu "list all python files modified in the last week"
+joshu "create a backup of my project directory"
+joshu "show me memory usage of running processes"
 
 # File system intelligence
-opencli "show me the structure of this project"
-opencli "find configuration files"
-opencli "what's in the log directory?"
-opencli "backup my source code"
+joshu "show me the structure of this project"
+joshu "find configuration files"
+joshu "what's in the log directory?"
+joshu "backup my source code"
 
 # Code generation
-opencli "write a python function to parse CSV files"
-opencli "debug this bash script: ./deploy.sh"
-opencli "explain what this regex does: ^[a-zA-Z0-9+_.-]+@[a-zA-Z0-9.-]+$"
+joshu "write a python function to parse CSV files"
+joshu "debug this bash script: ./deploy.sh"
+joshu "explain what this regex does: ^[a-zA-Z0-9+_.-]+@[a-zA-Z0-9.-]+$"
 ```
 
 ### Interactive Mode
 
 ```bash
-opencli --interactive
+joshu --interactive
 
 > You: How do I set up a virtual environment?
 > Assistant: I'll help you set up a Python virtual environment...
@@ -214,56 +214,56 @@ opencli --interactive
 
 ### Safety Features
 
-OpenCLI includes advanced safety features to protect against destructive commands:
+Joshu includes advanced safety features to protect against destructive commands:
 
 ```bash
 # Safety features in action
-opencli "delete all files in /home"
+joshu "delete all files in /home"
 → ⚠️  DANGER: This command could delete important files
 → Command blocked for safety. Did you mean to delete files in current directory?
 → Suggested safer alternative: rm -i *.tmp
 
 # Sandbox mode for testing
-opencli --sandbox "delete all files"
+joshu --sandbox "delete all files"
 → ⚠️  Sandbox mode: All destructive commands are blocked
 → Command execution prevented for safety
 ```
 
 ### Help and Documentation
 
-OpenCLI provides comprehensive help and documentation:
+Joshu provides comprehensive help and documentation:
 
 ```bash
 # Show usage examples
-opencli --examples
+joshu --examples
 
 # Show command categories
-opencli --commands
+joshu --commands
 
 # Show examples for a specific category
-opencli --commands file
+joshu --commands file
 
 # Explain a specific command
-opencli --explain "tar"
+joshu --explain "tar"
 ```
 
 ### Advanced Workflows
 
 ``bash
 # Project analysis
-opencli "analyze this codebase and suggest improvements"
+joshu "analyze this codebase and suggest improvements"
 
 # Automated workflows
-opencli "set up CI/CD pipeline for this Node.js project"
+joshu "set up CI/CD pipeline for this Node.js project"
 
 # System administration
-opencli "monitor system health and alert if issues found"
+joshu "monitor system health and alert if issues found"
 ```
 
 ## 🏗️ Architecture
 
 ```
-opencli-assistant/
+joshu-assistant/
 ├── src/
 │   ├── core/
 │   │   ├── agent.py          # Main assistant logic
@@ -299,7 +299,7 @@ Create custom plugins to extend functionality:
 
 ```python
 # plugins/example_plugin.py
-from opencli.plugins import Plugin
+from joshu.plugins import Plugin
 
 class MyCustomPlugin(Plugin):
     name = "example"
@@ -331,8 +331,8 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 
 ```bash
 # Fork and clone the repository
-git clone https://github.com/Faycacalraghibi/opencli-assistant.git
-cd opencli-assistant
+git clone https://github.com/Faycacalraghibi/joshu-assistant.git
+cd joshu-assistant
 
 # Create development environment
 python -m venv dev-env
@@ -413,14 +413,14 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-- **Documentation**: [docs.opencli.dev](https://docs.opencli.dev)
-- **Issues**: [GitHub Issues](https://github.com/yourusername/opencli-assistant/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/opencli-assistant/discussions)
-- **Discord**: [Join our community](https://discord.gg/opencli)
+- **Documentation**: [docs.joshu.dev](https://docs.joshu.dev)
+- **Issues**: [GitHub Issues](https://github.com/yourusername/joshu-assistant/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/yourusername/joshu-assistant/discussions)
+- **Discord**: [Join our community](https://discord.gg/joshu)
 
 ---
 
-Made with ❤️ by the OpenCLI community
+Made with ❤️ by the Joshu community
 
 Democratizing AI assistance, one command at a time.
 

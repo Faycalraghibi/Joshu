@@ -3,9 +3,9 @@ import platform
 import builtins
 from unittest.mock import patch, MagicMock
 
-from opencli.core.translate import translate_to_command, translate_with_openrouter, translate_with_local_model, adapt_command_for_windows
-from opencli.tools.system_info import get_system_info
-from opencli.models.llm_interface import LLM
+from joshu.core.translate import translate_to_command, translate_with_openrouter, translate_with_local_model, adapt_command_for_windows
+from joshu.tools.system_info import get_system_info
+from joshu.models.llm_interface import LLM
 
 
 def test_translate_llm_success():
@@ -13,7 +13,7 @@ def test_translate_llm_success():
         "command": "ps aux | grep python",
         "explanation": "List all running Python processes"
     })
-    with patch("opencli.models.openrouter.chat_completion", return_value=mock_response):
+    with patch("joshu.models.openrouter.chat_completion", return_value=mock_response):
         t = translate_to_command("show all python processes")
         assert t is not None
         assert t.command == "ps aux | grep python"
@@ -21,7 +21,7 @@ def test_translate_llm_success():
 
 
 def test_translate_llm_bad_json_fallback_pattern():
-    with patch("opencli.models.openrouter.chat_completion", return_value="not json"):
+    with patch("joshu.models.openrouter.chat_completion", return_value="not json"):
         t = translate_to_command("find all python files")
         assert t is not None
         if "Windows" in get_system_info():
@@ -36,7 +36,7 @@ def test_translate_with_openrouter_success():
         "command": "ls -la",
         "explanation": "List all files with details"
     })
-    with patch("opencli.models.openrouter.chat_completion", return_value=mock_response):
+    with patch("joshu.models.openrouter.chat_completion", return_value=mock_response):
         result = translate_with_openrouter("list all files")
         assert result is not None
         assert result["command"] == "ls -la"
@@ -46,7 +46,7 @@ def test_translate_with_openrouter_success():
 def test_translate_with_openrouter_with_markdown():
     # Test with markdown code blocks
     mock_response = "```json\n{\n  \"command\": \"type readme.md\",\n  \"explanation\": \"Display the content of the file named readme.md in the current directory.\"\n}\n```"
-    with patch("opencli.models.openrouter.chat_completion", return_value=mock_response):
+    with patch("joshu.models.openrouter.chat_completion", return_value=mock_response):
         result = translate_with_openrouter("display the content of readme.md file")
         assert result is not None
         assert result["command"] == "type readme.md"
@@ -59,7 +59,7 @@ def test_translate_with_local_model_success():
         def generate(self, prompt: str, **kwargs):
             return '{"command": "date", "explanation": "Show current date and time"}'
     
-    with patch("opencli.models.inference.get_model") as mock_get_model:
+    with patch("joshu.models.inference.get_model") as mock_get_model:
         mock_get_model.return_value = MockLLM()
         
         t = translate_with_local_model("show current date", model_name="default")
@@ -74,7 +74,7 @@ def test_translate_with_local_model_bad_json():
         def generate(self, prompt: str, **kwargs):
             return "not json"
     
-    with patch("opencli.models.inference.get_model") as mock_get_model:
+    with patch("joshu.models.inference.get_model") as mock_get_model:
         mock_get_model.return_value = MockLLM()
         
         t = translate_with_local_model("show current date", model_name="default")

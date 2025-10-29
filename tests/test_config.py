@@ -6,11 +6,11 @@ from unittest.mock import patch, MagicMock
 import io
 import sys
 
-# Add src to path so we can import opencli modules
+# Add src to path so we can import joshu modules
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from opencli.core.config import ConfigManager, OpenCLIConfig, get_config_manager
-from opencli.ui.cli import app
+from joshu.core.config import ConfigManager, JoshuConfig, get_config_manager
+from joshu.ui.cli import app
 
 
 class TestConfig(unittest.TestCase):
@@ -31,8 +31,8 @@ class TestConfig(unittest.TestCase):
         shutil.rmtree(self.test_dir)
     
     def test_config_creation(self):
-        """Test creating OpenCLIConfig with default values."""
-        config = OpenCLIConfig()
+        """Test creating JoshuConfig with default values."""
+        config = JoshuConfig()
         self.assertEqual(config.model, "llama-3-8b")
         self.assertEqual(config.safety_mode, True)
         self.assertEqual(config.auto_execute, False)
@@ -40,7 +40,7 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(config.temperature, 0.1)
     
     def test_config_from_dict(self):
-        """Test creating OpenCLIConfig from dictionary."""
+        """Test creating JoshuConfig from dictionary."""
         config_dict = {
             "model": "llama-3-70b",
             "safety_mode": False,
@@ -48,7 +48,7 @@ class TestConfig(unittest.TestCase):
             "max_tokens": 2048,
             "temperature": 0.5
         }
-        config = OpenCLIConfig.from_dict(config_dict)
+        config = JoshuConfig.from_dict(config_dict)
         self.assertEqual(config.model, "llama-3-70b")
         self.assertEqual(config.safety_mode, False)
         self.assertEqual(config.auto_execute, True)
@@ -56,20 +56,20 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(config.temperature, 0.5)
     
     def test_config_with_missing_keys(self):
-        """Test creating OpenCLIConfig with missing keys uses defaults."""
+        """Test creating JoshuConfig with missing keys uses defaults."""
         config_dict = {
             "model": "test-model"
             # Missing other keys should use defaults
         }
-        config = OpenCLIConfig.from_dict(config_dict)
+        config = JoshuConfig.from_dict(config_dict)
         self.assertEqual(config.model, "test-model")
         # Other values should be defaults
         self.assertEqual(config.safety_mode, True)
         self.assertEqual(config.auto_execute, False)
     
     def test_config_to_dict(self):
-        """Test converting OpenCLIConfig to dictionary."""
-        config = OpenCLIConfig(model="test-model", auto_execute=True)
+        """Test converting JoshuConfig to dictionary."""
+        config = JoshuConfig(model="test-model", auto_execute=True)
         config_dict = config.to_dict()
         self.assertEqual(config_dict["model"], "test-model")
         self.assertEqual(config_dict["auto_execute"], True)
@@ -291,7 +291,7 @@ class TestConfig(unittest.TestCase):
         
         output = self.stdout.getvalue()
         # Check that output shows help message
-        self.assertIn("OpenCLI Configuration Manager", output)
+        self.assertIn("Joshu Configuration Manager", output)
         self.assertIn("Use --help for more information", output)
     
     def test_config_set_boolean_values(self):

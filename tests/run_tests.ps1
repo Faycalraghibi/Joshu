@@ -21,7 +21,7 @@ if (-not $env:OPENROUTER_MODEL) { $env:OPENROUTER_MODEL = "openai/gpt-4o" }
 
 # Ensure package is importable (editable install fallback)
 try {
-  python -c "import opencli" | Out-Null
+  python -c "import joshu" | Out-Null
 }
 catch {
   pip install -e .

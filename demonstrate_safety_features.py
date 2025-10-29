@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Demonstration script for OpenCLI Safety Features
+Demonstration script for Joshu Safety Features
 """
 
-from opencli.core.safety import assess_command_safety
-from opencli.tools.system_info import get_system_info
+from joshu.core.safety import assess_command_safety
+from joshu.tools.system_info import get_system_info
 
 
 def demonstrate_safety_features():
@@ -13,7 +13,7 @@ def demonstrate_safety_features():
     system_info = get_system_info()
     is_windows = "Windows" in system_info
     
-    print("=== OpenCLI Safety Features Demonstration ===\n")
+    print("=== Joshu Safety Features Demonstration ===\n")
     print(f"Detected System: {system_info}\n")
     
     # Test cases with different danger levels

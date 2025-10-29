@@ -10,10 +10,10 @@ def test_code_generation_fix():
     """Test that code generation requests are properly detected and users are guided to use the code command."""
     
     # Mock the console.print function to capture output
-    with patch('opencli.ui.cli.console.print') as mock_console_print, \
-         patch('opencli.core.config.get_config_manager') as mock_config_manager, \
-         patch('opencli.core.context_provider.ContextProvider') as mock_context_provider, \
-         patch('opencli.ui.cli.translate_to_command') as mock_translate:
+    with patch('joshu.ui.cli.console.print') as mock_console_print, \
+         patch('joshu.core.config.get_config_manager') as mock_config_manager, \
+         patch('joshu.core.context_provider.ContextProvider') as mock_context_provider, \
+         patch('joshu.ui.cli.translate_to_command') as mock_translate:
         
         # Mock config manager
         mock_config = MagicMock()
@@ -26,12 +26,12 @@ def test_code_generation_fix():
         
         # Mock translation to return a code generation suggestion
         mock_translation = MagicMock()
-        mock_translation.command = 'echo "Use the code command: opencli code \\"your request\\""'
+        mock_translation.command = 'echo "Use the code command: joshu code \\"your request\\""'
         mock_translation.explanation = "This is a code generation request. Use the 'code' command instead."
         mock_translate.return_value = mock_translation
         
         # Import and test the execute_prompt function
-        from opencli.ui.cli import execute_prompt
+        from joshu.ui.cli import execute_prompt
         from click.exceptions import Exit
         
         # This should raise a typer.Exit exception

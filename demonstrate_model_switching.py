@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
 Demonstration script for the model switching feature.
-This script shows how to use different LLM models with OpenCLI.
+This script shows how to use different LLM models with Joshu.
 """
 
-from opencli.models.inference import get_model, list_loaded_models, unload_model, clear_model_cache
-from opencli.core.context_provider import ContextProvider
-from opencli.core.translate import translate_to_command
+from joshu.models.inference import get_model, list_loaded_models, unload_model, clear_model_cache
+from joshu.core.context_provider import ContextProvider
+from joshu.core.translate import translate_to_command
 
 def demonstrate_model_switching():
     """Demonstrate the model switching feature."""
@@ -71,9 +71,9 @@ def demonstrate_model_switching():
     print()
     print("4. CLI Usage:")
     print("   You can now specify models when using the CLI:")
-    print("   opencli run --model llama-3-8b \"list all python files\"")
-    print("   opencli run --model mistral-7b \"explain what this regex does\"")
-    print("   opencli run --model openai/gpt-4o \"debug this bash script\"")
+    print("   joshu run --model llama-3-8b \"list all python files\"")
+    print("   joshu run --model mistral-7b \"explain what this regex does\"")
+    print("   joshu run --model openai/gpt-4o \"debug this bash script\"")
     print()
     
     print("=== Demonstration Complete ===")

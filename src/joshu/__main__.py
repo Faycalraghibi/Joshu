@@ -1,4 +1,4 @@
-from opencli.ui.cli import main
+from joshu.ui.cli import main
 
 if __name__ == "__main__":
     main()

@@ -6,7 +6,7 @@ OpenCLI is a CLI assistant that translates natural language to shell commands us
 
 ## Core Features Implementation
 
-### 1. Natural Language Command Translation ([src/opencli/core/translate.py](file://d%3A/Projects/AI%20Projects/OpenCLI/src/opencli/core/translate.py))
+### 1. Natural Language Command Translation ([src/joshu/core/translate.py](file://d%3A/Projects/AI%20Projects/OpenCLI/src/joshu/core/translate.py))
 
 #### Pattern Matching
 - Fast translation for common commands using regex patterns
@@ -24,7 +24,7 @@ OpenCLI is a CLI assistant that translates natural language to shell commands us
 - Fallback responses when translation fails
 - Proper handling of markdown-wrapped JSON responses
 
-### 2. CLI Interface ([src/opencli/ui/cli.py](file://d%3A/Projects/AI%20Projects/OpenCLI/src/opencli/ui/cli.py))
+### 2. CLI Interface ([src/joshu/ui/cli.py](file://d%3A/Projects/AI%20Projects/OpenCLI/src/joshu/ui/cli.py))
 
 #### Core Commands
 - **run**: Execute one-off prompts or start interactive mode
@@ -48,7 +48,7 @@ OpenCLI is a CLI assistant that translates natural language to shell commands us
 - Last command repetition functionality
 - Last command explanation functionality
 
-### 3. Model Integration ([src/opencli/models/openrouter.py](file://d%3A/Projects/AI%20Projects/OpenCLI/src/opencli/models/openrouter.py) and [src/opencli/models/inference.py](file://d%3A/Projects/AI%20Projects/OpenCLI/src/opencli/models/inference.py))
+### 3. Model Integration ([src/joshu/models/openrouter.py](file://d%3A/Projects/AI%20Projects/OpenCLI/src/joshu/models/openrouter.py) and [src/joshu/models/inference.py](file://d%3A/Projects/AI%20Projects/OpenCLI/src/joshu/models/inference.py))
 
 #### OpenRouter API Integration
 - Robust OpenRouter API integration
@@ -65,7 +65,7 @@ OpenCLI is a CLI assistant that translates natural language to shell commands us
 - OpenRouter → Local LLM → EchoModel
 - Graceful degradation when models are unavailable
 
-### 4. Configuration Management ([src/opencli/core/config.py](file://d%3A/Projects/AI%20Projects/OpenCLI/src/opencli/core/config.py))
+### 4. Configuration Management ([src/joshu/core/config.py](file://d%3A/Projects/AI%20Projects/OpenCLI/src/joshu/core/config.py))
 
 #### Features
 - YAML-based configuration with default values
@@ -80,7 +80,7 @@ OpenCLI is a CLI assistant that translates natural language to shell commands us
 - Auto-execute settings
 - Context history limits
 
-### 5. Safety System ([src/opencli/core/safety.py](file://d%3A/Projects/AI%20Projects/OpenCLI/src/opencli/core/safety.py))
+### 5. Safety System ([src/joshu/core/safety.py](file://d%3A/Projects/AI%20Projects/OpenCLI/src/joshu/core/safety.py))
 
 #### Destructive Command Detection
 - Detection of destructive commands for both Unix and Windows
@@ -92,7 +92,7 @@ OpenCLI is a CLI assistant that translates natural language to shell commands us
 - Platform-specific safety rules
 - Danger level classification (CRITICAL, HIGH, MEDIUM, LOW)
 
-### 6. Context Management ([src/opencli/core/context_provider.py](file://d%3A/Projects/AI%20Projects/OpenCLI/src/opencli/core/context_provider.py))
+### 6. Context Management ([src/joshu/core/context_provider.py](file://d%3A/Projects/AI%20Projects/OpenCLI/src/joshu/core/context_provider.py))
 
 #### Conversation Context
 - Conversation history tracking with configurable limits
@@ -109,14 +109,14 @@ OpenCLI is a CLI assistant that translates natural language to shell commands us
 - Context summary for debugging and monitoring
 - Automatic context updates based on command execution results
 
-### 7. Shell Command Execution ([src/opencli/tools/shell.py](file://d%3A/Projects/AI%20Projects/OpenCLI/src/opencli/tools/shell.py))
+### 7. Shell Command Execution ([src/joshu/tools/shell.py](file://d%3A/Projects/AI%20Projects/OpenCLI/src/joshu/tools/shell.py))
 
 #### Features
 - Proper handling of Unicode characters in file output
 - Graceful handling of command execution errors
 - Cross-platform command execution support
 
-### 8. File Operations ([src/opencli/tools/filesystem.py](file://d%3A/Projects/AI%20Projects/OpenCLI/src/opencli/tools/filesystem.py))
+### 8. File Operations ([src/joshu/tools/filesystem.py](file://d%3A/Projects/AI%20Projects/OpenCLI/src/joshu/tools/filesystem.py))
 
 #### Directory Analysis
 - Directory structure analysis with customizable depth
@@ -132,7 +132,7 @@ OpenCLI is a CLI assistant that translates natural language to shell commands us
 - Backup creation utilities
 - File filtering by size, type, or other criteria
 
-### 9. Code Generation & Editing ([src/opencli/tools/code_editor.py](file://d%3A/Projects/AI%20Projects/OpenCLI/src/opencli/tools/code_editor.py), [src/opencli/core/code_editor.py](file://d%3A/Projects/AI%20Projects/OpenCLI/src/opencli/core/code_editor.py), [src/opencli/tools/code_tools.py](file://d%3A/Projects/AI%20Projects/OpenCLI/src/opencli/tools/code_tools.py))
+### 9. Code Generation & Editing ([src/joshu/tools/code_editor.py](file://d%3A/Projects/AI%20Projects/OpenCLI/src/joshu/tools/code_editor.py), [src/joshu/core/code_editor.py](file://d%3A/Projects/AI%20Projects/OpenCLI/src/joshu/core/code_editor.py), [src/joshu/tools/code_tools.py](file://d%3A/Projects/AI%20Projects/OpenCLI/src/joshu/tools/code_tools.py))
 
 #### Core Code Features
 1. **Code Generation from Natural Language**
@@ -162,7 +162,7 @@ OpenCLI is a CLI assistant that translates natural language to shell commands us
 #### Technical Implementation
 
 ##### New Architecture
-1. **Core Logic** - Located in `/src/opencli/core/code_editor.py`
+1. **Core Logic** - Located in `/src/joshu/core/code_editor.py`
    - File System Operations: `read_file`, `write_file`, `list_files`
    - Code Analysis & Understanding: `parse_ast`, `extract_functions`, `analyze_code_quality`
    - Code Generation & Modification: `generate_code`, `edit_code_region`, `refactor_code`
@@ -173,12 +173,12 @@ OpenCLI is a CLI assistant that translates natural language to shell commands us
    - Language-Specific Tools: `format_code`, `optimize_imports`
    - Utility Methods: `validate_syntax`, `get_language_from_extension`
 
-2. **Tool Interfaces** - Located in `/src/opencli/tools/code_tools.py`
+2. **Tool Interfaces** - Located in `/src/joshu/tools/code_tools.py`
    - Simplified access to core functionality
    - Dictionary-based return values for complex objects
    - Proper handling of optional parameters
 
-3. **Backward Compatibility** - Maintained in `/src/opencli/tools/code_editor.py`
+3. **Backward Compatibility** - Maintained in `/src/joshu/tools/code_editor.py`
    - Delegates to new core implementation while maintaining original API
    - All existing methods work as before
    - No breaking changes for existing code
@@ -274,16 +274,16 @@ OPENCLI_USE_CLOUD=true
 ### Basic Command Translation
 ```bash
 # Basic translation
-opencli "show disk usage of current directory"
+joshu "show disk usage of current directory"
 
 # With specific model
-opencli --model llama-3-70b "find all python files"
+joshu --model llama-3-70b "find all python files"
 ```
 
 ### Interactive Mode
 ```bash
 # Interactive mode
-opencli --interactive
+joshu --interactive
 
 # In interactive mode:
 # You: show me all python files
@@ -298,61 +298,61 @@ opencli --interactive
 ### Configuration Management
 ```bash
 # List all configuration options
-opencli config --list
+joshu config --list
 
 # Get specific configuration value
-opencli config --get model
+joshu config --get model
 
 # Set configuration value
-opencli config --set auto_execute=true
+joshu config --set auto_execute=true
 
 # Reset configuration to defaults
-opencli config --reset
+joshu config --reset
 ```
 
 ### Command History
 ```bash
 # Show command execution history
-opencli --history
+joshu --history
 
 # Repeat the last executed command
-opencli --repeat-last
+joshu --repeat-last
 
 # Explain the last executed command
-opencli --explain-last
+joshu --explain-last
 ```
 
 ### Code Generation & Editing
 ```bash
 # Code Generation
-opencli code "create a Python function to calculate factorial"
+joshu code "create a Python function to calculate factorial"
 
 # Code Explanation
-opencli code "explain this code: def add(a, b): return a + b"
+joshu code "explain this code: def add(a, b): return a + b"
 
 # Code Debugging
-opencli code "debug this error: IndentationError in def factorial(n): if n <= 1: return 1 else: return n * factorial(n-1)"
+joshu code "debug this error: IndentationError in def factorial(n): if n <= 1: return 1 else: return n * factorial(n-1)"
 
 # Code Refactoring
-opencli code "refactor this code to be more efficient: def factorial(n): result = 1; for i in range(1, n+1): result *= i; return result"
+joshu code "refactor this code to be more efficient: def factorial(n): result = 1; for i in range(1, n+1): result *= i; return result"
 
 # File Editing
-opencli code "edit test_factorial.py: add error handling for negative numbers" --file test_factorial.py
+joshu code "edit test_factorial.py: add error handling for negative numbers" --file test_factorial.py
 ```
 
 ### File Operations
 ```bash
 # Show project structure
-opencli "show me the structure of this project"
+joshu "show me the structure of this project"
 
 # Find configuration files
-opencli "find configuration files"
+joshu "find configuration files"
 
 # Create a backup
-opencli "backup my source code"
+joshu "backup my source code"
 
 # Find large files
-opencli "find large files over 10MB"
+joshu "find large files over 10MB"
 ```
 
 ## Architecture Improvements
@@ -486,10 +486,10 @@ All specified models are supported:
 ### Code Structure and Module Boundaries
 Each core component is implemented as a separate module:
 - Agent: Not applicable for this project
-- LLM: Implemented in `src/opencli/models/`
-- Tools: Implemented in `src/opencli/tools/`
-- CLI: Implemented in `src/opencli/ui/cli.py`
-- Memory: Implemented in `src/opencli/core/context_provider.py`
+- LLM: Implemented in `src/joshu/models/`
+- Tools: Implemented in `src/joshu/tools/`
+- CLI: Implemented in `src/joshu/ui/cli.py`
+- Memory: Implemented in `src/joshu/core/context_provider.py`
 
 ### Configuration Management
 - All configuration via .env, YAML, or CLI args

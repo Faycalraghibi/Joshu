@@ -1,4 +1,4 @@
 def test_import_package():
-    import opencli  # noqa: F401
+    import joshu  # noqa: F401
 
 

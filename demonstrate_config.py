@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 """
-Demonstration script for OpenCLI Configuration Management Features
+Demonstration script for Joshu Configuration Management Features
 """
 
 import tempfile
 import os
 from pathlib import Path
-from opencli.core.config import ConfigManager, OpenCLIConfig
+from joshu.core.config import ConfigManager, JoshuConfig
 
 
 def demonstrate_config_features():
     """Demonstrate the configuration management features."""
     
-    print("=== OpenCLI Configuration Management Features Demonstration ===\n")
+    print("=== Joshu Configuration Management Features Demonstration ===\n")
     
     # Create a temporary directory for test config
     test_dir = tempfile.mkdtemp()

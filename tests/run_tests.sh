@@ -23,7 +23,7 @@ export OPENROUTER_MODEL="${OPENROUTER_MODEL:-openai/gpt-4o}"
 python - <<'PY'
 import sys
 try:
-    import opencli  # noqa: F401
+    import joshu  # noqa: F401
 except Exception as e:
     sys.exit(42)
 PY

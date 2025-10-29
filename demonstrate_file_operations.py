@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Demonstration script for OpenCLI File Operations Features
+Demonstration script for Joshu File Operations Features
 """
 
 import os
 import tempfile
 from pathlib import Path
-from opencli.tools.filesystem import (
+from joshu.tools.filesystem import (
     list_python_files,
     get_directory_structure,
     find_files_by_extension,
@@ -19,7 +19,7 @@ from opencli.tools.filesystem import (
 def demonstrate_file_operations():
     """Demonstrate the file operations features."""
     
-    print("=== OpenCLI File Operations Features Demonstration ===\n")
+    print("=== Joshu File Operations Features Demonstration ===\n")
     
     # Create a temporary directory structure for demonstration
     test_dir = tempfile.mkdtemp()

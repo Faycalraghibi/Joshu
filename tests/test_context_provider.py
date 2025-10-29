@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch, MagicMock
 
-from opencli.core.context_provider import ContextProvider, ContextEntry
+from joshu.core.context_provider import ContextProvider, ContextEntry
 
 
 def test_context_provider_initialization():
@@ -66,7 +66,7 @@ def test_context_provider_clear_context():
 def test_context_provider_get_relevant_context():
     """Test getting relevant context."""
     provider = ContextProvider()
-    from opencli.tools.system_info import get_detailed_system_info
+    from joshu.tools.system_info import get_detailed_system_info
     provider.set_system_info(get_detailed_system_info())
     
     provider.add_to_history("user", "Hello")

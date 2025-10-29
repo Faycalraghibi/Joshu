@@ -1,5 +1,5 @@
 """
-Configuration management for OpenCLI Assistant.
+Configuration management for Joshu Assistant.
 Handles user preferences, model settings, and other configurable options.
 """
 
@@ -35,8 +35,8 @@ DEFAULT_CONFIG = {
 
 
 @dataclass
-class OpenCLIConfig:
-    """OpenCLI Configuration Data Class"""
+class JoshuConfig:
+    """Joshu Configuration Data Class"""
     model: str = "llama-3-8b"
     safety_mode: bool = True
     auto_execute: bool = False
@@ -54,8 +54,8 @@ class OpenCLIConfig:
     history_limit: int = 1000
 
     @classmethod
-    def from_dict(cls, config_dict: Dict[str, Any]) -> "OpenCLIConfig":
-        """Create OpenCLIConfig from dictionary, using defaults for missing values."""
+    def from_dict(cls, config_dict: Dict[str, Any]) -> "JoshuConfig":
+        """Create JoshuConfig from dictionary, using defaults for missing values."""
         # Use defaults for missing keys
         for key, default_value in DEFAULT_CONFIG.items():
             if key not in config_dict:
@@ -74,12 +74,12 @@ class OpenCLIConfig:
         )
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert OpenCLIConfig to dictionary."""
+        """Convert JoshuConfig to dictionary."""
         return asdict(self)
 
 
 class ConfigManager:
-    """Manages OpenCLI configuration loading, saving, and access."""
+    """Manages Joshu configuration loading, saving, and access."""
     
     def __init__(self, config_path: Optional[str] = None):
         """
@@ -89,13 +89,13 @@ class ConfigManager:
             config_path: Path to config file. If None, uses default location.
         """
         if config_path is None:
-            # Default config location: ~/.opencli/config.yaml
+            # Default config location: ~/.joshu/config.yaml
             home = Path.home()
-            self.config_path = home / ".opencli" / "config.yaml"
+            self.config_path = home / ".joshu" / "config.yaml"
         else:
             self.config_path = Path(config_path)
         
-        self.config: OpenCLIConfig = OpenCLIConfig()
+        self.config: JoshuConfig = JoshuConfig()
         self.load_config()
     
     def load_config(self) -> bool:
@@ -118,15 +118,15 @@ class ConfigManager:
             with open(self.config_path, 'r') as f:
                 config_data = yaml.safe_load(f) or {}
             
-            # Create OpenCLIConfig from loaded data
-            self.config = OpenCLIConfig.from_dict(config_data)
+            # Create JoshuConfig from loaded data
+            self.config = JoshuConfig.from_dict(config_data)
             logger.info(f"Configuration loaded from {self.config_path}")
             return True
             
         except Exception as e:
             logger.warning(f"Failed to load configuration: {e}")
             # Use default configuration
-            self.config = OpenCLIConfig()
+            self.config = JoshuConfig()
             return False
     
     def save_config(self) -> bool:
@@ -182,7 +182,7 @@ class ConfigManager:
     
     def reset_to_defaults(self) -> None:
         """Reset configuration to default values."""
-        self.config = OpenCLIConfig()
+        self.config = JoshuConfig()
     
     def get_config_path(self) -> Path:
         """Get the path to the configuration file."""

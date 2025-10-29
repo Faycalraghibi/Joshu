@@ -38,12 +38,12 @@ except ImportError:
     PROMPT_TOOLKIT_AVAILABLE = False
 
 from .display import print_banner
-from opencli.core.translate import translate_to_command
-from opencli.core.safety import assess_command_safety
-from opencli.tools.shell import run_command
-from opencli.core.context import ConversationContext
-from opencli.core.context_provider import ContextProvider
-from opencli.tools.code_editor import CodeEditor, CodeEdit
+from joshu.core.translate import translate_to_command
+from joshu.core.safety import assess_command_safety
+from joshu.tools.shell import run_command
+from joshu.core.context import ConversationContext
+from joshu.core.context_provider import ContextProvider
+from joshu.tools.code_editor import CodeEditor, CodeEdit
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -58,8 +58,8 @@ context_provider: Optional[ContextProvider] = None
 
 def version_callback(value: bool) -> None:
     if value:
-        from opencli import __version__
-        console.print(f"OpenCLI Assistant v{__version__}")
+        from joshu import __version__
+        console.print(f"Joshu v{__version__}")
         raise typer.Exit()
 
 @app.callback()
@@ -72,12 +72,12 @@ def main_callback(
         help="Show version and exit.",
     )
 ) -> None:
-    """OpenCLI Assistant - Natural language meets your terminal."""
+    """Joshu - Natural language meets your terminal."""
     global context_provider, _current_model
     load_dotenv()
     
     # Initialize configuration manager
-    from opencli.core.config import get_config_manager
+    from joshu.core.config import get_config_manager
     config_manager = get_config_manager()
     
     # Set current model from configuration
@@ -87,7 +87,7 @@ def main_callback(
     context_provider = ContextProvider()
     
     # Set system information
-    from opencli.tools.system_info import get_detailed_system_info
+    from joshu.tools.system_info import get_detailed_system_info
     system_info = get_detailed_system_info()
     context_provider.set_system_info(system_info)
     
@@ -99,7 +99,7 @@ def execute_prompt(prompt: str) -> None:
     global _current_model, context_provider
     
     # Get configuration manager
-    from opencli.core.config import get_config_manager
+    from joshu.core.config import get_config_manager
     config_manager = get_config_manager()
     
     # Get current model and settings
@@ -122,7 +122,7 @@ def execute_prompt(prompt: str) -> None:
     # Check if this is a code generation request that should use the code command
     if "code command" in translation.explanation.lower() or "code' command" in translation.explanation.lower():
         console.print("[yellow]💡 Tip: For code generation requests, use the 'code' command:[/yellow]")
-        console.print(f"[yellow]   opencli code \"{prompt}\"[/yellow]")
+        console.print(f"[yellow]   joshu code \"{prompt}\"[/yellow]")
         console.print("[yellow]This will generate the code directly instead of trying to translate to a shell command.[/yellow]")
         raise typer.Exit(code=0)
 
@@ -189,8 +189,8 @@ def config(
     reset: bool = typer.Option(False, "--reset", "-r", help="Reset configuration to defaults."),
     edit: bool = typer.Option(False, "--edit", "-e", help="Open configuration file in editor."),
 ) -> None:
-    """Manage OpenCLI configuration."""
-    from opencli.core.config import get_config_manager
+    """Manage Joshu configuration."""
+    from joshu.core.config import get_config_manager
     
     config_manager = get_config_manager()
     
@@ -263,7 +263,7 @@ def config(
         return
 
     # If no options provided, show help
-    console.print("[bold]OpenCLI Configuration Manager[/bold]")
+    console.print("[bold]Joshu Configuration Manager[/bold]")
     console.print("Use --help for more information.")
 
 
@@ -276,7 +276,7 @@ def interactive(
     global _current_model, context_provider
     
     # Get configuration manager
-    from opencli.core.config import get_config_manager
+    from joshu.core.config import get_config_manager
     config_manager = get_config_manager()
     
     # Use provided model or fall back to configured model
@@ -307,7 +307,7 @@ def run(
     # Handle interactive mode
     if interactive:
         # Get configuration manager
-        from opencli.core.config import get_config_manager
+        from joshu.core.config import get_config_manager
         config_manager = get_config_manager()
         
         # Use provided model or fall back to configured model
@@ -375,7 +375,7 @@ def repeat_last() -> None:
         context_provider = ContextProvider()
     
     # Get configuration manager
-    from opencli.core.config import get_config_manager
+    from joshu.core.config import get_config_manager
     config_manager = get_config_manager()
     
     # Get current model and sandbox settings
@@ -404,7 +404,7 @@ def repeat_last() -> None:
     console.print(f"[bold]Repeating last command:[/bold] {last_command}")
     
     # Use context provider for translation with specified model
-    from opencli.core.translate import translate_to_command
+    from joshu.core.translate import translate_to_command
     translation = translate_to_command(last_command, context_provider, model)
     
     if not translation:
@@ -414,7 +414,7 @@ def repeat_last() -> None:
     console.print(f"[bold]Proposed command:[/bold] [cyan]{translation.command}[/cyan]")
     console.print(f"[dim]{translation.explanation}[/dim]\n")
     
-    from opencli.core.safety import assess_command_safety
+    from joshu.core.safety import assess_command_safety
     report = assess_command_safety(translation.command, sandbox)
     
     # Enhanced safety feedback
@@ -445,7 +445,7 @@ def repeat_last() -> None:
             console.print("[dim]Cancelled.[/dim]\n")
             raise typer.Exit()
 
-    from opencli.tools.shell import run_command
+    from joshu.tools.shell import run_command
     code, out, err = run_command(translation.command)
     if code == 0:
         if out:
@@ -481,7 +481,7 @@ def explain_last() -> None:
         context_provider = ContextProvider()
     
     # Get configuration manager
-    from opencli.core.config import get_config_manager
+    from joshu.core.config import get_config_manager
     config_manager = get_config_manager()
     
     # Get current model
@@ -520,36 +520,36 @@ def explain_last() -> None:
 
 @app.command()
 def examples() -> None:
-    """Show usage examples for OpenCLI."""
-    console.print("[bold]OpenCLI Usage Examples[/bold]\n")
+    """Show usage examples for Joshu."""
+    console.print("[bold]Joshu Usage Examples[/bold]\n")
     
     console.print("[cyan]Basic Commands:[/cyan]")
-    console.print("  opencli \"list all python files modified in the last week\"")
-    console.print("  opencli \"create a backup of my project directory\"")
-    console.print("  opencli \"show me memory usage of running processes\"\n")
+    console.print("  joshu \"list all python files modified in the last week\"")
+    console.print("  joshu \"create a backup of my project directory\"")
+    console.print("  joshu \"show me memory usage of running processes\"\n")
     
     console.print("[cyan]File System Intelligence:[/cyan]")
-    console.print("  opencli \"show me the structure of this project\"")
-    console.print("  opencli \"find configuration files\"")
-    console.print("  opencli \"what's in the log directory?\"")
-    console.print("  opencli \"backup my source code\"\n")
+    console.print("  joshu \"show me the structure of this project\"")
+    console.print("  joshu \"find configuration files\"")
+    console.print("  joshu \"what's in the log directory?\"")
+    console.print("  joshu \"backup my source code\"\n")
     
     console.print("[cyan]Code Generation:[/cyan]")
-    console.print("  opencli \"write a python function to parse CSV files\"")
-    console.print("  opencli \"debug this bash script: ./deploy.sh\"")
-    console.print("  opencli \"explain what this regex does: ^[a-zA-Z0-9+_.-]+@[a-zA-Z0-9.-]+$\"\n")
+    console.print("  joshu \"write a python function to parse CSV files\"")
+    console.print("  joshu \"debug this bash script: ./deploy.sh\"")
+    console.print("  joshu \"explain what this regex does: ^[a-zA-Z0-9+_.-]+@[a-zA-Z0-9.-]+$\"\n")
     
     console.print("[cyan]Interactive Mode:[/cyan]")
-    console.print("  opencli --interactive\n")
+    console.print("  joshu --interactive\n")
     
     console.print("[cyan]Safety Features:[/cyan]")
-    console.print("  opencli \"delete all files in /home\"  # Will be blocked for safety")
-    console.print("  opencli --sandbox \"delete all files\"  # Sandbox mode for testing\n")
+    console.print("  joshu \"delete all files in /home\"  # Will be blocked for safety")
+    console.print("  joshu --sandbox \"delete all files\"  # Sandbox mode for testing\n")
     
     console.print("[cyan]Configuration:[/cyan]")
-    console.print("  opencli config --list")
-    console.print("  opencli config --set auto_execute=true")
-    console.print("  opencli config --edit\n")
+    console.print("  joshu config --list")
+    console.print("  joshu config --set auto_execute=true")
+    console.print("  joshu config --edit\n")
 
 
 @app.command()
@@ -557,7 +557,7 @@ def commands(
     category: str = typer.Argument(None, help="Category of commands to show (e.g., file, system, network)")
 ) -> None:
     """Show available command categories and examples."""
-    console.print("[bold]OpenCLI Command Categories[/bold]\n")
+    console.print("[bold]Joshu Command Categories[/bold]\n")
     
     if category is None:
         # Show all categories
@@ -569,54 +569,54 @@ def commands(
         console.print("  security  - Security-related commands")
         console.print("  git       - Git version control")
         console.print("  docker    - Docker container management")
-        console.print("\nUse 'opencli --commands [category]' to see examples for a specific category.\n")
+        console.print("\nUse 'joshu --commands [category]' to see examples for a specific category.\n")
         return
     
     category = category.lower()
     
     if category == "file":
         console.print("[bold]File System Commands:[/bold]")
-        console.print("  List files:                    opencli \"list all files in current directory\"")
-        console.print("  Find files:                    opencli \"find all python files\"")
-        console.print("  Show directory structure:      opencli \"show me the structure of this project\"")
-        console.print("  Check disk usage:              opencli \"show disk usage of current directory\"")
-        console.print("  Find large files:              opencli \"find large files over 100MB\"")
-        console.print("  Backup files:                  opencli \"backup my source code\"")
+        console.print("  List files:                    joshu \"list all files in current directory\"")
+        console.print("  Find files:                    joshu \"find all python files\"")
+        console.print("  Show directory structure:      joshu \"show me the structure of this project\"")
+        console.print("  Check disk usage:              joshu \"show disk usage of current directory\"")
+        console.print("  Find large files:              joshu \"find large files over 100MB\"")
+        console.print("  Backup files:                  joshu \"backup my source code\"")
     elif category == "system":
         console.print("[bold]System Commands:[/bold]")
-        console.print("  System information:            opencli \"show system information\"")
-        console.print("  Memory usage:                  opencli \"show memory usage\"")
-        console.print("  CPU information:               opencli \"show CPU information\"")
-        console.print("  Network interfaces:            opencli \"list network interfaces\"")
-        console.print("  Running processes:             opencli \"show running processes\"")
+        console.print("  System information:            joshu \"show system information\"")
+        console.print("  Memory usage:                  joshu \"show memory usage\"")
+        console.print("  CPU information:               joshu \"show CPU information\"")
+        console.print("  Network interfaces:            joshu \"list network interfaces\"")
+        console.print("  Running processes:             joshu \"show running processes\"")
     elif category == "network":
         console.print("[bold]Network Commands:[/bold]")
-        console.print("  Check connectivity:            opencli \"check if google.com is reachable\"")
-        console.print("  Port scanning:                 opencli \"scan open ports on localhost\"")
-        console.print("  Download file:                 opencli \"download https://example.com/file.txt\"")
-        console.print("  Check IP address:              opencli \"what is my IP address\"")
+        console.print("  Check connectivity:            joshu \"check if google.com is reachable\"")
+        console.print("  Port scanning:                 joshu \"scan open ports on localhost\"")
+        console.print("  Download file:                 joshu \"download https://example.com/file.txt\"")
+        console.print("  Check IP address:              joshu \"what is my IP address\"")
     elif category == "process":
         console.print("[bold]Process Management Commands:[/bold]")
-        console.print("  List processes:                opencli \"show running processes\"")
-        console.print("  Kill process:                  opencli \"kill process named python\"")
-        console.print("  Monitor process:               opencli \"monitor process with PID 1234\"")
+        console.print("  List processes:                joshu \"show running processes\"")
+        console.print("  Kill process:                  joshu \"kill process named python\"")
+        console.print("  Monitor process:               joshu \"monitor process with PID 1234\"")
     elif category == "security":
         console.print("[bold]Security Commands:[/bold]")
-        console.print("  Check file permissions:        opencli \"check permissions of config.yaml\"")
-        console.print("  Generate password:             opencli \"generate a secure password\"")
-        console.print("  Check open ports:              opencli \"list open network ports\"")
+        console.print("  Check file permissions:        joshu \"check permissions of config.yaml\"")
+        console.print("  Generate password:             joshu \"generate a secure password\"")
+        console.print("  Check open ports:              joshu \"list open network ports\"")
     elif category == "git":
         console.print("[bold]Git Commands:[/bold]")
-        console.print("  Git status:                    opencli \"show git status\"")
-        console.print("  Git commit:                    opencli \"commit changes with message 'Update README'\"")
-        console.print("  Git push:                      opencli \"push changes to remote repository\"")
-        console.print("  Git branch:                    opencli \"create new branch feature/new-feature\"")
+        console.print("  Git status:                    joshu \"show git status\"")
+        console.print("  Git commit:                    joshu \"commit changes with message 'Update README'\"")
+        console.print("  Git push:                      joshu \"push changes to remote repository\"")
+        console.print("  Git branch:                    joshu \"create new branch feature/new-feature\"")
     elif category == "docker":
         console.print("[bold]Docker Commands:[/bold]")
-        console.print("  List containers:               opencli \"list running docker containers\"")
-        console.print("  Start container:               opencli \"start container named my-app\"")
-        console.print("  Stop container:                opencli \"stop container with ID abc123\"")
-        console.print("  Build image:                   opencli \"build docker image from Dockerfile\"")
+        console.print("  List containers:               joshu \"list running docker containers\"")
+        console.print("  Start container:               joshu \"start container named my-app\"")
+        console.print("  Stop container:                joshu \"stop container with ID abc123\"")
+        console.print("  Build image:                   joshu \"build docker image from Dockerfile\"")
     else:
         console.print(f"[yellow]Unknown category: {category}[/yellow]")
         console.print("[cyan]Available Categories:[/cyan]")
@@ -629,7 +629,7 @@ def explain(
 ) -> None:
     """Explain a specific command or topic."""
     # Get configuration manager
-    from opencli.core.config import get_config_manager
+    from joshu.core.config import get_config_manager
     config_manager = get_config_manager()
     
     # Get current model
@@ -642,7 +642,7 @@ def explain(
     prompt = f"Explain the '{command}' command in a clear and concise way. Include common usage examples and important options."
     
     # Use the translation system to get an explanation
-    from opencli.core.translate import translate_to_command
+    from joshu.core.translate import translate_to_command
     translation = translate_to_command(prompt, context_provider, model)
     
     if translation and translation.command.startswith("echo"):
@@ -699,11 +699,11 @@ def code(
     console.print(f"[bold]Code Assistant:[/bold] {prompt}")
     
     # Import code editor
-    from opencli.tools.code_editor import CodeEditor
+    from joshu.tools.code_editor import CodeEditor
     editor = CodeEditor()
     
     # Get configuration
-    from opencli.core.config import get_config_manager
+    from joshu.core.config import get_config_manager
     config_manager = get_config_manager()
     model = config_manager.get("model", "llama-3-8b")
     
@@ -761,11 +761,11 @@ def _handle_file_edit(editor: CodeEditor, prompt: str, file_path: str, language:
         
         # For now, we'll use a simple approach
         # In a real implementation, we would use an LLM to understand what changes to make
-        new_content = f"{current_content}\n# Added by OpenCLI: {prompt}\n"
+        new_content = f"{current_content}\n# Added by Joshu: {prompt}\n"
         
         if dry_run:
             console.print(f"[bold]Proposed changes:[/bold]")
-            console.print(f"Append: # Added by OpenCLI: {prompt}")
+            console.print(f"Append: # Added by Joshu: {prompt}")
         else:
             # Apply the edit
             edit = CodeEdit(
@@ -995,7 +995,7 @@ def start_interactive_mode(model: str, sandbox: bool = False) -> None:
     global context_provider
     
     # Get configuration manager
-    from opencli.core.config import get_config_manager
+    from joshu.core.config import get_config_manager
     config_manager = get_config_manager()
     
     # Use configured auto_execute setting
@@ -1006,7 +1006,7 @@ def start_interactive_mode(model: str, sandbox: bool = False) -> None:
     
     if enhanced_interactive:
         try:
-            from opencli.ui.enhanced_interactive import start_enhanced_interactive_mode
+            from joshu.ui.enhanced_interactive import start_enhanced_interactive_mode
             start_enhanced_interactive_mode(model, sandbox)
             return
         except ImportError:
@@ -1137,7 +1137,7 @@ def main() -> None:
             load_dotenv()
             
             # Initialize configuration manager
-            from opencli.core.config import get_config_manager
+            from joshu.core.config import get_config_manager
             config_manager = get_config_manager()
             
             # Set current model from configuration
@@ -1148,7 +1148,7 @@ def main() -> None:
             context_provider = ContextProvider()
             
             # Set system information
-            from opencli.tools.system_info import get_detailed_system_info
+            from joshu.tools.system_info import get_detailed_system_info
             system_info = get_detailed_system_info()
             context_provider.set_system_info(system_info)
             

@@ -9,7 +9,7 @@ from unittest.mock import patch
 import pytest
 from dotenv import load_dotenv
 
-# Add src to path so we can import opencli modules
+# Add src to path so we can import joshu modules
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 # Set up logging for tests
@@ -21,7 +21,7 @@ else:
         datefmt="%Y-%m-%d:%H:%M:%S",
         level=logging.INFO,
     )
-    logging.getLogger("opencli").setLevel(logging.DEBUG)
+    logging.getLogger("joshu").setLevel(logging.DEBUG)
 
 
 def pytest_sessionstart(session):
@@ -159,9 +159,9 @@ def agenticat_api_key() -> str:
 SKIP_LLM_TESTS_ENV_VAR = "SKIP_LLM_TESTS"
 
 LLM_MOCKED_METHODS = [
-    "opencli.models.openrouter.OpenRouterModel.generate",
-    "opencli.models.llama_cpp_loader.LlamaCppModel.generate",
-    "opencli.models.local_models.EchoModel.generate",
+    "joshu.models.openrouter.OpenRouterModel.generate",
+    "joshu.models.llama_cpp_loader.LlamaCppModel.generate",
+    "joshu.models.local_models.EchoModel.generate",
 ]
 
 

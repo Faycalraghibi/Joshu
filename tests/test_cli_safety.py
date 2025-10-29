@@ -1,14 +1,14 @@
 import unittest
 from unittest.mock import patch, MagicMock
-from opencli.ui.cli import app
+from joshu.ui.cli import app
 from typer.testing import CliRunner
 
 class TestCLISafety(unittest.TestCase):
     def setUp(self):
         self.runner = CliRunner()
     
-    @patch('opencli.ui.cli.translate_to_command')
-    @patch('opencli.ui.cli.assess_command_safety')
+    @patch('joshu.ui.cli.translate_to_command')
+    @patch('joshu.ui.cli.assess_command_safety')
     def test_dangerous_command_blocked(self, mock_assess_safety, mock_translate):
         """Test that dangerous commands are blocked."""
         # Mock the translation to return a dangerous command
@@ -33,8 +33,8 @@ class TestCLISafety(unittest.TestCase):
         self.assertIn("DANGER: This command could cause serious damage", result.stdout)
         self.assertIn("This command will delete your entire system", result.stdout)
     
-    @patch('opencli.ui.cli.translate_to_command')
-    @patch('opencli.ui.cli.assess_command_safety')
+    @patch('joshu.ui.cli.translate_to_command')
+    @patch('joshu.ui.cli.assess_command_safety')
     def test_sandbox_mode_blocks_destructive_commands(self, mock_assess_safety, mock_translate):
         """Test that sandbox mode blocks destructive commands."""
         # Mock the translation to return a destructive command

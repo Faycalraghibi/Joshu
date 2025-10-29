@@ -6,7 +6,7 @@ import os
 from dataclasses import dataclass
 from typing import List, Dict, Optional
 
-from opencli.tools.system_info import get_system_info
+from joshu.tools.system_info import get_system_info
 
 
 # Expanded list of destructive commands and patterns for different OS

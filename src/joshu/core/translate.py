@@ -7,10 +7,10 @@ import platform
 from dataclasses import dataclass
 from typing import List, Optional, Tuple, Dict
 
-from opencli.models.openrouter import translate_command_with_openrouter
-from opencli.models.inference import get_model
-from opencli.core.context_provider import ContextProvider
-from opencli.tools.system_info import get_system_info
+from joshu.models.openrouter import translate_command_with_openrouter
+from joshu.models.inference import get_model
+from joshu.core.context_provider import ContextProvider
+from joshu.tools.system_info import get_system_info
 
 logger = logging.getLogger(__name__)
 
@@ -70,18 +70,18 @@ COMMON_PATTERNS: List[Tuple[re.Pattern[str], str, str]] = [
     # Code generation patterns
     (
         re.compile(r"(give|show|provide|write|generate|code)\s+(me\s+)?(the\s+)?(binary\s+search|code|program|script).*\b(python|javascript|java|c\+\+|c#|go|rust|php|ruby|swift)\b", re.I),
-        'echo "Use the code command: opencli code \\"your request\\""', 
+        'echo "Use the code command: joshu code \\"your request\\""', 
         "This is a code generation request. Use the 'code' command instead.",
     ),
     (
         re.compile(r"(give|show|provide|write|generate|code)\s+(me\s+)?(the\s+)?(.*\s+)?(code|program|script)\b", re.I),
-        'echo "Use the code command: opencli code \\"your request\\""', 
+        'echo "Use the code command: joshu code \\"your request\\""', 
         "This is a code generation request. Use the 'code' command instead.",
     ),
     # Additional pattern for questions about coding
     (
         re.compile(r"(can\s+(you\s+)?(please\s+)?(code|write|generate))|(.*\bcode\b.*\bpython\b)", re.I),
-        'echo "Use the code command: opencli code \\"your request\\""', 
+        'echo "Use the code command: joshu code \\"your request\\""', 
         "This is a code generation request. Use the 'code' command instead.",
     ),
 ]
@@ -103,7 +103,7 @@ The user is asking for a summary of the conversation history and memory. Here's 
 Please provide a natural, conversational summary of what we've discussed and what we know. Be concise but informative."""
         
         # Try to use OpenRouter first
-        from opencli.models.openrouter import chat_completion
+        from joshu.models.openrouter import chat_completion
         messages = [
             {"role": "system", "content": "You are a helpful assistant that summarizes conversation history and memory."},
             {"role": "user", "content": summary_prompt}
@@ -193,7 +193,7 @@ def translate_to_command(prompt: str, context_provider: Optional[ContextProvider
         # Special handling for file operations
         if re.search(r"(show\s+me\s+|display\s+|list\s+)?(the\s+)?(structure|tree)\s+of\s+(this\s+)?(project|directory)\b", text, re.I):
             # Handle directory structure requests
-            from opencli.tools.filesystem import get_directory_structure
+            from joshu.tools.filesystem import get_directory_structure
             import json
             import os
             structure = get_directory_structure(os.getcwd())
@@ -205,7 +205,7 @@ def translate_to_command(prompt: str, context_provider: Optional[ContextProvider
         
         if re.search(r"find\s+(configuration|config)\s+files\b", text, re.I):
             # Handle configuration file requests
-            from opencli.tools.filesystem import find_files_by_extension
+            from joshu.tools.filesystem import find_files_by_extension
             import os
             config_files = []
             config_extensions = ['.conf', '.cfg', '.config', '.ini', '.yaml', '.yml', '.json', '.toml', '.xml']
@@ -226,7 +226,7 @@ def translate_to_command(prompt: str, context_provider: Optional[ContextProvider
         
         if re.search(r"(what\'?s\s+in\s+|show\s+me\s+|list\s+)(the\s+)?(log|logs)\s+(directory|folder)\b", text, re.I):
             # Handle log directory requests
-            from opencli.tools.filesystem import list_directory_contents, format_directory_listing
+            from joshu.tools.filesystem import list_directory_contents, format_directory_listing
             import os
             log_dirs = ['log', 'logs', 'Log', 'Logs']
             found = False
@@ -241,7 +241,7 @@ def translate_to_command(prompt: str, context_provider: Optional[ContextProvider
                     )
             
             # If no log directory found, list files that look like log files
-            from opencli.tools.filesystem import find_files_by_extension
+            from joshu.tools.filesystem import find_files_by_extension
             log_files = []
             log_extensions = ['.log', '.out', '.err']
             for ext in log_extensions:
@@ -288,7 +288,7 @@ def adapt_command_for_windows(command: str, system_info: Optional[str] = None) -
     """Adapt Unix commands for Windows."""
     # If system_info is not provided, detect it
     if system_info is None:
-        from opencli.tools.system_info import get_system_info
+        from joshu.tools.system_info import get_system_info
         system_info = get_system_info()
     
     # If we're not on Windows, no adaptation is needed
@@ -345,7 +345,7 @@ def translate_with_llm(prompt: str, context_provider: Optional[ContextProvider] 
 def translate_with_openrouter(prompt: str, context_provider: Optional[ContextProvider] = None, 
                              model_name: str = "default") -> Optional[Dict[str, str]]:
     """Translate using OpenRouter API."""
-    from opencli.models.openrouter import translate_command_with_openrouter as openrouter_translate
+    from joshu.models.openrouter import translate_command_with_openrouter as openrouter_translate
     
     # If we have a context provider, use it to enhance the translation
     if context_provider:
@@ -368,7 +368,7 @@ def translate_with_openrouter(prompt: str, context_provider: Optional[ContextPro
 
 def translate_command_with_openrouter_context_aware(messages: List[Dict[str, str]], system_info: Optional[str] = None, model_name: str = "default") -> Optional[Dict[str, str]]:
     """Translate using OpenRouter API with context awareness."""
-    from opencli.models.openrouter import chat_completion
+    from joshu.models.openrouter import chat_completion
     
     # Use provided system_info or get it from the system
     if system_info is None:
@@ -401,12 +401,15 @@ User request:"""
     try:
         # Clean up the response to handle markdown code blocks
         cleaned_response = response.strip()
-        if cleaned_response.startswith("``json"):
+        if cleaned_response.startswith("```json"):
             cleaned_response = cleaned_response[7:]  # Remove ```json
         if cleaned_response.startswith("```"):
             cleaned_response = cleaned_response[3:]  # Remove ```
         if cleaned_response.endswith("```"):
             cleaned_response = cleaned_response[:-3]  # Remove ```
+        
+        # Strip any leading/trailing whitespace that might remain
+        cleaned_response = cleaned_response.strip()
         
         # Parse JSON response
         data = json.loads(cleaned_response)
@@ -425,7 +428,7 @@ User request:"""
 def translate_with_local_model(prompt: str, context_provider: Optional[ContextProvider] = None, 
                               model_name: str = "default") -> Optional[Translation]:
     """Translate using local model."""
-    from opencli.models.inference import get_model
+    from joshu.models.inference import get_model
     system_info = get_system_info()
     
     # Build context-aware prompt
@@ -483,6 +486,9 @@ User request:"""
             response = response[3:]  # Remove ```
         if response.endswith("```"):
             response = response[:-3]  # Remove ```
+        
+        # Strip any leading/trailing whitespace that might remain
+        response = response.strip()
         
         logger.info(f"Cleaned response: {response}")
         

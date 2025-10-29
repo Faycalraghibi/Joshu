@@ -2,14 +2,14 @@ import pytest
 import platform
 from unittest.mock import patch, MagicMock
 
-from opencli.core.context_provider import ContextProvider
-from opencli.core.translate import translate_to_command, translate_with_openrouter, translate_with_local_model
+from joshu.core.context_provider import ContextProvider
+from joshu.core.translate import translate_to_command, translate_with_openrouter, translate_with_local_model
 
 
 def test_translate_to_command_with_context_provider():
     """Test that translate_to_command works with context provider."""
     context_provider = ContextProvider()
-    from opencli.tools.system_info import get_detailed_system_info
+    from joshu.tools.system_info import get_detailed_system_info
     context_provider.set_system_info(get_detailed_system_info())
     context_provider.add_to_history("user", "Hello")
     context_provider.add_to_history("assistant", "Hi there!")
@@ -23,17 +23,17 @@ def test_translate_to_command_with_context_provider():
 def test_context_provider_integration_in_translate_with_openrouter():
     """Test context provider integration in OpenRouter translation."""
     context_provider = ContextProvider()
-    from opencli.tools.system_info import get_detailed_system_info
+    from joshu.tools.system_info import get_detailed_system_info
     context_provider.set_system_info(get_detailed_system_info())
     context_provider.add_to_history("user", "previous command")
     context_provider.add_to_history("assistant", "previous response")
     context_provider.set_memory("user_preference", "likes python")
     
     # Mock the OpenRouter API call with a command that doesn't match patterns
-    with patch("opencli.models.openrouter.chat_completion") as mock_chat:
+    with patch("joshu.models.openrouter.chat_completion") as mock_chat:
         mock_chat.return_value = '{"command": "echo Hello World", "explanation": "Print greeting"}'
         
-        from opencli.core.translate import translate_with_openrouter
+        from joshu.core.translate import translate_with_openrouter
         result = translate_with_openrouter("say hello", context_provider)
         
         assert result is not None
@@ -54,14 +54,14 @@ def test_context_provider_integration_in_translate_with_openrouter():
 def test_context_provider_integration_in_translate_with_local_model():
     """Test context provider integration in local model translation."""
     context_provider = ContextProvider()
-    from opencli.tools.system_info import get_detailed_system_info
+    from joshu.tools.system_info import get_detailed_system_info
     context_provider.set_system_info(get_detailed_system_info())
     context_provider.add_to_history("user", "previous command")
     context_provider.add_to_history("assistant", "previous response")
     context_provider.set_memory("user_preference", "likes python")
     
     # Mock the local model with a command that doesn't match patterns
-    with patch("opencli.models.inference.get_model") as mock_get_model:
+    with patch("joshu.models.inference.get_model") as mock_get_model:
         mock_model = MagicMock()
         mock_model.generate.return_value = '{"command": "echo Hello World", "explanation": "Print greeting"}'
         mock_get_model.return_value = mock_model

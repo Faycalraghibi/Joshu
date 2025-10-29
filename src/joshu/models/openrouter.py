@@ -7,7 +7,7 @@ import platform
 from typing import Any, Dict, List, Optional
 
 from openai import OpenAI
-from opencli.tools.system_info import get_system_info
+from joshu.tools.system_info import get_system_info
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +29,8 @@ def get_openrouter_client(model_name: Optional[str] = None) -> Optional[OpenAI]:
             api_key = os.getenv("KIMI_DEV_API_KEY")
         elif "agentica" in model_name.lower():
             api_key = os.getenv("AGENTICAT_API_KEY")
+        elif "glm" in model_name.lower():
+            api_key = os.getenv("GLM_API_KEY")
     
     # Fallback to general OpenRouter API key
     if not api_key:
@@ -46,15 +48,19 @@ def chat_completion(
     temperature: float = 0.1,
     max_tokens: int = 512,
 ) -> Optional[str]:
-    # Use DeepSeek model as default if specified, otherwise fall back to environment default
-    model_name = model or os.getenv("DEEPSEEK_URL") or "deepseek/deepseek-chat-v3.1:free"
+    # Use the provided model, otherwise fall back to environment default
+    if model is None or model == "default":
+        # Try to get the default model from environment or config
+        model_name = os.getenv("OPENROUTER_MODEL") or "openai/gpt-4o-mini"
+    else:
+        model_name = model
     client = get_openrouter_client(model_name)
     if client is None:
         return None
 
     headers = {
         "HTTP-Referer": os.getenv("OPENROUTER_SITE_URL", ""),
-        "X-Title": os.getenv("OPENROUTER_SITE_TITLE", "OpenCLI Assistant"),
+        "X-Title": os.getenv("OPENROUTER_SITE_TITLE", "Joshu Assistant"),
     }
     if extra_headers:
         headers.update({k: v for k, v in extra_headers.items() if v})
@@ -89,7 +95,9 @@ User request:"""
         {"role": "user", "content": prompt}
     ]
     
-    response = chat_completion(messages, temperature=0.1, max_tokens=256)
+    # Use the default model from environment
+    model_name = os.getenv("OPENROUTER_MODEL") or "openai/gpt-4o-mini"
+    response = chat_completion(messages, model=model_name, temperature=0.1, max_tokens=256)
     if not response:
         return None
         
@@ -102,6 +110,9 @@ User request:"""
             cleaned_response = cleaned_response[3:]  # Remove ```
         if cleaned_response.endswith("```"):
             cleaned_response = cleaned_response[:-3]  # Remove ```
+        
+        # Strip any leading/trailing whitespace that might remain
+        cleaned_response = cleaned_response.strip()
         
         # Parse JSON response
         data = json.loads(cleaned_response)

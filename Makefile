@@ -19,7 +19,7 @@ format:
 	black src/ tests/
 
 run:
-	opencli run "show disk usage of current directory" -y
+	joshu run "show disk usage of current directory" -y
 
 clean:
 	rm -rf .venv .OpenCLIvenv dist build *.egg-info .pytest_cache

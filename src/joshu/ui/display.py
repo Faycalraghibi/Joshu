@@ -9,8 +9,8 @@ console = Console()
 
 def print_banner(model_name: str) -> None:
     banner = Panel.fit(
-        f"OpenCLI Assistant\nModel: [bold]{model_name}[/bold]",
-        title="OpenCLI",
+        f"Joshu Assistant\nModel: [bold]{model_name}[/bold]",
+        title="Joshu",
         subtitle="Democratizing AI assistance, one command at a time",
     )
     console.print(banner)

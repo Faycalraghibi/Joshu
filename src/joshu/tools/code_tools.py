@@ -1,5 +1,5 @@
 """
-Code editing tools interface for OpenCLI Assistant.
+Code editing tools interface for Joshu Assistant.
 Provides simplified interfaces to the core code editing functionality.
 """
 
@@ -11,14 +11,14 @@ import logging
 from pathlib import Path
 from typing import Optional, List, Dict, Tuple, Any
 
-from opencli.core.code_editor import CodeEditorCore, FileInfo, FunctionInfo, QualityReport
-from opencli.tools.filesystem import get_file_info
+from joshu.core.code_editor import CodeEditorCore, FileInfo, FunctionInfo, QualityReport
+from joshu.tools.filesystem import get_file_info
 
 logger = logging.getLogger(__name__)
 
 
 class CodeTools:
-    """Interface to code editing tools for OpenCLI."""
+    """Interface to code editing tools for Joshu."""
     
     def __init__(self):
         self.core = CodeEditorCore()

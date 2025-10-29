@@ -1,5 +1,5 @@
 """
-Code editing tools for OpenCLI Assistant.
+Code editing tools for Joshu Assistant.
 Provides functionality for code generation, editing, explanation, debugging, and refactoring.
 """
 
@@ -14,8 +14,8 @@ from pathlib import Path
 from typing import Optional, List, Dict, Tuple
 from dataclasses import dataclass
 
-from opencli.tools.filesystem import get_file_info
-from opencli.core.code_editor import CodeEditorCore
+from joshu.tools.filesystem import get_file_info
+from joshu.core.code_editor import CodeEditorCore
 
 logger = logging.getLogger(__name__)
 

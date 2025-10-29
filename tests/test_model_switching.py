@@ -1,9 +1,9 @@
 import pytest
 from unittest.mock import patch, MagicMock
 
-from opencli.core.translate import translate_to_command
-from opencli.core.context_provider import ContextProvider
-from opencli.models.inference import get_model, unload_model, list_loaded_models, clear_model_cache
+from joshu.core.translate import translate_to_command
+from joshu.core.context_provider import ContextProvider
+from joshu.models.inference import get_model, unload_model, list_loaded_models, clear_model_cache
 
 
 def test_model_switching():
@@ -68,7 +68,7 @@ def test_translate_with_different_models():
     context_provider.set_system_info("Windows 10")
     
     # Mock the OpenRouter API call
-    with patch("opencli.models.openrouter.chat_completion") as mock_chat:
+    with patch("joshu.models.openrouter.chat_completion") as mock_chat:
         mock_chat.return_value = '{"command": "echo Hello", "explanation": "Print greeting"}'
         
         # Test with default model

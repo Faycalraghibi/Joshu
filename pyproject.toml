@@ -3,17 +3,17 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "opencli-assistant"
+name = "joshu"
 version = "0.1.0"
-description = "Open-source command-line AI assistant"
+description = "Joshu - AI command-line assistant"
 readme = "README.md"
 requires-python = ">=3.8,<3.12"
-authors = [{ name = "OpenCLI Community" }]
+authors = [{ name = "Joshu Community" }]
 license = { file = "LICENSE" }
 keywords = ["cli", "ai", "assistant", "llm"]
 
 [project.scripts]
-opencli = "opencli.ui.cli:main"
+joshu = "joshu.ui.cli:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

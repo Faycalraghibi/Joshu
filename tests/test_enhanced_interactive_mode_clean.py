@@ -5,7 +5,7 @@ from unittest.mock import patch, MagicMock
 def test_imports():
     """Test that the module can be imported without errors."""
     try:
-        from opencli.ui.cli import start_enhanced_interactive_mode
+        from joshu.ui.cli import start_enhanced_interactive_mode
         assert True
     except ImportError:
         # This is expected if prompt_toolkit is not available
@@ -19,22 +19,22 @@ pytest.importorskip("prompt_toolkit")
 def test_enhanced_interactive_mode_import():
     """Test that the enhanced interactive mode function can be imported."""
     # Import after ensuring prompt_toolkit is available
-    from opencli.ui.cli import start_enhanced_interactive_mode, PROMPT_TOOLKIT_AVAILABLE
+    from joshu.ui.cli import start_enhanced_interactive_mode, PROMPT_TOOLKIT_AVAILABLE
     assert start_enhanced_interactive_mode is not None
     assert PROMPT_TOOLKIT_AVAILABLE is True
 
 
 def test_enhanced_interactive_mode_fallback():
     """Test that enhanced interactive mode falls back to basic mode when prompt_toolkit is not available."""
-    with patch('opencli.ui.cli.PROMPT_TOOLKIT_AVAILABLE', False), \
-         patch('opencli.ui.cli.start_basic_interactive_mode') as mock_basic_mode, \
+    with patch('joshu.ui.cli.PROMPT_TOOLKIT_AVAILABLE', False), \
+         patch('joshu.ui.cli.start_basic_interactive_mode') as mock_basic_mode, \
          patch('rich.console.Console.print') as mock_print:
         
         # Mock config manager
         config_manager = MagicMock()
         
         # Import after ensuring prompt_toolkit is available
-        from opencli.ui.cli import start_enhanced_interactive_mode
+        from joshu.ui.cli import start_enhanced_interactive_mode
         start_enhanced_interactive_mode("test-model", False, config_manager)
         
         # Should call the basic mode function

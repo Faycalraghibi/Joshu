@@ -4,13 +4,13 @@
 
 ```bash
 # Core functionality - the heart of the CLI assistant
-opencli "list all python files modified today"
+joshu "list all python files modified today"
 → find . -name "*.py" -mtime -1
 
-opencli "show disk usage of current directory"
+joshu "show disk usage of current directory"
 → du -sh .
 
-opencli "find large files over 100MB"
+joshu "find large files over 100MB"
 → find . -type f -size +100M -exec ls -lh {} \;
 ```
 
@@ -24,7 +24,7 @@ opencli "find large files over 100MB"
 ## 2. **Interactive Chat Mode** [Priority: CRITICAL] ✅ COMPLETED
 
 ```bash
-opencli --interactive
+joshu --interactive
 > You: How do I compress this folder?
 > Assistant: I can help you compress the folder. Here are your options:
 > 1. tar -czf folder.tar.gz foldername  (gzip compression)
@@ -61,7 +61,7 @@ opencli --interactive
 
 ```bash
 # Safety features
-opencli "delete all files in /home"
+joshu "delete all files in /home"
 → ⚠️  DANGER: This command could delete important files
 → Command blocked for safety. Did you mean to delete files in current directory?
 → Suggested safer alternative: rm -i *.tmp
@@ -78,10 +78,10 @@ opencli "delete all files in /home"
 
 ```bash
 # File system intelligence
-opencli "show me the structure of this project"
-opencli "find configuration files"
-opencli "what's in the log directory?"
-opencli "backup my source code"
+joshu "show me the structure of this project"
+joshu "find configuration files"
+joshu "what's in the log directory?"
+joshu "backup my source code"
 ```
 
 **Capabilities:**
@@ -94,7 +94,7 @@ opencli "backup my source code"
 ## 6. **Configuration Management** [Priority: MEDIUM]
 
 ```yaml
-# ~/.opencli/config.yaml
+# ~/.joshu/config.yaml
 model: "llama-3-8b"
 safety_mode: true
 auto_execute: false
@@ -117,9 +117,9 @@ sandbox_enabled: true
 
 ```bash
 # History and context
-opencli --history
-opencli --repeat-last
-opencli --explain-last
+joshu --history
+joshu --repeat-last
+joshu --explain-last
 
 # Context awareness
 > Previously you helped me with git commands
@@ -136,10 +136,10 @@ opencli --explain-last
 ## 8. **Help \& Documentation** [Priority: MEDIUM] ✅ COMPLETED
 
 ```bash
-opencli --help
-opencli --examples
-opencli --commands [category]
-opencli --explain "tar command"
+joshu --help
+joshu --examples
+joshu --commands [category]
+joshu --explain "tar command"
 ```
 
 **Features:**
@@ -181,7 +181,7 @@ opencli --explain "tar command"
 
 *(Ref: [CLI Reference](https://docs.claude.com/en/docs/claude-code/cli-reference))*
 
-- Implement all `opencli` flags and command options:
+- Implement all `joshu` flags and command options:
   - `-p`, `--resume`, `--add-dir`, `--agents`, `--output-format`, `--verbose`, etc.
 - Add update/version management and session persistence.
 - Introduce flexible input/output formats (text, JSON, streaming).

@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 def test_echo_model_improvement():
     """Test that the improved EchoModel returns proper JSON responses."""
     
-    from opencli.models.local_models import EchoModel
+    from joshu.models.local_models import EchoModel
     
     # Create an instance of EchoModel
     model = EchoModel()
@@ -104,7 +104,7 @@ def test_echo_model_improvement():
 def test_echo_model_fallback():
     """Test that the EchoModel falls back to echo for unrecognized prompts."""
     
-    from opencli.models.local_models import EchoModel
+    from joshu.models.local_models import EchoModel
     
     # Create an instance of EchoModel
     model = EchoModel()

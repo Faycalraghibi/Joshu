@@ -5,7 +5,7 @@ from unittest.mock import patch, MagicMock
 def test_imports():
     """Test that the module can be imported without errors."""
     try:
-        from opencli.ui.cli import start_enhanced_interactive_mode
+        from joshu.ui.cli import start_enhanced_interactive_mode
         assert True
     except ImportError:
         # This is expected if prompt_toolkit is not available
@@ -19,22 +19,22 @@ pytest.importorskip("prompt_toolkit")
 def test_enhanced_interactive_mode_import():
     """Test that the enhanced interactive mode function can be imported."""
     # Import after ensuring prompt_toolkit is available
-    from opencli.ui.cli import start_enhanced_interactive_mode, PROMPT_TOOLKIT_AVAILABLE
+    from joshu.ui.cli import start_enhanced_interactive_mode, PROMPT_TOOLKIT_AVAILABLE
     assert start_enhanced_interactive_mode is not None
     assert PROMPT_TOOLKIT_AVAILABLE is True
 
 
 def test_enhanced_interactive_mode_fallback():
     """Test that enhanced interactive mode falls back to basic mode when prompt_toolkit is not available."""
-    with patch('opencli.ui.cli.PROMPT_TOOLKIT_AVAILABLE', False), \
-         patch('opencli.ui.cli.start_basic_interactive_mode') as mock_basic_mode, \
+    with patch('joshu.ui.cli.PROMPT_TOOLKIT_AVAILABLE', False), \
+         patch('joshu.ui.cli.start_basic_interactive_mode') as mock_basic_mode, \
          patch('rich.console.Console.print') as mock_print:
         
         # Mock config manager
         config_manager = MagicMock()
         
         # Import after ensuring prompt_toolkit is available
-        from opencli.ui.cli import start_enhanced_interactive_mode
+        from joshu.ui.cli import start_enhanced_interactive_mode
         start_enhanced_interactive_mode("test-model", False, config_manager)
         
         # Should call the basic mode function
@@ -57,7 +57,7 @@ def test_enhanced_interactive_mode_exit():
         config_manager.get.return_value = False  # auto_execute = False
         
         # Import after ensuring prompt_toolkit is available
-        from opencli.ui.cli import start_enhanced_interactive_mode
+        from joshu.ui.cli import start_enhanced_interactive_mode
         start_enhanced_interactive_mode("test-model", False, config_manager)
         # Should print goodbye message
         mock_print.assert_called_with("[dim]Goodbye![/dim]")
@@ -77,7 +77,7 @@ def test_enhanced_interactive_mode_quit():
         config_manager.get.return_value = False  # auto_execute = False
         
         # Import after ensuring prompt_toolkit is available
-        from opencli.ui.cli import start_enhanced_interactive_mode
+        from joshu.ui.cli import start_enhanced_interactive_mode
         start_enhanced_interactive_mode("test-model", False, config_manager)
         # Should print goodbye message
         mock_print.assert_called_with("[dim]Goodbye![/dim]")
@@ -97,7 +97,7 @@ def test_enhanced_interactive_mode_empty_input():
         config_manager.get.return_value = False  # auto_execute = False
         
         # Import after ensuring prompt_toolkit is available
-        from opencli.ui.cli import start_enhanced_interactive_mode
+        from joshu.ui.cli import start_enhanced_interactive_mode
         start_enhanced_interactive_mode("test-model", False, config_manager)
 
 
@@ -105,7 +105,7 @@ def test_enhanced_interactive_mode_bash_command():
     """Test that enhanced interactive mode handles bash commands correctly."""
     with patch('prompt_toolkit.PromptSession') as mock_session, \
          patch('rich.console.Console.print'), \
-         patch('opencli.tools.shell.run_command') as mock_run_command:
+         patch('joshu.tools.shell.run_command') as mock_run_command:
         # Mock the prompt session to return '!ls' then 'exit'
         mock_session_instance = MagicMock()
         mock_session_instance.prompt.side_effect = ['!ls', 'exit']
@@ -119,7 +119,7 @@ def test_enhanced_interactive_mode_bash_command():
         config_manager.get.return_value = False  # auto_execute = False
         
         # Import after ensuring prompt_toolkit is available
-        from opencli.ui.cli import start_enhanced_interactive_mode
+        from joshu.ui.cli import start_enhanced_interactive_mode
         start_enhanced_interactive_mode("test-model", False, config_manager)
         
         # Should call run_command with 'ls'
@@ -145,7 +145,7 @@ def test_enhanced_interactive_mode_file_injection():
         config_manager.get.return_value = False  # auto_execute = False
         
         # Import after ensuring prompt_toolkit is available
-        from opencli.ui.cli import start_enhanced_interactive_mode
+        from joshu.ui.cli import start_enhanced_interactive_mode
         start_enhanced_interactive_mode("test-model", False, config_manager)
 
 
@@ -167,7 +167,7 @@ def test_enhanced_interactive_mode_history_command():
         config_manager.get.return_value = True  # persistent_history = True
         
         # Import after ensuring prompt_toolkit is available
-        from opencli.ui.cli import start_enhanced_interactive_mode
+        from joshu.ui.cli import start_enhanced_interactive_mode
         start_enhanced_interactive_mode("test-model", False, config_manager)
 
 
@@ -192,7 +192,7 @@ def test_enhanced_interactive_mode_clear_command():
         config_manager.get.return_value = True  # persistent_history = True
         
         # Import after ensuring prompt_toolkit is available
-        from opencli.ui.cli import start_enhanced_interactive_mode
+        from joshu.ui.cli import start_enhanced_interactive_mode
         start_enhanced_interactive_mode("test-model", False, config_manager)
         
         # Should call unlink to clear history
@@ -213,7 +213,7 @@ def test_enhanced_interactive_mode_keyboard_shortcuts():
         config_manager.get.return_value = False  # auto_execute = False
         
         # Import after ensuring prompt_toolkit is available
-        from opencli.ui.cli import start_enhanced_interactive_mode
+        from joshu.ui.cli import start_enhanced_interactive_mode
         start_enhanced_interactive_mode("test-model", False, config_manager)
         
         # Should print verbose mode message

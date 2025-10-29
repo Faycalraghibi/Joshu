@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from opencli.ui.cli import app
+from joshu.ui.cli import app
 import typer
 from typer.testing import CliRunner
 
@@ -10,7 +10,7 @@ def test_cli_help():
     """Test that CLI help works."""
     result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0
-    assert "OpenCLI Assistant" in result.stdout
+    assert "Joshu Assistant" in result.stdout
 
 
 def test_cli_version():
@@ -18,12 +18,12 @@ def test_cli_version():
     result = runner.invoke(app, ["--version"])
     # When --version is used, typer.Exit() is raised which sets exit_code to 0
     assert result.exit_code == 0
-    assert "OpenCLI Assistant v" in result.stdout
+    assert "Joshu Assistant v" in result.stdout
 
 
-@patch('opencli.ui.cli.translate_to_command')
-@patch('opencli.ui.cli.assess_command_safety')
-@patch('opencli.ui.cli.run_command')
+@patch('joshu.ui.cli.translate_to_command')
+@patch('joshu.ui.cli.assess_command_safety')
+@patch('joshu.ui.cli.run_command')
 def test_cli_run_success(mock_run_command, mock_assess_safety, mock_translate):
     """Test successful CLI run command."""
     # Mock the translation
@@ -47,7 +47,7 @@ def test_cli_run_success(mock_run_command, mock_assess_safety, mock_translate):
     assert "hello" in result.stdout
 
 
-@patch('opencli.ui.cli.translate_to_command')
+@patch('joshu.ui.cli.translate_to_command')
 def test_cli_run_no_translation(mock_translate):
     """Test CLI run command with no translation."""
     mock_translate.return_value = None

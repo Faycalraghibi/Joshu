@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from opencli.ui.cli import start_interactive_mode
+from joshu.ui.cli import start_interactive_mode
 
 
 def test_start_interactive_mode_exit():

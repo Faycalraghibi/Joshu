@@ -4,8 +4,8 @@ Demonstration script for the memory summary feature.
 This script shows how to use the new memory summary feature.
 """
 
-from opencli.core.context_provider import ContextProvider
-from opencli.core.translate import translate_to_command
+from joshu.core.context_provider import ContextProvider
+from joshu.core.translate import translate_to_command
 
 def demonstrate_memory_summary():
     """Demonstrate the memory summary feature."""
@@ -13,7 +13,7 @@ def demonstrate_memory_summary():
     
     # Create a context provider
     context_provider = ContextProvider()
-    from opencli.tools.system_info import get_detailed_system_info
+    from joshu.tools.system_info import get_detailed_system_info
     context_provider.set_system_info(get_detailed_system_info())
     
     # Add some conversation history
@@ -32,7 +32,7 @@ def demonstrate_memory_summary():
     print("Context has been set up with:")
     print("- 3 conversation exchanges")
     print("- 3 memory entries")
-    from opencli.tools.system_info import get_detailed_system_info
+    from joshu.tools.system_info import get_detailed_system_info
     print(f"- System info: {get_detailed_system_info()}")
     print()
     

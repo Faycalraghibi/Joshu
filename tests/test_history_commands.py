@@ -3,14 +3,14 @@ import os
 from unittest.mock import patch, MagicMock
 from typer.testing import CliRunner
 
-from src.opencli.ui.cli import app
+from src.joshu.ui.cli import app
 
 runner = CliRunner()
 
 
 def test_history_command():
     """Test the history command shows command history."""
-    with patch('src.opencli.ui.cli.context_provider') as mock_context_provider:
+    with patch('src.joshu.ui.cli.context_provider') as mock_context_provider:
         # Set up mock context provider with history
         mock_context_provider.conversation_context.messages = [
             {"role": "user", "content": "show disk usage"},
@@ -20,7 +20,7 @@ def test_history_command():
         ]
         
         # Make sure we don't reinitialize the context provider in the callback
-        with patch('src.opencli.ui.cli.ContextProvider') as mock_context_constructor:
+        with patch('src.joshu.ui.cli.ContextProvider') as mock_context_constructor:
             mock_context_constructor.return_value = mock_context_provider
             
             result = runner.invoke(app, ["history"])
@@ -32,7 +32,7 @@ def test_history_command():
 
 def test_history_command_with_limit():
     """Test the history command with limit option."""
-    with patch('src.opencli.ui.cli.context_provider') as mock_context_provider:
+    with patch('src.joshu.ui.cli.context_provider') as mock_context_provider:
         # Set up mock context provider with history
         mock_context_provider.conversation_context.messages = [
             {"role": "user", "content": "command 1"},
@@ -44,7 +44,7 @@ def test_history_command_with_limit():
         ]
         
         # Make sure we don't reinitialize the context provider in the callback
-        with patch('src.opencli.ui.cli.ContextProvider') as mock_context_constructor:
+        with patch('src.joshu.ui.cli.ContextProvider') as mock_context_constructor:
             mock_context_constructor.return_value = mock_context_provider
             
             result = runner.invoke(app, ["history", "--limit", "2"])
@@ -56,11 +56,11 @@ def test_history_command_with_limit():
 
 def test_history_command_no_history():
     """Test the history command when no history is available."""
-    with patch('src.opencli.ui.cli.context_provider') as mock_context_provider:
+    with patch('src.joshu.ui.cli.context_provider') as mock_context_provider:
         mock_context_provider.conversation_context.messages = []
         
         # Make sure we don't reinitialize the context provider in the callback
-        with patch('src.opencli.ui.cli.ContextProvider') as mock_context_constructor:
+        with patch('src.joshu.ui.cli.ContextProvider') as mock_context_constructor:
             mock_context_constructor.return_value = mock_context_provider
             
             result = runner.invoke(app, ["history"])
@@ -70,10 +70,10 @@ def test_history_command_no_history():
 
 def test_repeat_last_command():
     """Test the repeat-last command repeats the last command."""
-    with patch('src.opencli.ui.cli.context_provider') as mock_context_provider, \
-         patch('opencli.core.translate.translate_to_command') as mock_translate_to_command, \
-         patch('src.opencli.ui.cli.run_command') as mock_run_command, \
-         patch('opencli.core.safety.assess_command_safety') as mock_assess_command_safety:
+    with patch('src.joshu.ui.cli.context_provider') as mock_context_provider, \
+         patch('joshu.core.translate.translate_to_command') as mock_translate_to_command, \
+         patch('src.joshu.ui.cli.run_command') as mock_run_command, \
+         patch('joshu.core.safety.assess_command_safety') as mock_assess_command_safety:
         
         # Set up mocks
         mock_context_provider.conversation_context.messages = [
@@ -82,7 +82,7 @@ def test_repeat_last_command():
         ]
         
         # Mock config manager
-        with patch('src.opencli.core.config.get_config_manager') as mock_get_config_manager:
+        with patch('src.joshu.core.config.get_config_manager') as mock_get_config_manager:
             mock_config_manager = MagicMock()
             mock_config_manager.get.side_effect = lambda key, default=None: {
                 "model": "llama-3-8b",
@@ -103,7 +103,7 @@ def test_repeat_last_command():
             mock_assess_command_safety.return_value = mock_safety_report
             
             # Make sure we don't reinitialize the context provider in the callback
-            with patch('src.opencli.ui.cli.ContextProvider') as mock_context_constructor:
+            with patch('src.joshu.ui.cli.ContextProvider') as mock_context_constructor:
                 mock_context_constructor.return_value = mock_context_provider
                 
                 # Test with user confirmation
@@ -116,11 +116,11 @@ def test_repeat_last_command():
 
 def test_repeat_last_command_no_history():
     """Test the repeat-last command when no history is available."""
-    with patch('src.opencli.ui.cli.context_provider') as mock_context_provider:
+    with patch('src.joshu.ui.cli.context_provider') as mock_context_provider:
         mock_context_provider.conversation_context.messages = []
         
         # Make sure we don't reinitialize the context provider in the callback
-        with patch('src.opencli.ui.cli.ContextProvider') as mock_context_constructor:
+        with patch('src.joshu.ui.cli.ContextProvider') as mock_context_constructor:
             mock_context_constructor.return_value = mock_context_provider
             
             result = runner.invoke(app, ["repeat-last"])
@@ -130,7 +130,7 @@ def test_repeat_last_command_no_history():
 
 def test_repeat_last_command_no_user_command():
     """Test the repeat-last command when no user command is found."""
-    with patch('src.opencli.ui.cli.context_provider') as mock_context_provider:
+    with patch('src.joshu.ui.cli.context_provider') as mock_context_provider:
         # Only assistant messages, no user commands
         mock_context_provider.conversation_context.messages = [
             {"role": "assistant", "content": "response 1"},
@@ -138,7 +138,7 @@ def test_repeat_last_command_no_user_command():
         ]
         
         # Make sure we don't reinitialize the context provider in the callback
-        with patch('src.opencli.ui.cli.ContextProvider') as mock_context_constructor:
+        with patch('src.joshu.ui.cli.ContextProvider') as mock_context_constructor:
             mock_context_constructor.return_value = mock_context_provider
             
             result = runner.invoke(app, ["repeat-last"])
@@ -148,7 +148,7 @@ def test_repeat_last_command_no_user_command():
 
 def test_explain_last_command():
     """Test the explain-last command shows explanation of last command."""
-    with patch('src.opencli.ui.cli.context_provider') as mock_context_provider:
+    with patch('src.joshu.ui.cli.context_provider') as mock_context_provider:
         # Set up mock context provider with history
         mock_context_provider.conversation_context.messages = [
             {"role": "user", "content": "show disk usage"},
@@ -156,7 +156,7 @@ def test_explain_last_command():
         ]
         
         # Make sure we don't reinitialize the context provider in the callback
-        with patch('src.opencli.ui.cli.ContextProvider') as mock_context_constructor:
+        with patch('src.joshu.ui.cli.ContextProvider') as mock_context_constructor:
             mock_context_constructor.return_value = mock_context_provider
             
             result = runner.invoke(app, ["explain-last"])
@@ -168,11 +168,11 @@ def test_explain_last_command():
 
 def test_explain_last_command_no_history():
     """Test the explain-last command when no history is available."""
-    with patch('src.opencli.ui.cli.context_provider') as mock_context_provider:
+    with patch('src.joshu.ui.cli.context_provider') as mock_context_provider:
         mock_context_provider.conversation_context.messages = []
         
         # Make sure we don't reinitialize the context provider in the callback
-        with patch('src.opencli.ui.cli.ContextProvider') as mock_context_constructor:
+        with patch('src.joshu.ui.cli.ContextProvider') as mock_context_constructor:
             mock_context_constructor.return_value = mock_context_provider
             
             result = runner.invoke(app, ["explain-last"])
@@ -182,14 +182,14 @@ def test_explain_last_command_no_history():
 
 def test_explain_last_command_incomplete_history():
     """Test the explain-last command with incomplete history."""
-    with patch('src.opencli.ui.cli.context_provider') as mock_context_provider:
+    with patch('src.joshu.ui.cli.context_provider') as mock_context_provider:
         # Only user command, no assistant response
         mock_context_provider.conversation_context.messages = [
             {"role": "user", "content": "show disk usage"}
         ]
         
         # Make sure we don't reinitialize the context provider in the callback
-        with patch('src.opencli.ui.cli.ContextProvider') as mock_context_constructor:
+        with patch('src.joshu.ui.cli.ContextProvider') as mock_context_constructor:
             mock_context_constructor.return_value = mock_context_provider
             
             result = runner.invoke(app, ["explain-last"])

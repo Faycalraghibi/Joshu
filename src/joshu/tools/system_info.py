@@ -1,5 +1,5 @@
 """
-System information tool for OpenCLI Assistant.
+System information tool for Joshu Assistant.
 Provides consistent and reliable system detection with error handling.
 """
 

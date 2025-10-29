@@ -1,5 +1,5 @@
 """
-Core code editing functionality for OpenCLI Assistant.
+Core code editing functionality for Joshu Assistant.
 Provides the core logic for code generation, editing, explanation, debugging, and refactoring.
 """
 

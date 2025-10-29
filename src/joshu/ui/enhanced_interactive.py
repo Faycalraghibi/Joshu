@@ -52,11 +52,11 @@ except ImportError:
     OpenAI = None
     OPENAI_AVAILABLE = False
 
-from opencli.core.config import get_config_manager
-from opencli.core.context_provider import ContextProvider
-from opencli.core.safety import assess_command_safety
-from opencli.core.translate import translate_to_command
-from opencli.tools.shell import run_command
+from joshu.core.config import get_config_manager
+from joshu.core.context_provider import ContextProvider
+from joshu.core.safety import assess_command_safety
+from joshu.core.translate import translate_to_command
+from joshu.tools.shell import run_command
 
 load_dotenv()
 
@@ -83,7 +83,7 @@ class EnhancedInteractiveMode:
         # History
         self.command_history = []
         self.bash_history = []
-        self.history_file = Path.cwd() / '.opencli_history'
+        self.history_file = Path.cwd() / '.joshu_history'
         self.max_history_entries = self.config_manager.get('history_limit', 1000)
         
         # DeepSeek API
@@ -799,7 +799,7 @@ Special Commands:
         processed_input = self._process_command_substitution(user_input)
         
         # Use existing translation system
-        from opencli.core.translate import translate_to_command
+        from joshu.core.translate import translate_to_command
         translation = translate_to_command(processed_input, self.context_provider, self.model)
         
         if translation:
@@ -809,7 +809,7 @@ Special Commands:
             # Check if this is a code generation request that should use the code command
             if "code command" in translation.explanation.lower() or "code' command" in translation.explanation.lower():
                 self._show_message("💡 Tip: For code generation requests, use the 'code' command:")
-                self._show_message(f"   opencli code \"{processed_input}\"")
+                self._show_message(f"   joshu code \"{processed_input}\"")
                 self._show_message("This will generate the code directly instead of trying to translate to a shell command.")
                 return True
             
@@ -869,7 +869,7 @@ Special Commands:
         if not PROMPT_TOOLKIT_AVAILABLE:
             self._show_message("Enhanced Interactive Mode requires prompt_toolkit. Falling back to basic mode.")
             # Fall back to basic interactive mode
-            from opencli.ui.cli import start_basic_interactive_mode
+            from joshu.ui.cli import start_basic_interactive_mode
             config_manager = get_config_manager()
             start_basic_interactive_mode(self.model, self.sandbox, config_manager)
             return
@@ -893,7 +893,9 @@ Special Commands:
                     break
                     
             except KeyboardInterrupt:
-                self._show_message("Use Ctrl+D to exit")
+                # Allow user to exit with Ctrl+C as well
+                self._show_message("\nExiting...")
+                break
             except EOFError:
                 break
         

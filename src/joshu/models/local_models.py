@@ -58,7 +58,7 @@ class EchoModel(LLM):
         # Handle greetings
         if prompt_lower in ["hi", "hello", "hey", "greetings"]:
             return json.dumps({
-                "command": "echo \"Hello! I'm OpenCLI Assistant. I can help you with shell commands and code generation. Try asking me to 'ls' or 'give me code for binary search in python'\"",
+                "command": "echo \"Hello! I'm Joshu Assistant. I can help you with shell commands and code generation. Try asking me to 'ls' or 'give me code for binary search in python'\"",
                 "explanation": "Friendly greeting response"
             })
         
@@ -80,7 +80,7 @@ class EchoModel(LLM):
         if prompt_lower in ["help", "help me"]:
             return json.dumps({
                 "command": "echo \"Try asking me to perform shell commands like 'ls' or 'pwd', or ask for code generation like 'give me code for binary search in python'. For more options, type '/help' in interactive mode.\"",
-                "explanation": "Helpful guidance for using OpenCLI"
+                "explanation": "Helpful guidance for using Joshu"
             })
         
         # No special handling needed

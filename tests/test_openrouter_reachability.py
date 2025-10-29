@@ -14,7 +14,7 @@ def test_openrouter_deepseek_free_reachability():
 
     headers = {
         "HTTP-Referer": os.getenv("OPENROUTER_SITE_URL", ""),
-        "X-Title": os.getenv("OPENROUTER_SITE_TITLE", "OpenCLI Assistant Tests"),
+        "X-Title": os.getenv("OPENROUTER_SITE_TITLE", "Joshu Assistant Tests"),
     }
 
     # Use a more commonly available free model

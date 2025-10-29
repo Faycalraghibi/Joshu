@@ -10,15 +10,15 @@ pytest.importorskip("prompt_toolkit")
 
 def test_enhanced_interactive_mode_import():
     """Test that the enhanced interactive mode can be imported."""
-    from opencli.ui.enhanced_interactive import EnhancedInteractiveMode, PROMPT_TOOLKIT_AVAILABLE
+    from joshu.ui.enhanced_interactive import EnhancedInteractiveMode, PROMPT_TOOLKIT_AVAILABLE
     assert EnhancedInteractiveMode is not None
     assert PROMPT_TOOLKIT_AVAILABLE is True
 
 
 def test_enhanced_interactive_mode_initialization():
     """Test that the enhanced interactive mode can be initialized."""
-    with patch('opencli.ui.enhanced_interactive.get_config_manager') as mock_config_manager, \
-         patch('opencli.ui.enhanced_interactive.ContextProvider') as mock_context_provider:
+    with patch('joshu.ui.enhanced_interactive.get_config_manager') as mock_config_manager, \
+         patch('joshu.ui.enhanced_interactive.ContextProvider') as mock_context_provider:
         
         # Mock config manager
         mock_config = MagicMock()
@@ -28,7 +28,7 @@ def test_enhanced_interactive_mode_initialization():
         # Mock context provider
         mock_context_provider.return_value = MagicMock()
         
-        from opencli.ui.enhanced_interactive import EnhancedInteractiveMode
+        from joshu.ui.enhanced_interactive import EnhancedInteractiveMode
         mode = EnhancedInteractiveMode("test-model")
         
         assert mode is not None
@@ -37,8 +37,8 @@ def test_enhanced_interactive_mode_initialization():
 
 def test_enhanced_interactive_mode_history():
     """Test that the enhanced interactive mode handles history correctly."""
-    with patch('opencli.ui.enhanced_interactive.get_config_manager') as mock_config_manager, \
-         patch('opencli.ui.enhanced_interactive.ContextProvider') as mock_context_provider:
+    with patch('joshu.ui.enhanced_interactive.get_config_manager') as mock_config_manager, \
+         patch('joshu.ui.enhanced_interactive.ContextProvider') as mock_context_provider:
         
         # Mock config manager
         mock_config = MagicMock()
@@ -48,7 +48,7 @@ def test_enhanced_interactive_mode_history():
         # Mock context provider
         mock_context_provider.return_value = MagicMock()
         
-        from opencli.ui.enhanced_interactive import EnhancedInteractiveMode
+        from joshu.ui.enhanced_interactive import EnhancedInteractiveMode
         mode = EnhancedInteractiveMode("test-model")
         
         # Test adding to history
@@ -67,9 +67,9 @@ def test_enhanced_interactive_mode_history():
 
 def test_enhanced_interactive_mode_file_injection():
     """Test that the enhanced interactive mode handles file injection."""
-    with patch('opencli.ui.enhanced_interactive.get_config_manager') as mock_config_manager, \
-         patch('opencli.ui.enhanced_interactive.ContextProvider') as mock_context_provider, \
-         patch('opencli.ui.enhanced_interactive.Path.exists') as mock_exists, \
+    with patch('joshu.ui.enhanced_interactive.get_config_manager') as mock_config_manager, \
+         patch('joshu.ui.enhanced_interactive.ContextProvider') as mock_context_provider, \
+         patch('joshu.ui.enhanced_interactive.Path.exists') as mock_exists, \
          patch('builtins.open', mock_open(read_data="test content")):
         
         # Mock config manager
@@ -83,7 +83,7 @@ def test_enhanced_interactive_mode_file_injection():
         # Mock file existence
         mock_exists.return_value = True
         
-        from opencli.ui.enhanced_interactive import EnhancedInteractiveMode
+        from joshu.ui.enhanced_interactive import EnhancedInteractiveMode
         mode = EnhancedInteractiveMode("test-model")
         
         # Test file injection
@@ -93,9 +93,9 @@ def test_enhanced_interactive_mode_file_injection():
 
 def test_enhanced_interactive_mode_bash_command():
     """Test that the enhanced interactive mode handles bash commands."""
-    with patch('opencli.ui.enhanced_interactive.get_config_manager') as mock_config_manager, \
-         patch('opencli.ui.enhanced_interactive.ContextProvider') as mock_context_provider, \
-         patch('opencli.ui.enhanced_interactive.run_command') as mock_run_command:
+    with patch('joshu.ui.enhanced_interactive.get_config_manager') as mock_config_manager, \
+         patch('joshu.ui.enhanced_interactive.ContextProvider') as mock_context_provider, \
+         patch('joshu.ui.enhanced_interactive.run_command') as mock_run_command:
         
         # Mock config manager
         mock_config = MagicMock()
@@ -108,7 +108,7 @@ def test_enhanced_interactive_mode_bash_command():
         # Mock run_command to return success
         mock_run_command.return_value = (0, "output", "")
         
-        from opencli.ui.enhanced_interactive import EnhancedInteractiveMode
+        from joshu.ui.enhanced_interactive import EnhancedInteractiveMode
         mode = EnhancedInteractiveMode("test-model")
         
         # Test bash command execution
@@ -118,8 +118,8 @@ def test_enhanced_interactive_mode_bash_command():
 
 def test_enhanced_interactive_mode_slash_commands():
     """Test that the enhanced interactive mode handles slash commands."""
-    with patch('opencli.ui.enhanced_interactive.get_config_manager') as mock_config_manager, \
-         patch('opencli.ui.enhanced_interactive.ContextProvider') as mock_context_provider, \
+    with patch('joshu.ui.enhanced_interactive.get_config_manager') as mock_config_manager, \
+         patch('joshu.ui.enhanced_interactive.ContextProvider') as mock_context_provider, \
          patch('builtins.print') as mock_print:
         
         # Mock config manager
@@ -130,7 +130,7 @@ def test_enhanced_interactive_mode_slash_commands():
         # Mock context provider
         mock_context_provider.return_value = MagicMock()
         
-        from opencli.ui.enhanced_interactive import EnhancedInteractiveMode
+        from joshu.ui.enhanced_interactive import EnhancedInteractiveMode
         mode = EnhancedInteractiveMode("test-model")
         
         # Test /help command
@@ -156,8 +156,8 @@ def test_enhanced_interactive_mode_slash_commands():
 
 def test_enhanced_interactive_mode_config_commands():
     """Test that the enhanced interactive mode handles config commands."""
-    with patch('opencli.ui.enhanced_interactive.get_config_manager') as mock_config_manager, \
-         patch('opencli.ui.enhanced_interactive.ContextProvider') as mock_context_provider, \
+    with patch('joshu.ui.enhanced_interactive.get_config_manager') as mock_config_manager, \
+         patch('joshu.ui.enhanced_interactive.ContextProvider') as mock_context_provider, \
          patch('builtins.print') as mock_print:
         
         # Mock config manager
@@ -171,7 +171,7 @@ def test_enhanced_interactive_mode_config_commands():
         # Mock context provider
         mock_context_provider.return_value = MagicMock()
         
-        from opencli.ui.enhanced_interactive import EnhancedInteractiveMode
+        from joshu.ui.enhanced_interactive import EnhancedInteractiveMode
         mode = EnhancedInteractiveMode("test-model")
         
         # Test /config command (show all)
@@ -193,8 +193,8 @@ def test_enhanced_interactive_mode_config_commands():
 
 def test_enhanced_interactive_mode_model_commands():
     """Test that the enhanced interactive mode handles model commands."""
-    with patch('opencli.ui.enhanced_interactive.get_config_manager') as mock_config_manager, \
-         patch('opencli.ui.enhanced_interactive.ContextProvider') as mock_context_provider, \
+    with patch('joshu.ui.enhanced_interactive.get_config_manager') as mock_config_manager, \
+         patch('joshu.ui.enhanced_interactive.ContextProvider') as mock_context_provider, \
          patch('builtins.print') as mock_print:
         
         # Mock config manager
@@ -210,7 +210,7 @@ def test_enhanced_interactive_mode_model_commands():
         # Mock context provider
         mock_context_provider.return_value = MagicMock()
         
-        from opencli.ui.enhanced_interactive import EnhancedInteractiveMode
+        from joshu.ui.enhanced_interactive import EnhancedInteractiveMode
         mode = EnhancedInteractiveMode("test-model")
         
         # Test /model command (show current)
