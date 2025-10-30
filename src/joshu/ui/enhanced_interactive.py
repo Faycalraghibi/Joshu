@@ -905,17 +905,5 @@ Special Commands:
 # Integration with existing CLI
 def start_enhanced_interactive_mode(model: str, sandbox: bool = False, config_manager=None):
     """Start the enhanced interactive mode"""
-    # If config_manager is not provided, get it from the config module
-    if config_manager is None:
-        from joshu.core.config import get_config_manager
-        config_manager = get_config_manager()
-    
-    # If prompt_toolkit is not available, fall back to basic mode
-    if not PROMPT_TOOLKIT_AVAILABLE:
-        from joshu.ui.cli import start_basic_interactive_mode, console
-        console.print("[red]Error: prompt_toolkit is not available. Falling back to basic interactive mode.[/red]")
-        start_basic_interactive_mode(model, sandbox, config_manager)
-        return
-    
     enhanced_mode = EnhancedInteractiveMode(model, sandbox)
     enhanced_mode.start()
