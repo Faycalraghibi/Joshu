@@ -6,7 +6,7 @@ Joshu is a CLI assistant that translates natural language to shell commands usin
 
 ## Core Features Implementation
 
-### 1. Natural Language Command Translation ([src/joshu/core/translate.py](file://d%3A/Projects/AI%20Projects/OpenCLI/src/joshu/core/translate.py))
+### 1. Natural Language Command Translation ([src/joshu/core/translate.py](file://d%3A/Projects/AI%20Projects/Joshu/src/joshu/core/translate.py))
 
 #### Pattern Matching
 - Fast translation for common commands using regex patterns
@@ -24,7 +24,7 @@ Joshu is a CLI assistant that translates natural language to shell commands usin
 - Fallback responses when translation fails
 - Proper handling of markdown-wrapped JSON responses
 
-### 2. CLI Interface ([src/joshu/ui/cli.py](file://d%3A/Projects/AI%20Projects/OpenCLI/src/joshu/ui/cli.py))
+### 2. CLI Interface ([src/joshu/ui/cli.py](file://d%3A/Projects/AI%20Projects/Joshu/src/joshu/ui/cli.py))
 
 #### Core Commands
 - **run**: Execute one-off prompts or start interactive mode
@@ -48,7 +48,7 @@ Joshu is a CLI assistant that translates natural language to shell commands usin
 - Last command repetition functionality
 - Last command explanation functionality
 
-### 3. Model Integration ([src/joshu/models/openrouter.py](file://d%3A/Projects/AI%20Projects/OpenCLI/src/joshu/models/openrouter.py) and [src/joshu/models/inference.py](file://d%3A/Projects/AI%20Projects/OpenCLI/src/joshu/models/inference.py))
+### 3. Model Integration ([src/joshu/models/openrouter.py](file://d%3A/Projects/AI%20Projects/Joshu/src/joshu/models/openrouter.py) and [src/joshu/models/inference.py](file://d%3A/Projects/AI%20Projects/Joshu/src/joshu/models/inference.py))
 
 #### OpenRouter API Integration
 - Robust OpenRouter API integration
@@ -65,7 +65,7 @@ Joshu is a CLI assistant that translates natural language to shell commands usin
 - OpenRouter → Local LLM → EchoModel
 - Graceful degradation when models are unavailable
 
-### 4. Configuration Management ([src/joshu/core/config.py](file://d%3A/Projects/AI%20Projects/OpenCLI/src/joshu/core/config.py))
+### 4. Configuration Management ([src/joshu/core/config.py](file://d%3A/Projects/AI%20Projects/Joshu/src/joshu/core/config.py))
 
 #### Features
 - YAML-based configuration with default values
@@ -80,7 +80,7 @@ Joshu is a CLI assistant that translates natural language to shell commands usin
 - Auto-execute settings
 - Context history limits
 
-### 5. Safety System ([src/joshu/core/safety.py](file://d%3A/Projects/AI%20Projects/OpenCLI/src/joshu/core/safety.py))
+### 5. Safety System ([src/joshu/core/safety.py](file://d%3A/Projects/AI%20Projects/Joshu/src/joshu/core/safety.py))
 
 #### Destructive Command Detection
 - Detection of destructive commands for both Unix and Windows
@@ -92,7 +92,7 @@ Joshu is a CLI assistant that translates natural language to shell commands usin
 - Platform-specific safety rules
 - Danger level classification (CRITICAL, HIGH, MEDIUM, LOW)
 
-### 6. Context Management ([src/joshu/core/context_provider.py](file://d%3A/Projects/AI%20Projects/OpenCLI/src/joshu/core/context_provider.py))
+### 6. Context Management ([src/joshu/core/context_provider.py](file://d%3A/Projects/AI%20Projects/Joshu/src/joshu/core/context_provider.py))
 
 #### Conversation Context
 - Conversation history tracking with configurable limits
@@ -109,14 +109,14 @@ Joshu is a CLI assistant that translates natural language to shell commands usin
 - Context summary for debugging and monitoring
 - Automatic context updates based on command execution results
 
-### 7. Shell Command Execution ([src/joshu/tools/shell.py](file://d%3A/Projects/AI%20Projects/OpenCLI/src/joshu/tools/shell.py))
+### 7. Shell Command Execution ([src/joshu/tools/shell.py](file://d%3A/Projects/AI%20Projects/Joshu/src/joshu/tools/shell.py))
 
 #### Features
 - Proper handling of Unicode characters in file output
 - Graceful handling of command execution errors
 - Cross-platform command execution support
 
-### 8. File Operations ([src/joshu/tools/filesystem.py](file://d%3A/Projects/AI%20Projects/OpenCLI/src/joshu/tools/filesystem.py))
+### 8. File Operations ([src/joshu/tools/filesystem.py](file://d%3A/Projects/AI%20Projects/Joshu/src/joshu/tools/filesystem.py))
 
 #### Directory Analysis
 - Directory structure analysis with customizable depth
@@ -132,7 +132,7 @@ Joshu is a CLI assistant that translates natural language to shell commands usin
 - Backup creation utilities
 - File filtering by size, type, or other criteria
 
-### 9. Code Generation & Editing ([src/joshu/tools/code_editor.py](file://d%3A/Projects/AI%20Projects/OpenCLI/src/joshu/tools/code_editor.py), [src/joshu/core/code_editor.py](file://d%3A/Projects/AI%20Projects/OpenCLI/src/joshu/core/code_editor.py), [src/joshu/tools/code_tools.py](file://d%3A/Projects/AI%20Projects/OpenCLI/src/joshu/tools/code_tools.py))
+### 9. Code Generation & Editing ([src/joshu/tools/code_editor.py](file://d%3A/Projects/AI%20Projects/Joshu/src/joshu/tools/code_editor.py), [src/joshu/core/code_editor.py](file://d%3A/Projects/AI%20Projects/Joshu/src/joshu/core/code_editor.py), [src/joshu/tools/code_tools.py](file://d%3A/Projects/AI%20Projects/Joshu/src/joshu/tools/code_tools.py))
 
 #### Core Code Features
 1. **Code Generation from Natural Language**
@@ -266,7 +266,7 @@ OPENROUTER_API_KEY=your_api_key_here
 OPENROUTER_MODEL=openai/gpt-4o
 OPENROUTER_SITE_URL=https://your-site.com
 OPENROUTER_SITE_TITLE=Joshu Assistant
-OPENCLI_USE_CLOUD=true
+Joshu_USE_CLOUD=true
 ```
 
 ## Usage Examples

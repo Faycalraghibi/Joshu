@@ -13,6 +13,48 @@ from joshu.core.context_provider import ContextProvider
 from joshu.tools.system_info import get_system_info
 
 logger = logging.getLogger(__name__)
+# Reduce logging verbosity - only show warnings and errors
+logger.setLevel(logging.WARNING)
+
+# Global variable to store the connection status
+_connection_established = False
+_connection_error = None
+
+def establish_connection(model_name: str = "default") -> bool:
+    """Establish connection to the model service when assistant is launched."""
+    global _connection_established, _connection_error
+    
+    if _connection_established:
+        return True
+    
+    try:
+        # Try to establish connection to OpenRouter if API key is available
+        import os
+        openrouter_key = os.getenv("OPENROUTER_API_KEY")
+        if openrouter_key:
+            from joshu.models.openrouter import get_openrouter_client
+            client = get_openrouter_client(model_name)
+            if client:
+                # Test the connection with a simple request
+                _connection_established = True
+                _connection_error = None
+                logger.info("Connection to OpenRouter established successfully")
+                return True
+        
+        # For local models, just try to load the model
+        model = get_model(model_name)
+        if model:
+            _connection_established = True
+            _connection_error = None
+            logger.info("Local model loaded successfully")
+            return True
+            
+    except Exception as e:
+        _connection_error = str(e)
+        logger.warning(f"Failed to establish connection: {e}")
+        return False
+    
+    return False
 
 @dataclass
 class Translation:
@@ -155,8 +197,14 @@ def translate_to_command(prompt: str, context_provider: Optional[ContextProvider
                         model_name: str = "default") -> Optional[Translation]:
     text = prompt.strip()
     
-    # Log the prompt for debugging
-    logger.info(f"Translating prompt: {text}")
+    # Only log the prompt for debugging if needed
+    logger.debug(f"Translating prompt: {text}")
+    
+    # Check connection status
+    global _connection_established, _connection_error
+    if not _connection_established:
+        logger.debug("Attempting to establish connection...")
+        establish_connection(model_name)
     
     # First try pattern matching
     for pattern, template, explanation in COMMON_PATTERNS:
@@ -164,7 +212,7 @@ def translate_to_command(prompt: str, context_provider: Optional[ContextProvider
         if not m:
             continue
         
-        logger.info(f"Pattern matched: {pattern.pattern}")
+        logger.debug(f"Pattern matched: {pattern.pattern}")
         
         # Special handling for code generation requests
         if re.search(r"(give|show|provide|write|generate)\s+(me\s+)?(the\s+)?(binary\s+search|code|program|script).*\b(python|javascript|java|c\+\+|c#|go|rust|php|ruby|swift)\b", text, re.I) or \
@@ -363,8 +411,65 @@ def translate_with_openrouter(prompt: str, context_provider: Optional[ContextPro
         return translate_command_with_openrouter_context_aware(context_messages, system_info, model_name)
     
     # Fallback to original implementation
-    return openrouter_translate(prompt)
+    result = openrouter_translate(prompt)
+    
+    # If the result is not valid, try to extract command and explanation from the raw response
+    if not result:
+        # Try to get a raw response and parse it manually
+        from joshu.models.openrouter import chat_completion
+        import os
+        system_info = get_system_info()
+        system_prompt = f"""You are a CLI assistant that translates natural language to shell commands.
+The user is on a {system_info} system. Generate appropriate commands for this platform.
+Respond ONLY with a JSON object containing "command" and "explanation" fields.
+Example response:
+{{"command": "dir", "explanation": "List all files and directories in the current directory"}}
 
+User request:"""
+        
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": prompt}
+        ]
+        
+        # Use the default model from environment
+        model_name_env = os.getenv("OPENROUTER_MODEL") or "openai/gpt-4o-mini"
+        response = chat_completion(messages, model=model_name_env, temperature=0.1, max_tokens=256)
+        if response:
+            # Try to extract command and explanation from the response
+            command, explanation = _extract_command_and_explanation(response)
+            if command and explanation:
+                return {"command": command, "explanation": explanation}
+    
+    return result
+
+def _extract_command_and_explanation(response: str) -> Tuple[Optional[str], Optional[str]]:
+    """Extract command and explanation from a raw response."""
+    # Try to find JSON-like content in the response
+    import re
+    import json
+    
+    # Look for JSON object in the response
+    json_match = re.search(r'\{[^}]+\}', response)
+    if json_match:
+        try:
+            data = json.loads(json_match.group())
+            command = data.get("command", "").strip()
+            explanation = data.get("explanation", "").strip()
+            if command and explanation:
+                return command, explanation
+        except json.JSONDecodeError:
+            pass
+    
+    # If no JSON found, try to extract command and explanation manually
+    # Look for patterns like "command: ..." and "explanation: ..."
+    command_match = re.search(r'[Cc]ommand["\']?\s*[:：]?\s*["\']?([^"\n\r]+)', response)
+    explanation_match = re.search(r'[Ee]xplanation["\']?\s*[:：]?\s*["\']?([^"\n\r]+)', response)
+    
+    command = command_match.group(1).strip() if command_match else None
+    explanation = explanation_match.group(1).strip() if explanation_match else None
+    
+    return command, explanation
 
 def translate_command_with_openrouter_context_aware(messages: List[Dict[str, str]], system_info: Optional[str] = None, model_name: str = "default") -> Optional[Dict[str, str]]:
     """Translate using OpenRouter API with context awareness."""
@@ -401,7 +506,7 @@ User request:"""
     try:
         # Clean up the response to handle markdown code blocks
         cleaned_response = response.strip()
-        if cleaned_response.startswith("```json"):
+        if cleaned_response.startswith("``json"):
             cleaned_response = cleaned_response[7:]  # Remove ```json
         if cleaned_response.startswith("```"):
             cleaned_response = cleaned_response[3:]  # Remove ```
@@ -475,7 +580,7 @@ User request:"""
         if not response:
             return None
             
-        logger.info(f"Local model response: {response}")
+        logger.debug(f"Local model response: {response}")
             
         # Try to parse JSON response
         # Handle case where response might have extra text around JSON
@@ -490,7 +595,7 @@ User request:"""
         # Strip any leading/trailing whitespace that might remain
         response = response.strip()
         
-        logger.info(f"Cleaned response: {response}")
+        logger.debug(f"Cleaned response: {response}")
         
         data = json.loads(response)
         command = data.get("command", "").strip()

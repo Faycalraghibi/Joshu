@@ -440,10 +440,95 @@ class CodeEditorCore:
         Returns:
             Generated code as string
         """
-        # This is a placeholder implementation
-        # In a real implementation, this would use an LLM to generate code
-        return f"# Generated {language} code based on: {prompt}\n\n# TODO: Implement functionality\n"
-    
+        try:
+            # Use the LLM to generate code
+            from joshu.models.inference import get_model
+            
+            # Create a specific prompt for code generation
+            system_prompt = f"""You are a code generation assistant. Generate {language} code based on the user's request.
+Follow these guidelines:
+1. Generate only valid {language} code
+2. Include appropriate comments
+3. Handle edge cases
+4. Follow best practices for {language}
+5. Respond ONLY with the code, no additional text or JSON formatting
+
+User request:"""
+            
+            full_prompt = f"{system_prompt}\n{prompt}"
+            
+            # Get the model and generate code
+            model = get_model("default")
+            if model:
+                generated_code = model.generate(full_prompt)
+                
+                # Extract code from response if it contains extra text
+                if generated_code:
+                    # Handle case where response might be JSON
+                    if generated_code.strip().startswith('{') and '"command"' in generated_code:
+                        # This is a JSON response from the translation system, not code
+                        # Try to extract just the explanation part and generate proper code
+                        import json
+                        try:
+                            response_data = json.loads(generated_code)
+                            # Create a new prompt focusing on code generation
+                            code_prompt = f"Generate {language} code that {response_data.get('explanation', prompt)}. Do not return JSON, just return the code."
+                            generated_code = model.generate(code_prompt)
+                        except json.JSONDecodeError:
+                            pass
+                    
+                    # Try to extract code block if it's in markdown format
+                    import re
+                    code_block_match = re.search(r'```(?:[a-zA-Z]+)?\n(.*?)```', generated_code, re.DOTALL)
+                    if code_block_match:
+                        return code_block_match.group(1).strip()
+                    else:
+                        # If no code block found, return the generated code as is
+                        # But first check if it's still JSON and try to extract the command
+                        if generated_code.strip().startswith('{'):
+                            try:
+                                import json
+                                data = json.loads(generated_code)
+                                if "command" in data:
+                                    # This is still a command response, not code
+                                    # Generate proper code directly
+                                    direct_code_prompt = f"Generate {language} implementation for: {prompt}"
+                                    direct_model = get_model("default")
+                                    if direct_model:
+                                        direct_code = direct_model.generate(direct_code_prompt)
+                                        if direct_code and not direct_code.strip().startswith('{'):
+                                            # Try to extract code block
+                                            code_block_match = re.search(r'```(?:[a-zA-Z]+)?\n(.*?)```', direct_code, re.DOTALL)
+                                            if code_block_match:
+                                                return code_block_match.group(1).strip()
+                                            else:
+                                                return direct_code.strip()
+                            except json.JSONDecodeError:
+                                pass
+                        
+                        # If we still have JSON or command response, generate code directly
+                        if generated_code.strip().startswith('{') or "echo" in generated_code:
+                            direct_code_prompt = f"Write {language} code to implement: {prompt}"
+                            direct_model = get_model("default")
+                            if direct_model:
+                                direct_code = direct_model.generate(direct_code_prompt)
+                                if direct_code:
+                                    # Try to extract code block
+                                    code_block_match = re.search(r'```(?:[a-zA-Z]+)?\n(.*?)```', direct_code, re.DOTALL)
+                                    if code_block_match:
+                                        return code_block_match.group(1).strip()
+                                    else:
+                                        return direct_code.strip()
+                        
+                        return generated_code.strip()
+            
+            # Fallback to placeholder if LLM fails
+            return f"# Generated {language} code based on: {prompt}\n\n# TODO: Implement functionality\n"
+        except Exception as e:
+            logger.warning(f"Code generation failed: {e}")
+            # Fallback to placeholder
+            return f"# Generated {language} code based on: {prompt}\n\n# TODO: Implement functionality\n"
+
     def edit_code_region(self, filepath: str, start_line: int, end_line: int, new_code: str) -> bool:
         """
         Precise line-based code editing.

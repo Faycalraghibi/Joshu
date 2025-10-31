@@ -51,15 +51,20 @@ except ImportError:
     start_enhanced_interactive_mode = None
     PROMPT_TOOLKIT_AVAILABLE = False
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
+# Set up logging with a higher level to reduce verbose output
+# Only show warnings and errors by default, unless verbose mode is enabled
+logging.basicConfig(level=logging.WARNING, format='%(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
+
+# Reduce logging from specific modules that are too verbose
+logging.getLogger('httpx').setLevel(logging.WARNING)
+logging.getLogger('joshu.core.translate').setLevel(logging.INFO)  # Still show translation info
 
 app = typer.Typer(no_args_is_help=True)  # Show help when no args provided
 console = Console()
 
 # Global variables
-_current_model = os.getenv("OPENCLI_MODEL", "llama-3-8b")
+_current_model = os.getenv("JOSHU_MODEL", "llama-3-8b")
 context_provider: Optional[ContextProvider] = None
 
 def version_callback(value: bool) -> None:
@@ -96,6 +101,26 @@ def main_callback(
     from joshu.tools.system_info import get_detailed_system_info
     system_info = get_detailed_system_info()
     context_provider.set_system_info(system_info)
+    
+    # Ensure cloud usage is enabled if a cloud model is configured
+    import os
+    configured_model = os.getenv("OPENROUTER_MODEL") or "llama-3-8b"
+    cloud_models = ["deepseek", "tongyi", "qwen", "kimi", "agentica", "glm"]
+    
+    if any(model in configured_model.lower() for model in cloud_models):
+        # Set JOSHU_USE_CLOUD to true if not already set
+        if not os.getenv("JOSHU_USE_CLOUD"):
+            os.environ["JOSHU_USE_CLOUD"] = "true"
+    
+    # Establish connection when assistant is launched
+    try:
+        from joshu.core.translate import establish_connection
+        if establish_connection(_current_model):
+            logger.debug("Connection established successfully")
+        else:
+            logger.debug("Failed to establish connection, will retry on first request")
+    except Exception as e:
+        logger.debug(f"Connection establishment skipped: {e}")
     
     print_banner(_current_model)
 
@@ -959,8 +984,24 @@ def _handle_code_generation(editor: CodeEditor, prompt: str, language: Optional[
         else:
             language = "python"  # Default to Python
     
-    # Generate code
-    generated_code = editor.generate_code(prompt, language)
+    # Try to use cloud model for better code generation if available
+    generated_code = None
+    try:
+        # Check if cloud models are available
+        import os
+        use_cloud = os.getenv("JOSHU_USE_CLOUD", "false").lower() == "true"
+        if use_cloud:
+            # Try to generate code using cloud model
+            from joshu.models.inference import get_model
+            model = get_model("default")
+            if model:
+                generated_code = editor.generate_code(prompt, language)
+    except Exception as e:
+        logger.debug(f"Cloud code generation failed: {e}")
+    
+    # Fallback to local generation if cloud failed
+    if not generated_code:
+        generated_code = editor.generate_code(prompt, language)
     
     if dry_run:
         console.print(f"[bold]Generated {language} code:[/bold]")

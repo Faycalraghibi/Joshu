@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import logging
 from typing import Dict, Optional, Generator
 from threading import Lock
 
@@ -8,6 +9,10 @@ from .local_models import EchoModel
 from .llm_interface import LLM
 from .llama_cpp_loader import LlamaCppWrapper, maybe_load_llama_from_env
 from .openrouter import get_openrouter_client, chat_completion
+
+# Set up logging with reduced verbosity - only show warnings and errors
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.WARNING)
 
 # Model cache to support model loading/unloading
 _model_cache: Dict[str, LLM] = {}
@@ -21,6 +26,70 @@ SUPPORTED_LOCAL_MODELS = {
     "codellama-34b": "LLAMA_CPP_MODEL_CODELLAMA_34B",
     "gemma-2-9b": "LLAMA_CPP_MODEL_GEMMA_2_9B"
 }
+
+# Global variable to track if connection has been established
+_connection_established = False
+
+def establish_model_connection(model_name: str) -> bool:
+    """Establish connection to the model service."""
+    global _connection_established
+    
+    if _connection_established:
+        return True
+    
+    try:
+        # Check if OpenRouter API key is available and user wants to use cloud models
+        openrouter_key = os.getenv("OPENROUTER_API_KEY")
+        use_cloud = os.getenv("JOSHU_USE_CLOUD", "false").lower() == "true"
+        
+        # Also check for model-specific API keys
+        model_specific_keys = [
+            "DEEPSEEK_API_KEY",
+            "TONGYI_API_KEY", 
+            "QWEN_API_KEY",
+            "KIMI_DEV_API_KEY",
+            "AGENTICAT_API_KEY",
+            "GLM_API_KEY"
+        ]
+        
+        has_model_specific_key = any(os.getenv(key) for key in model_specific_keys)
+        
+        if (openrouter_key or has_model_specific_key) and use_cloud:
+            # Try to establish connection to OpenRouter
+            from .openrouter import establish_openrouter_connection
+            if establish_openrouter_connection(model_name):
+                _connection_established = True
+                logger.debug("Cloud model connection established")
+                return True
+        
+        # For local models, just try to load the model
+        model = _load_local_model(model_name)
+        if model is not None:
+            _model_cache[model_name] = model
+            _connection_established = True
+            logger.debug("Local model loaded successfully")
+            return True
+            
+        # Try to load default local llama model
+        llama = maybe_load_llama_from_env()
+        if llama is not None:
+            # Adapt to LLM interface with a lightweight wrapper
+            class LlamaAdapter(LLM):
+                def generate(self, prompt: str, **kwargs):
+                    return llama.generate(prompt, **kwargs)
+
+            model = LlamaAdapter()
+            _model_cache[model_name] = model
+            _connection_established = True
+            logger.debug("Default local model loaded successfully")
+            return True
+            
+    except Exception as e:
+        logger.debug(f"Failed to establish model connection: {e}")
+        return False
+    
+    return False
+
 
 class StreamingLLM(LLM):
     """Wrapper for LLMs that supports streaming responses."""
@@ -45,16 +114,21 @@ class StreamingLLM(LLM):
 
 def get_model(model_name: str) -> LLM:
     """Get a model instance with caching and lazy loading."""
-    global _model_cache
+    global _model_cache, _connection_established
     
     with _model_lock:
         # Return cached model if available
         if model_name in _model_cache:
             return _model_cache[model_name]
         
+        # Try to establish connection if not already done
+        if not _connection_established:
+            logger.debug("Attempting to establish model connection...")
+            establish_model_connection(model_name)
+        
         # Check if OpenRouter API key is available and user wants to use cloud models
         openrouter_key = os.getenv("OPENROUTER_API_KEY")
-        use_cloud = os.getenv("OPENCLI_USE_CLOUD", "false").lower() == "true"
+        use_cloud = os.getenv("JOSHU_USE_CLOUD", "false").lower() == "true"
         
         if openrouter_key and use_cloud:
             # Use OpenRouter model
@@ -128,7 +202,7 @@ def _load_local_model(model_name: str) -> Optional[LLM]:
                 return None
     
     # Try to load from generic model path
-    model_path_env = f"OPENCLI_MODEL_{model_name.upper().replace('-', '_')}"
+    model_path_env = f"JOSHU_MODEL_{model_name.upper().replace('-', '_')}"
     model_path = os.getenv(model_path_env)
     if model_path and os.path.exists(model_path):
         try:

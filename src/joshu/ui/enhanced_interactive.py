@@ -98,7 +98,17 @@ class EnhancedInteractiveMode:
         
         # Load existing history
         self._load_history()
-    
+        
+        # Establish connection when interactive mode starts
+        try:
+            from joshu.core.translate import establish_connection
+            if establish_connection(self.model):
+                self._show_message("Connection established successfully")
+            else:
+                self._show_message("Failed to establish connection, will retry on first request")
+        except Exception as e:
+            self._show_message(f"Connection establishment skipped: {e}")
+
     def _init_deepseek(self):
         """Initialize DeepSeek API client"""
         if OPENAI_AVAILABLE:

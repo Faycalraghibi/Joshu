@@ -4,7 +4,7 @@ alwaysApply: true
 ---
 # Project Rules Observed Throughout Development
 
-This document outlines all the technical constraints, specifications, and best practices that have been consistently followed throughout the development of the OpenCLI Assistant project from its inception to the current state.
+This document outlines all the technical constraints, specifications, and best practices that have been consistently followed throughout the development of the Joshu Assistant project from its inception to the current state.
 
 ## 1. Language and Version Requirements
 
@@ -15,7 +15,7 @@ This document outlines all the technical constraints, specifications, and best p
 
 ### Code Quality Standards
 - **Type Hints**: Extensive use of type hints throughout the codebase
-- **Data Classes**: Used for structured data representation (e.g., `OpenCLIConfig`, `SafetyReport`, `Translation`)
+- **Data Classes**: Used for structured data representation (e.g., `JoshuConfig`, `SafetyReport`, `Translation`)
 - **Modern Python Features**: Leveraged appropriate Python 3.8+ features while maintaining backward compatibility
 
 ## 2. Library and Dependency Management
@@ -108,7 +108,7 @@ Each core component is implemented as a separate module:
 ### Configuration Management
 - **Environment Variables**: All configuration via .env, YAML, or CLI args
 - **No Hardcoded Secrets**: No secrets or tokens hardcoded in the code
-- **YAML Configuration**: User-level configuration through `~/.opencli/config.yaml`
+- **YAML Configuration**: User-level configuration through `~/.joshu/config.yaml`
 
 ### Code Documentation
 - **Docstrings**: All public functions, classes, and modules documented with docstrings

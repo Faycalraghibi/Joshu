@@ -55,7 +55,13 @@ python -m pip install -U pip setuptools wheel
 
 # Install dependencies
 echo "[info] Installing dependencies"
-pip install -r requirements.txt -r requirements-dev.txt
+# Install basic requirements and development tools
+pip install -r requirements.txt
+pip install -e .[dev]
+
+# Optionally install LLM dependencies (uncomment if needed)
+# echo "[info] Installing optional LLM dependencies"
+# pip install -r requirements-llm.txt
 
 # Editable install
 echo "[info] Editable install"
@@ -68,7 +74,9 @@ echo "     export OPENROUTER_API_KEY=\"sk-...\""
 echo "     export OPENROUTER_MODEL=\"openai/gpt-4o\""
 echo "     export OPENROUTER_SITE_URL=\"https://your-site\""
 echo "     export OPENROUTER_SITE_TITLE=\"Your Site\""
-echo "  2) Run tests:"
+echo "  2) Install optional LLM dependencies (if needed):"
+echo "     pip install -r requirements-llm.txt"
+echo "  3) Run tests:"
 echo "     pytest -q"
-echo "  3) Use the CLI:"
+echo "  4) Use the CLI:"
 echo "     joshu run \"show disk usage of current directory\" -y"

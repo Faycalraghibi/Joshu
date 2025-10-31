@@ -28,11 +28,26 @@ class EchoModel(LLM):
                     "explanation": explanation
                 })
             else:
-                # For non-command requests, provide a helpful message
-                return json.dumps({
-                    "command": "echo \"Direct API access required\"",
-                    "explanation": f"This request requires API access to process: '{user_request[:50]}...'. Please configure your API key or try a simple command like 'ls' or 'pwd'."
-                })
+                # For non-command requests, provide a more helpful message
+                # Check if this might be a code generation request
+                if self._is_code_generation_request(user_request):
+                    return json.dumps({
+                        "command": 'echo "For code generation, please use the code command: joshu code \\"your request\\" or configure your API key for cloud models"',
+                        "explanation": "This appears to be a code generation request. Use the 'code' command or configure your API key for better results."
+                    })
+                else:
+                    # Check if API keys might be misconfigured
+                    api_status = self._check_api_configuration()
+                    if api_status != "ok":
+                        return json.dumps({
+                            "command": f'echo "API configuration issue: {api_status}. Please check your .env file or use local models."',
+                            "explanation": "API access is required for complex requests but not properly configured."
+                        })
+                    else:
+                        return json.dumps({
+                            "command": 'echo "Direct API access required for complex requests. Please configure your API key or use simpler commands."',
+                            "explanation": f"This request requires API access to process: '{user_request[:50]}...'. Please configure your API key or try a simple command like 'ls' or 'pwd'."
+                        })
         else:
             # Handle regular prompts
             # Handle common conversational prompts locally
@@ -48,8 +63,26 @@ class EchoModel(LLM):
                     "explanation": explanation
                 })
             else:
-                # Fallback to echo with a proper message
-                return f"Echo: {prompt}"
+                # For non-command requests, provide a more helpful message
+                # Check if this might be a code generation request
+                if self._is_code_generation_request(prompt):
+                    return json.dumps({
+                        "command": 'echo "For code generation, please use the code command: joshu code \\"your request\\" or configure your API key for cloud models"',
+                        "explanation": "This appears to be a code generation request. Use the 'code' command or configure your API key for better results."
+                    })
+                else:
+                    # Check if API keys might be misconfigured
+                    api_status = self._check_api_configuration()
+                    if api_status != "ok":
+                        return json.dumps({
+                            "command": f'echo "API configuration issue: {api_status}. Please check your .env file or use local models."',
+                            "explanation": "API access is required for complex requests but not properly configured."
+                        })
+                    else:
+                        return json.dumps({
+                            "command": 'echo "Direct API access required for complex requests. Please configure your API key or use simpler commands."',
+                            "explanation": f"This request requires API access to process: '{prompt[:50]}...'. Please configure your API key or try a simple command like 'ls' or 'pwd'."
+                        })
     
     def _handle_conversational_prompt(self, prompt: str) -> Optional[str]:
         """Handle common conversational prompts locally."""
@@ -85,6 +118,44 @@ class EchoModel(LLM):
         
         # No special handling needed
         return None
+    
+    def _is_code_generation_request(self, prompt: str) -> bool:
+        """Check if the prompt is likely a code generation request."""
+        prompt_lower = prompt.lower()
+        code_keywords = ["code", "program", "script", "function", "class", "method", "algorithm", "binary search", "sort", "python", "javascript", "java", "c++", "c#", "go", "rust", "php", "ruby", "swift"]
+        return any(keyword in prompt_lower for keyword in code_keywords)
+    
+    def _check_api_configuration(self) -> str:
+        """Check if API keys are properly configured."""
+        import os
+        
+        # Check for general OpenRouter API key
+        if os.getenv("OPENROUTER_API_KEY"):
+            return "ok"
+        
+        # Check for model-specific API keys
+        model_specific_keys = [
+            "DEEPSEEK_API_KEY",
+            "TONGYI_API_KEY", 
+            "QWEN_API_KEY",
+            "KIMI_DEV_API_KEY",
+            "AGENTICAT_API_KEY",
+            "GLM_API_KEY"
+        ]
+        
+        for key in model_specific_keys:
+            if os.getenv(key):
+                return "ok"
+        
+        # Check if user has configured a model that requires an API key
+        configured_model = os.getenv("OPENROUTER_MODEL") or "llama-3-8b"
+        cloud_models = ["deepseek", "tongyi", "qwen", "kimi", "agentica", "glm"]
+        
+        for model in cloud_models:
+            if model in configured_model.lower():
+                return f"API key missing for {model} model"
+        
+        return "no API keys configured"
     
     def _is_windows(self) -> bool:
         """Check if we're running on Windows."""

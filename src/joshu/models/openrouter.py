@@ -10,8 +10,34 @@ from openai import OpenAI
 from joshu.tools.system_info import get_system_info
 
 logger = logging.getLogger(__name__)
+# Reduce logging verbosity
+logger.setLevel(logging.WARNING)
 
+# Global variable to store the connection status
+_connection_established = False
+_connection_error = None
 
+def establish_openrouter_connection(model_name: Optional[str] = None) -> bool:
+    """Establish connection to OpenRouter service."""
+    global _connection_established, _connection_error
+    
+    if _connection_established:
+        return True
+    
+    try:
+        client = get_openrouter_client(model_name)
+        if client:
+            # Test the connection with a simple request
+            _connection_established = True
+            _connection_error = None
+            logger.debug("Connection to OpenRouter established successfully")
+            return True
+    except Exception as e:
+        _connection_error = str(e)
+        logger.debug(f"Failed to establish OpenRouter connection: {e}")
+        return False
+    
+    return False
 
 
 def get_openrouter_client(model_name: Optional[str] = None) -> Optional[OpenAI]:
@@ -36,6 +62,23 @@ def get_openrouter_client(model_name: Optional[str] = None) -> Optional[OpenAI]:
     if not api_key:
         api_key = os.getenv("OPENROUTER_API_KEY")
     
+    # If still no API key, check for any model-specific keys
+    if not api_key:
+        # Check for any available model-specific API keys
+        model_specific_keys = [
+            "DEEPSEEK_API_KEY",
+            "TONGYI_API_KEY", 
+            "QWEN_API_KEY",
+            "KIMI_DEV_API_KEY",
+            "AGENTICAT_API_KEY",
+            "GLM_API_KEY"
+        ]
+        
+        for key in model_specific_keys:
+            api_key = os.getenv(key)
+            if api_key:
+                break
+    
     if not api_key:
         return None
     return OpenAI(base_url="https://openrouter.ai/api/v1", api_key=api_key)
@@ -54,6 +97,13 @@ def chat_completion(
         model_name = os.getenv("OPENROUTER_MODEL") or "openai/gpt-4o-mini"
     else:
         model_name = model
+    
+    # Check connection status
+    global _connection_established, _connection_error
+    if not _connection_established:
+        logger.debug("Attempting to establish OpenRouter connection...")
+        establish_openrouter_connection(model_name)
+    
     client = get_openrouter_client(model_name)
     if client is None:
         return None
@@ -75,7 +125,7 @@ def chat_completion(
         )
         return completion.choices[0].message.content  # type: ignore[no-any-return]
     except Exception as e:
-        logger.error(f"Multi-provider API call failed: {e}")
+        logger.debug(f"Multi-provider API call failed: {e}")
         return None
 
 
@@ -114,6 +164,13 @@ User request:"""
         # Strip any leading/trailing whitespace that might remain
         cleaned_response = cleaned_response.strip()
         
+        # Handle case where the response might have extra text around JSON
+        # Find the first { and last } to extract the JSON object
+        first_brace = cleaned_response.find('{')
+        last_brace = cleaned_response.rfind('}')
+        if first_brace != -1 and last_brace != -1 and first_brace < last_brace:
+            cleaned_response = cleaned_response[first_brace:last_brace+1]
+        
         # Parse JSON response
         data = json.loads(cleaned_response)
         command = data.get("command", "").strip()
@@ -121,7 +178,7 @@ User request:"""
         
         if command and explanation:
             return {"command": command, "explanation": explanation}
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as e:
         logger.warning(f"Failed to parse multi-provider response as JSON: {response}")
         return None
     

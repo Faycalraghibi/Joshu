@@ -1,6 +1,4 @@
-OpenCLI Assistant Documentation
-===============================
+Joshu Assistant Documentation
+============================
 
-This folder will contain detailed user and developer documentation.
-
-
+This folder contains detailed user and developer documentation for Joshu Assistant.

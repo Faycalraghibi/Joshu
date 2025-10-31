@@ -81,15 +81,15 @@ class LlamaCppWrapper:
 
 
 def maybe_load_llama_from_env() -> LlamaCppWrapper | None:
-    model_path = os.getenv("OPENCLI_LLAMA_CPP_MODEL")
+    model_path = os.getenv("JOSHU_LLAMA_CPP_MODEL")
     if not model_path:
         return None
     try:
         # Get additional configuration from environment variables
-        n_ctx = int(os.getenv("OPENCLI_LLAMA_CTX_SIZE", "4096"))
-        n_threads = int(os.getenv("OPENCLI_LLAMA_THREADS", "0")) or None
-        n_gpu_layers = int(os.getenv("OPENCLI_LLAMA_GPU_LAYERS", "0"))
-        seed = int(os.getenv("OPENCLI_LLAMA_SEED", "42"))
+        n_ctx = int(os.getenv("JOSHU_LLAMA_CTX_SIZE", "4096"))
+        n_threads = int(os.getenv("JOSHU_LLAMA_THREADS", "0")) or None
+        n_gpu_layers = int(os.getenv("JOSHU_LLAMA_GPU_LAYERS", "0"))
+        seed = int(os.getenv("JOSHU_LLAMA_SEED", "42"))
         
         return LlamaCppWrapper(model_path, n_ctx, n_threads, n_gpu_layers, seed)
     except Exception:
