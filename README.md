@@ -1,58 +1,106 @@
 # Joshu 🤖
 
-An AI command-line assistant powered by free large language models. Transform your terminal into an intelligent workspace where natural language meets powerful automation.
+An AI-powered command-line assistant that transforms your terminal into an intelligent workspace. Joshu uses large language models to translate natural language into shell commands, generate code, execute tasks autonomously, and assist with complex workflows.
 
 ## 🌟 Features
 
 ### Core Capabilities
 
-- **Natural Language to Commands**: Convert plain English to executable shell commands
-- **Code Generation & Debugging**: Generate, explain, and fix code in multiple languages
-- **File System Intelligence**: Smart file operations, content analysis, and project navigation
-- **Context Awareness**: Maintains conversation history and project context
-- **Multi-Model Support**: Seamlessly switch between different open-source LLMs
-- **Cloud Model Integration**: Use powerful cloud models via OpenRouter API
-- **Interactive Chat Mode**: Conversational interface for complex tasks
+- **Natural Language to Commands**: Convert plain English to executable shell commands with safety validation
+- **Interactive Multi-Mode Assistant**: Three distinct interaction modes (Agent, Ask, Plan) for different use cases
+- **Code Generation & Editing**: Generate, explain, debug, and refactor code in multiple languages
+- **Context-Aware Conversations**: Maintains conversation history and project context across sessions
+- **Multi-Model Support**: Seamlessly switch between local and cloud-based LLMs
+- **Session Management**: Track and manage multiple conversation sessions with persistent history
+- **Safety-First Design**: Advanced command validation and sandbox mode for safe execution
+
+### Interactive Modes
+
+Joshu provides three powerful interaction modes:
+
+#### 🤖 Agent Mode (Default)
+Autonomous task execution from start to finish. Simply describe your goal and Joshu will:
+- Generate a step-by-step execution plan
+- Execute each command safely with validation
+- Handle errors and ask for confirmation when needed
+- Provide detailed execution summaries
+
+#### 💬 Ask Mode
+Direct Q&A without command execution. Perfect for:
+- Getting explanations and information
+- Understanding concepts and technologies
+- Asking questions that don't require system actions
+
+#### 📋 Plan Mode
+Task planning without execution. Joshu will:
+- Break down your goal into actionable steps
+- Present a numbered list of commands
+- Let you review and execute manually
 
 ### Advanced Features
 
-- **RAG Integration**: Retrieval-augmented generation for accurate technical documentation
-- **Computer Use**: GUI automation and visual interface interaction (coming soon)
-- **Plugin Architecture**: Extensible system for custom tools and workflows
-- **Memory System**: Personalized assistance that learns your preferences
-- **Enhanced Command Safety**: Advanced safety validation with danger level detection
-- **Sandbox Environment**: Safe code execution with proper isolation
+- **Session Management**: Create, switch, and manage multiple conversation sessions
+- **Conversation History**: Persistent, formatted conversation logs with timestamps and mode indicators
+- **Command Safety**: Multi-level danger detection with user confirmation prompts
+- **Sandbox Environment**: Safe code execution with optional sandbox mode
+- **OpenRouter Integration**: Use powerful cloud models via OpenRouter API
+- **Local Model Support**: Run Llama, Mistral, CodeLlama, and other models locally
+- **Code Editing**: Edit files with LLM assistance, automatic backups, and validation
+- **History Management**: Review, repeat, and explain past commands
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-- Python 3.8+
-- 4GB+ RAM (8GB recommended for larger models)
-- CUDA-compatible GPU (optional, for faster inference)
+- Python 3.8+ (tested up to Python 3.13)
+- 4GB+ RAM (8GB recommended for larger local models)
+- CUDA-compatible GPU (optional, for faster local inference)
 
 ### Installation
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/joshu-assistant.git
+git clone https://github.com/Faycacalraghibi/joshu-assistant.git
 cd joshu-assistant
+
+# Create a virtual environment (recommended)
+python -m venv .joshuvenv
+source .joshuvenv/bin/activate  # On Windows: .joshuvenv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
 
-# Initialize the assistant
-python setup.py install
+# Optional: Install LLM dependencies for local models
+pip install -r requirements-llm.txt
+
+# Install Joshu
+pip install -e .
+```
+
+### Quick Installation Scripts
+
+For automated setup, use the provided scripts:
+
+**Windows (PowerShell):**
+```powershell
+.\clean_install-dev.ps1
+```
+
+**Linux/macOS (Bash):**
+```bash
+./clean_install-dev.sh
 ```
 
 ### First Run
 
 ```bash
-# Start the assistant
-joshu
+# Start interactive mode
+joshu run --interactive
+# or
+joshu interactive
 
-# Or with specific model
-joshu --model llama-3-70b
+# Execute a one-off command
+joshu "list all python files modified today"
 
 # Get help
 joshu --help
@@ -60,28 +108,41 @@ joshu --help
 
 ## 🔧 Configuration
 
-### Model Setup
+### Environment Variables
 
-The assistant supports multiple open-source models:
+Create a `.env` file in your project root or home directory:
 
+```bash
+# Model Configuration
+JOSHU_MODEL=llama-3-8b
+JOSHU_USE_CLOUD=true
+
+# OpenRouter API (optional, for cloud models)
+OPENROUTER_API_KEY=your_api_key_here
+OPENROUTER_MODEL=openai/gpt-4o-mini
+OPENROUTER_SITE_URL=https://your-site.com
+OPENROUTER_SITE_TITLE=Joshu Assistant
+
+# Model-Specific API Keys (optional)
+DEEPSEEK_API_KEY=your_key
+TONGYI_API_KEY=your_key
+QWEN_API_KEY=your_key
+KIMI_DEV_API_KEY=your_key
+GLM_API_KEY=your_key
+
+# Configuration Options
+JOSHU_MEMORY_ENABLED=true
+JOSHU_SANDBOX_ENABLED=true
+JOSHU_LOG_LEVEL=INFO
+JOSHU_MAX_CONTEXT=4096
 ```
-# config/models.yaml
-models:
-  default: "llama-3-8b"
-  available:
-    - llama-3-8b      # Fast, good for basic tasks
-    - llama-3-70b     # High-quality responses
-    - mistral-7b      # Code-specialized
-    - codellama-34b   # Advanced code generation
-    - gemma-2-9b      # Lightweight, efficient
-```
 
-### User Configuration
+### User Configuration File
 
-Joshu supports user-level configuration through a YAML file located at `~/.joshu/config.yaml`:
+Joshu supports user-level configuration at `~/.joshu/config.yaml`:
 
-```
-# ~/.joshu/config.yaml
+```yaml
+# User configuration file at ~/.joshu/config.yaml
 model: "llama-3-8b"
 safety_mode: true
 auto_execute: false
@@ -93,253 +154,301 @@ memory_enabled: true
 sandbox_enabled: true
 ```
 
-Configuration options:
-- **model**: Default LLM model to use
-- **safety_mode**: Enable/disable safety checks (recommended: true)
-- **auto_execute**: Automatically execute safe commands without confirmation
-- **max_tokens**: Maximum tokens for LLM responses
-- **temperature**: LLM temperature setting (0.0-1.0)
-- **history_size**: Number of conversation history items to maintain
-- **log_level**: Logging level (DEBUG, INFO, WARN, ERROR)
-- **memory_enabled**: Enable/disable conversation memory
-- **sandbox_enabled**: Enable/disable sandbox mode for testing
-
 ### CLI Configuration Management
 
-Manage your configuration directly from the command line:
+Manage configuration directly from the command line:
 
 ```bash
 # List all configuration options
 joshu config --list
 
-# Get a specific configuration value
+# Get a specific value
 joshu config --get model
 
-# Set a configuration value
+# Set configuration values
 joshu config --set model=llama-3-70b
 joshu config --set auto_execute=true
 
-# Reset configuration to defaults
+# Reset to defaults
 joshu config --reset
 
 # Edit configuration file directly
 joshu config --edit
 ```
 
-### Environment Configuration
+## 📖 Usage
 
-```
-# .env file
-JOSHU_MODEL=llama-3-8b
-JOSHU_MEMORY_ENABLED=true
-JOSHU_SANDBOX_ENABLED=true
-JOSHU_LOG_LEVEL=INFO
-JOSHU_MAX_CONTEXT=4096
+### Command-Line Usage
 
-# OpenRouter API (optional, for cloud models)
-OPENROUTER_API_KEY=your_api_key_here
-OPENROUTER_MODEL=openai/gpt-4o
-OPENROUTER_SITE_URL=https://your-site.com
-OPENROUTER_SITE_TITLE=Joshu Assistant
-JOSHU_USE_CLOUD=true
-```
-
-## 📖 Usage Examples
-
-### Usage
-
-Joshu can be used in several ways:
-
-### Direct Command Translation
 ```bash
-joshu "list all python files modified in the last day"
-joshu "show disk usage"
-joshu "find large files over 100mb"
-```
+# Execute a natural language command
+joshu "find all files larger than 100MB"
+joshu "create a backup of the project directory"
+joshu "show disk usage sorted by size"
 
-### Code Generation
-For code generation requests, use the `code` command:
-```bash
-joshu code "write a binary search function in python"
+# Code generation and editing
+joshu code "write a binary search function in Python"
 joshu code "create a REST API with Flask"
-joshu code "generate a React component for a todo list"
-```
+joshu code --file app.py "add error handling to this file"
+joshu code --file app.py "refactor this code to use async/await"
 
-### Interactive Mode
-Start interactive mode for continuous conversation:
-```bash
-joshu interactive
-# or
+# Interactive mode
 joshu run --interactive
-# or
-joshu run -i
+joshu interactive --model llama-3-70b --verbose
+
+# History and repetition
+joshu history
+joshu repeat-last
+joshu explain-last
+
+# Help and examples
+joshu examples
+joshu commands
+joshu explain "git rebase"
 ```
 
-### Basic Commands
+### Interactive Mode Commands
 
-``bash
-# Natural language commands
-joshu "list all python files modified in the last week"
-joshu "create a backup of my project directory"
-joshu "show me memory usage of running processes"
+When in interactive mode, you can use the following commands:
 
-# File system intelligence
-joshu "show me the structure of this project"
-joshu "find configuration files"
-joshu "what's in the log directory?"
-joshu "backup my source code"
+#### Mode Switching
+- `/agent` - Switch to agent mode (autonomous execution)
+- `/ask` - Switch to ask mode (Q&A without commands)
+- `/plan` - Switch to plan mode (planning without execution)
 
-# Code generation
-joshu "write a python function to parse CSV files"
-joshu "debug this bash script: ./deploy.sh"
-joshu "explain what this regex does: ^[a-zA-Z0-9+_.-]+@[a-zA-Z0-9.-]+$"
-```
+#### Session Management
+- `/session` - Show current session ID
+- `/session list` - List all sessions
+- `/session new` - Start a new session
+- `/session end` - End current session and start a new one
+- `/session switch <id>` - Switch to a session by ID
+- `/session delete <id>` - Delete a session
+- `/session help` - Show session management help
 
-### Interactive Mode
+#### History and Configuration
+- `/history` - Show command history
+- `/clear` - Clear command history
+- `/config` - Show/set configuration
+- `/model` - Switch AI model
+- `/help` - Show comprehensive help
+
+#### Special Commands
+- `!command` - Execute bash command directly
+- `!!` - Repeat last bash command
+- `!n` - Execute nth bash command from history
+- `@file` - Inject file content
+- `@@file` - Inject and execute file content
+- `@file:n-m` - Inject lines n to m from file
+
+### Keyboard Shortcuts (Interactive Mode)
+
+- `Ctrl+R` - Reverse search through history
+- `Ctrl+J` - Line navigation down
+- `Ctrl+K` - Line navigation up
+- `Ctrl+B` - Send command to background bash
+- `Ctrl+C` - Interrupt current operation
+- `Ctrl+D` - Exit interactive mode
+- `Ctrl+L` - Clear screen
+- `Ctrl+T` - Toggle command suggestions
+
+### Vim Mode (Interactive Mode)
+
+- `ESC` - Switch to NORMAL mode
+- `i` - Switch to INSERT mode
+- `h/j/k/l` - Left/Down/Up/Right navigation
+- `w/b` - Word forward/backward
+- `:` - Enter command mode
+
+### Usage Examples
+
+#### Agent Mode Example
 
 ```bash
-joshu --interactive
+joshu run --interactive
+[AGENT] > create a Python project with Flask and SQLite
 
-> You: How do I set up a virtual environment?
-> Assistant: I'll help you set up a Python virtual environment...
->
-> Commands to run:
-> python -m venv myenv
-> source myenv/bin/activate  # Linux/Mac
-> # or
-> myenv\Scripts\activate     # Windows
->
-> Would you like me to execute these commands? [y/N]: y
+🎯 Goal: create a Python project with Flask and SQLite
+📝 Generating execution plan...
+🚀 Executing 4 step(s)...
+
+[Step 1/4] Running: mkdir flask_project
+✅ Command executed successfully
+
+[Step 2/4] Running: cd flask_project
+✅ Command executed successfully
+
+[Step 3/4] Running: python -m venv venv
+✅ Command executed successfully
+
+[Step 4/4] Running: pip install flask sqlite3
+✅ Command executed successfully
+
+==================================================
+📊 Execution Summary:
+✅ Successfully executed: 4/4
+==================================================
 ```
 
-### Safety Features
-
-Joshu includes advanced safety features to protect against destructive commands:
+#### Ask Mode Example
 
 ```bash
-# Safety features in action
-joshu "delete all files in /home"
-→ ⚠️  DANGER: This command could delete important files
-→ Command blocked for safety. Did you mean to delete files in current directory?
-→ Suggested safer alternative: rm -i *.tmp
+[ASK] > how does virtual memory work?
 
-# Sandbox mode for testing
-joshu --sandbox "delete all files"
-→ ⚠️  Sandbox mode: All destructive commands are blocked
-→ Command execution prevented for safety
+💬 Virtual memory is a memory management technique that allows...
+[Detailed explanation without generating commands]
 ```
 
-### Help and Documentation
-
-Joshu provides comprehensive help and documentation:
+#### Plan Mode Example
 
 ```bash
-# Show usage examples
-joshu --examples
+[PLAN] > set up a CI/CD pipeline
 
-# Show command categories
-joshu --commands
+📋 Plan for: set up a CI/CD pipeline
 
-# Show examples for a specific category
-joshu --commands file
+1. Create .github/workflows directory
+2. Create ci.yml workflow file
+3. Configure build and test steps
+4. Set up deployment steps
+5. Configure environment variables
 
-# Explain a specific command
-joshu --explain "tar"
+[Plan displayed - execute manually or switch to agent mode]
 ```
 
-### Advanced Workflows
+#### Code Generation Example
 
-``bash
-# Project analysis
-joshu "analyze this codebase and suggest improvements"
+```bash
+joshu code "write a REST API endpoint that returns user data from a database"
 
-# Automated workflows
-joshu "set up CI/CD pipeline for this Node.js project"
-
-# System administration
-joshu "monitor system health and alert if issues found"
+# Generated code will be displayed with explanations
 ```
 
 ## 🏗️ Architecture
 
 ```
 joshu-assistant/
-├── src/
-│   ├── core/
-│   │   ├── agent.py          # Main assistant logic
-│   │   ├── context.py        # Context management
-│   │   ├── memory.py         # Memory system
-│   │   ├── safety.py         # Command safety validation
-│   │   └── translate.py      # Natural language translation
-│   ├── models/
-│   │   ├── llm_interface.py  # Model abstraction layer
-│   │   ├── local_models.py   # Local model implementations
-│   │   ├── inference.py      # Model selection and inference
-│   │   ├── llama_cpp_loader.py # Llama.cpp model loader
-│   │   └── openrouter.py     # OpenRouter API integration
-│   ├── tools/
-│   │   ├── filesystem.py     # File operations
-│   │   ├── shell.py          # Command execution
-│   │   ├── code.py           # Code analysis/generation
-│   │   └── plugins/          # Extensible plugin system
-│   └── ui/
-│       ├── cli.py            # Command-line interface
-│       └── display.py        # Output formatting
-├── config/
-│   ├── models.yaml           # Model configurations
-│   └── plugins.yaml          # Plugin settings
-├── tests/
-├── docs/
-└── requirements.txt
+├── src/joshu/
+│   ├── core/                    # Core functionality
+│   │   ├── agent.py            # Main assistant logic (placeholder)
+│   │   ├── code_editor.py      # Code generation and editing
+│   │   ├── config.py           # Configuration management
+│   │   ├── context.py          # Conversation context
+│   │   ├── context_provider.py # Context and session management
+│   │   ├── memory.py           # Memory system
+│   │   ├── safety.py           # Command safety validation
+│   │   └── translate.py        # Natural language translation
+│   ├── models/                  # LLM integration
+│   │   ├── inference.py        # Model loading and selection
+│   │   ├── llama_cpp_loader.py # Llama.cpp integration
+│   │   ├── llm_interface.py    # LLM abstraction
+│   │   ├── local_models.py     # Local model implementations
+│   │   └── openrouter.py       # OpenRouter API integration
+│   ├── tools/                   # Tool implementations
+│   │   ├── code_editor.py      # Code editing tools
+│   │   ├── code_tools.py       # Code analysis tools
+│   │   ├── filesystem.py       # File operations
+│   │   ├── shell.py            # Command execution
+│   │   └── system_info.py      # System information
+│   └── ui/                      # User interface
+│       ├── cli.py              # Main CLI entry point
+│       ├── cli_handlers/       # Modular CLI handlers
+│       │   ├── code_handlers.py
+│       │   ├── commands.py
+│       │   ├── translation_helpers.py
+│       │   └── basic_interactive.py
+│       ├── display.py          # Output formatting
+│       └── interactive/        # Interactive mode
+│           ├── interactive_mode.py
+│           ├── modes.py        # Mode handlers (agent/ask/plan)
+│           ├── commands.py     # Slash commands
+│           ├── keybindings.py  # Keyboard shortcuts
+│           ├── prompt.py       # Prompt display
+│           ├── completers.py   # Auto-completion
+│           └── utils.py        # Utilities
+├── config/                      # Configuration files
+│   ├── models.yaml
+│   └── plugins.yaml
+├── tests/                       # Test suite
+├── requirements.txt             # Core dependencies
+├── requirements-llm.txt         # LLM dependencies (optional)
+└── pyproject.toml              # Project configuration
 ```
 
-## 🔌 Plugin Development
+## 🔌 Model Support
 
-Create custom plugins to extend functionality:
+### Local Models
 
-```python
-# plugins/example_plugin.py
-from joshu.plugins import Plugin
+Joshu supports various local models via `llama-cpp-python`:
 
-class MyCustomPlugin(Plugin):
-    name = "example"
-    description = "Example plugin functionality"
+- **Llama 3** (8B, 70B)
+- **Mistral** (7B, Mixtral 8x7B)
+- **CodeLlama** (7B, 34B)
+- **Gemma** (2B, 9B)
 
-    def execute(self, command: str, context: dict) -> str:
-        # Your plugin logic here
-        return "Plugin response"
+Configure via environment variables:
 
-    def can_handle(self, command: str) -> bool:
-        return "example" in command.lower()
+```bash
+LLAMA_CPP_MODEL_LLAMA3_8B=/path/to/model.gguf
+LLAMA_CPP_MODEL_MISTRAL_7B=/path/to/model.gguf
 ```
 
-Register in `config/plugins.yaml`:
+### Cloud Models (via OpenRouter)
 
-```yaml
-plugins:
-  - name: example
-    enabled: true
-    module: plugins.example_plugin
-    class: MyCustomPlugin
+When API keys are configured, Joshu automatically uses cloud models for better performance:
+
+- OpenAI models (GPT-4o, GPT-4o-mini, etc.)
+- Anthropic Claude
+- Google Gemini
+- DeepSeek
+- And many more via OpenRouter
+
+## 🛡️ Security
+
+### Safety Features
+
+- **Command Validation**: Multi-level safety checks before execution
+- **Danger Detection**: Identifies destructive commands (rm, format, etc.)
+- **User Confirmation**: Prompts for confirmation on risky operations
+- **Sandbox Mode**: Optional sandbox environment for testing
+- **Input Validation**: Comprehensive prompt injection protection
+- **Audit Logging**: Complete operation history for review
+
+### Safety Levels
+
+Commands are assessed with three safety levels:
+
+- **SAFE**: Can be executed automatically (if `auto_execute=true`)
+- **WARNING**: Requires user confirmation
+- **DANGER**: Blocked by default, requires explicit override
+
+Example safety check:
+
+```bash
+joshu "delete all files in /home"
+→ ⚠️  DANGER: This command could delete important files
+→ Command blocked for safety.
 ```
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+We welcome contributions! Please see our contributing guidelines.
 
 ### Development Setup
 
 ```bash
-# Fork and clone the repository
+# Clone the repository
 git clone https://github.com/Faycacalraghibi/joshu-assistant.git
 cd joshu-assistant
 
 # Create development environment
 python -m venv dev-env
-source dev-env/bin/activate
+source dev-env/bin/activate  # On Windows: dev-env\Scripts\activate
 
 # Install development dependencies
+pip install -r requirements.txt
 pip install -r requirements-dev.txt
+
+# Install in editable mode
+pip install -e .
 
 # Run tests
 pytest tests/
@@ -349,26 +458,6 @@ flake8 src/
 black src/
 ```
 
-### Automated Development Environment Setup
-
-For Windows users, you can use the PowerShell script:
-
-```
-.\clean_install-dev.ps1
-```
-
-For Linux/Unix users, you can use the bash script:
-
-```bash
-./clean_install-dev.sh
-```
-
-Both scripts will:
-- Create a fresh virtual environment
-- Upgrade pip/setuptools/wheel
-- Install all runtime and development dependencies
-- Perform an editable install of the package
-
 ### Areas for Contribution
 
 - Model optimization and quantization
@@ -377,26 +466,20 @@ Both scripts will:
 - Documentation and tutorials
 - Performance benchmarking
 - Security enhancements
+- Additional tool integrations
 
 ## 📊 Performance
 
-| Model | Response Time | Memory Usage | Quality Score |
-|-------|---------------|--------------|---------------|
-| Llama-3-8B | ~2s | 8GB | 8.2/10 |
-| Llama-3-70B | ~8s | 40GB | 9.1/10 |
-| Mistral-7B | ~1.5s | 6GB | 8.0/10 |
-| CodeLlama-34B | ~5s | 20GB | 9.0/10 |
-| OpenRouter GPT-4o | ~1s | 0GB (cloud) | 9.5/10 |
+Performance varies based on model and hardware:
 
-> Benchmarks run on NVIDIA A100 40GB
+| Model | Response Time | Memory Usage | Quality |
+|-------|--------------|--------------|---------|
+| Llama-3-8B (local) | ~2s | 8GB RAM | 8.2/10 |
+| Llama-3-70B (local) | ~8s | 40GB RAM | 9.1/10 |
+| GPT-4o-mini (cloud) | ~1s | 0GB (API) | 9.0/10 |
+| GPT-4o (cloud) | ~2s | 0GB (API) | 9.5/10 |
 
-## 🛡️ Security
-
-- **Enhanced Command Safety**: Multi-level danger detection for destructive commands
-- **Sandbox Execution**: All code runs in isolated environments with optional sandbox mode
-- **Input Validation**: Comprehensive prompt injection protection
-- **Audit Logging**: Complete operation history for security review
-- **Permission System**: Granular control over file system access
+*Benchmarks on NVIDIA A100 40GB for local models*
 
 ## 📄 License
 
@@ -405,30 +488,19 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🙏 Acknowledgments
 
 - Inspired by Anthropic's Claude CLI
-- Built on the shoulders of amazing open-source models:
+- Built with amazing open-source models:
   - [Llama 3](https://llama.meta.com/) by Meta
   - [Mistral](https://mistral.ai/) by Mistral AI
   - [Code Llama](https://github.com/facebookresearch/codellama) by Meta
-  - [GPT4All](https://gpt4all.io/) ecosystem
+  - [OpenRouter](https://openrouter.ai/) for cloud model access
 
 ## 📞 Support
 
-- **Documentation**: [docs.joshu.dev](https://docs.joshu.dev)
-- **Issues**: [GitHub Issues](https://github.com/yourusername/joshu-assistant/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/joshu-assistant/discussions)
-- **Discord**: [Join our community](https://discord.gg/joshu)
+- **Issues**: [GitHub Issues](https://github.com/Faycacalraghibi/joshu-assistant/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/Faycacalraghibi/joshu-assistant/discussions)
 
 ---
 
 Made with ❤️ by the Joshu community
 
-Democratizing AI assistance, one command at a time.
-
-This README incorporates insights from successful open-source AI projects and follows best practices for CLI tool documentation. It emphasizes the use of free, open-source models while providing a clear path for users to get started and contribute to the project.[^1][^2][^3][^4][^5][^6]
-
-[^1]: <https://arxiv.org/pdf/2309.06551.pdf>
-[^2]: <http://arxiv.org/pdf/2309.09128v3.pdf>
-[^3]: <http://arxiv.org/pdf/2307.07924.pdf>
-[^4]: <https://arxiv.org/pdf/2308.12950.pdf>
-[^5]: <https://arxiv.org/pdf/2308.03099.pdf>
-[^6]: <http://arxiv.org/abs/2310.13012v2>
+**Democratizing AI assistance, one command at a time.**
