@@ -43,9 +43,9 @@ from joshu.core.context import ConversationContext
 from joshu.core.context_provider import ContextProvider
 from joshu.tools.code_editor import CodeEditor, CodeEdit
 
-# Import the enhanced interactive mode function
+# Import the interactive mode function
 try:
-    from joshu.ui.enhanced_interactive import start_enhanced_interactive_mode
+    from joshu.ui.interactive import start_interactive_mode as start_enhanced_interactive_mode
     PROMPT_TOOLKIT_AVAILABLE = True
 except ImportError:
     start_enhanced_interactive_mode = None
@@ -149,6 +149,46 @@ def execute_prompt(prompt: str) -> None:
 
     console.print(f"[bold]Proposed command:[/bold] [cyan]{translation.command}[/cyan]")
     console.print(f"[dim]{translation.explanation}[/dim]\n")
+    
+    # Check if this needs execution (conversational responses don't need confirmation)
+    # Check the flag first
+    needs_execution = getattr(translation, 'needs_execution', True)
+    
+    # SAFETY CHECK: Also check explanation and command format directly as backup
+    # This ensures conversational responses are never prompted for execution
+    explanation_lower = translation.explanation.lower()
+    command_normalized = translation.command.replace('\\"', '"').replace("\\'", "'")
+    
+    # Conversational indicators in explanation
+    conversational_keywords = [
+        "conversational response", "direct response", "direct answer",
+        "to user's query", "to user's question", "user's query", "user's question",
+        "answering", "providing answer", "providing response"
+    ]
+    
+    # Check if explanation indicates conversational
+    is_conversational_explanation = any(keyword in explanation_lower for keyword in conversational_keywords)
+    
+    # Check if command is a long informational echo (conversational)
+    is_conversational_command = (
+        '"""' in command_normalized or  # Has triple quotes
+        (command_normalized.startswith('echo "') and len(translation.command) > 100)
+    )
+    
+    # Override needs_execution if we detect conversational response
+    if is_conversational_explanation or is_conversational_command:
+        needs_execution = False
+    
+    if not needs_execution:
+        # This is a conversational response - execute it directly without asking
+        code, out, err = run_command(translation.command)
+        if code == 0:
+            if out:
+                console.print(out)
+        else:
+            if err:
+                console.print(f"[red]{err}[/red]")
+        raise typer.Exit(code=0)
     
     # Check if this is a code generation request that should use the code command
     if "code command" in translation.explanation.lower() or "code' command" in translation.explanation.lower():
@@ -302,6 +342,7 @@ def config(
 def interactive(
     model: str = typer.Option(None, "--model", "-m", help="LLM model to use."),
     sandbox: bool = typer.Option(None, "--sandbox", "-s", help="Enable sandbox mode for testing (blocks all destructive commands)."),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose output (show debug logs)."),
 ) -> None:
     """Start interactive chat mode directly."""
     global _current_model, context_provider
@@ -319,7 +360,7 @@ def interactive(
     if sandbox is None:
         sandbox = config_manager.get("sandbox_enabled", True)
     
-    start_interactive_mode(model, sandbox)
+    start_interactive_mode(model, sandbox, verbose=verbose)
 
 
 @app.command()
@@ -331,6 +372,7 @@ def run(
     yes: bool = typer.Option(False, "--yes", "-y", help="Execute without confirmation if safe."),
     model: str = typer.Option(None, "--model", "-m", help="LLM model to use."),
     sandbox: bool = typer.Option(None, "--sandbox", "-s", help="Enable sandbox mode for testing (blocks all destructive commands)."),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose output (show debug logs)."),
 ) -> None:
     """Execute a one-off prompt or start interactive mode."""
     global _current_model, context_provider
@@ -350,7 +392,7 @@ def run(
         if sandbox is None:
             sandbox = config_manager.get("sandbox_enabled", True)
         
-        start_interactive_mode(model, sandbox)
+        start_interactive_mode(model, sandbox, verbose=verbose)
         return
     
     # For non-interactive mode, prompt is required
@@ -776,42 +818,40 @@ def _handle_file_edit(editor: CodeEditor, prompt: str, file_path: str, language:
     console.print(f"[bold]Editing file:[/bold] {file_path}")
     
     try:
-        # Determine language if not specified
-        if not language:
-            path = Path(file_path)
-            language = editor.get_language_from_extension(path.suffix)
+        # Check if file exists
+        if not os.path.exists(file_path):
+            console.print(f"[red]File {file_path} does not exist.[/red]")
+            console.print("[yellow]Use file creation instead: joshu code 'create ...' --file {file_path}[/yellow]")
+            return
         
-        # Read current file content
-        if os.path.exists(file_path):
-            current_content, file_language = editor.read_file(file_path)
-            if not language:
-                language = file_language
-        else:
-            current_content = ""
-            console.print(f"[yellow]File {file_path} does not exist. Creating new file.[/yellow]")
+        # Ask for confirmation before editing
+        if not dry_run:
+            console.print(f"[yellow]⚠️  This will modify {file_path}[/yellow]")
+            if not typer.confirm("Proceed with editing?", default=False):
+                console.print("[dim]Edit cancelled.[/dim]")
+                return
         
-        # For now, we'll use a simple approach
-        # In a real implementation, we would use an LLM to understand what changes to make
-        new_content = f"{current_content}\n# Added by Joshu: {prompt}\n"
+        # Use the edit_file method which uses LLM
+        result = editor.edit_file(file_path, prompt)
         
         if dry_run:
-            console.print(f"[bold]Proposed changes:[/bold]")
-            console.print(f"Append: # Added by Joshu: {prompt}")
+            # For dry run, we would show what would be changed
+            # Since edit_file requires actual execution, we'll show a preview message
+            console.print(f"[bold]Proposed edit:[/bold] {prompt}")
+            console.print("[dim]Note: Use without --dry-run to see actual changes.[/dim]")
         else:
-            # Apply the edit
-            edit = CodeEdit(
-                file_path=file_path,
-                operation="modify" if os.path.exists(file_path) else "create",
-                content=new_content
-            )
-            
-            if editor.apply_edit(edit):
-                console.print("[green]File updated successfully.[/green]")
+            if result.get("success", False):
+                console.print(f"[green]✓ {result.get('message', 'File edited successfully')}[/green]")
+                if result.get("backup_path"):
+                    console.print(f"[dim]Backup created: {result['backup_path']}[/dim]")
             else:
-                console.print("[red]Failed to update file.[/red]")
+                console.print(f"[red]✗ {result.get('message', 'Failed to edit file')}[/red]")
+                if result.get("backup_path"):
+                    console.print(f"[dim]Backup available: {result['backup_path']}[/dim]")
                 
     except Exception as e:
         console.print(f"[red]Error editing file: {e}[/red]")
+        logger.exception("File edit error")
 
 
 def _handle_file_create(editor: CodeEditor, prompt: str, file_path: str, language: Optional[str], dry_run: bool) -> None:
@@ -843,133 +883,270 @@ def _handle_file_create(editor: CodeEditor, prompt: str, file_path: str, languag
 
 def _handle_code_explanation(editor: CodeEditor, prompt: str, dry_run: bool) -> None:
     """Handle code explanation operations."""
-    console.print("[bold]Code Explanation:[/bold]")
+    console.print("[bold]Code Explanation:[/bold]\n")
     
-    # Extract code from prompt if present
     # Try to extract code from prompt
     code_to_explain = ""
-    language = "python"  # Default to Python
     
-    # Simple heuristic to extract code from prompt
-    if ":" in prompt:
+    # Check if prompt contains code directly or references a file
+    if os.path.exists(prompt.strip()):
+        # User provided a file path
+        try:
+            code_to_explain, _ = editor.read_file(prompt.strip())
+            console.print(f"[dim]Explaining code from file: {prompt}[/dim]\n")
+        except Exception as e:
+            console.print(f"[red]Error reading file: {e}[/red]")
+            return
+    elif ":" in prompt:
         # Assume format is "explain this code: [code]"
         parts = prompt.split(":", 1)
         if len(parts) > 1:
             code_to_explain = parts[1].strip()
     else:
-        # Assume the entire prompt after "explain" is the code
-        code_to_explain = prompt.replace("explain", "", 1).replace("this", "", 1).replace("code", "", 1).strip()
+        # Check if there's a file path in the prompt
+        words = prompt.split()
+        for word in words:
+            if os.path.exists(word):
+                try:
+                    code_to_explain, _ = editor.read_file(word)
+                    break
+                except:
+                    pass
+        
+        # If no file found, treat the prompt as code
+        if not code_to_explain:
+            code_to_explain = prompt.replace("explain", "", 1).replace("this", "", 1).replace("code", "", 1).strip()
     
-    # If we couldn't extract code, provide a generic response
+    # If we couldn't extract code, prompt the user
+    if not code_to_explain or len(code_to_explain.strip()) < 10:
+        console.print("[yellow]Please provide the code to explain.[/yellow]")
+        console.print("[dim]You can:[/dim]")
+        console.print("[dim]  1. Provide code directly: 'explain this code: def foo(): pass'[/dim]")
+        console.print("[dim]  2. Provide a file path: 'explain this code: src/main.py'[/dim]")
+        
+        # Try to get code from user input
+        user_code = typer.prompt("\nEnter code or file path", default="")
+        if user_code:
+            if os.path.exists(user_code):
+                try:
+                    code_to_explain, _ = editor.read_file(user_code)
+                except Exception as e:
+                    console.print(f"[red]Error reading file: {e}[/red]")
+                    return
+            else:
+                code_to_explain = user_code
+    
     if not code_to_explain:
-        explanation = "Please provide the code you'd like explained. Use the format: 'explain this code: [your code here]'"
-    else:
-        # Use the editor to explain the code
-        explanation = editor.explain_code(code_to_explain, language)
+        console.print("[red]No code provided.[/red]")
+        return
     
+    # Ask for detail level
+    detail_level = typer.prompt("Detail level (low/medium/high)", default="medium")
+    
+    # Use the editor to explain the code
+    console.print("[dim]Generating explanation...[/dim]\n")
+    explanation = editor._core.explain_code(code_to_explain, detail_level)
+    
+    console.print("[bold]Explanation:[/bold]\n")
     console.print(explanation)
 
 
 def _handle_code_debugging(editor: CodeEditor, prompt: str, dry_run: bool) -> None:
     """Handle code debugging operations."""
-    console.print("[bold]Code Debugging:[/bold]")
+    console.print("[bold]Code Debugging:[/bold]\n")
     
-    # Extract code and error from prompt if present
+    # Extract code and error from prompt
     code_to_debug = ""
     error_message = ""
-    language = "python"  # Default to Python
     
-    # Simple heuristic to extract code and error from prompt
-    if "error:" in prompt.lower():
-        # Assume format is "debug this error: [error message] in [code]"
-        parts = prompt.split("error:", 1)
-        if len(parts) > 1:
-            error_and_code = parts[1].strip()
-            # Try to separate error from code
-            if "in" in error_and_code:
-                error_parts = error_and_code.split("in", 1)
-                error_message = error_parts[0].strip()
-                code_to_debug = error_parts[1].strip()
+    # Try to extract error message and code from prompt
+    prompt_lower = prompt.lower()
+    
+    # Check for file path first
+    words = prompt.split()
+    for word in words:
+        if os.path.exists(word):
+            try:
+                code_to_debug, _ = editor.read_file(word)
+                console.print(f"[dim]Reading code from file: {word}[/dim]\n")
+                break
+            except Exception as e:
+                console.print(f"[yellow]Could not read file {word}: {e}[/yellow]")
+    
+    # If no file found, try to extract from prompt
+    if not code_to_debug:
+        if "error:" in prompt_lower or "exception:" in prompt_lower:
+            # Format: "debug error: [error] in [code]"
+            separator = "error:" if "error:" in prompt_lower else "exception:"
+            parts = prompt.split(separator, 1)
+            if len(parts) > 1:
+                remainder = parts[1].strip()
+                if "in" in remainder:
+                    error_parts = remainder.split("in", 1)
+                    error_message = error_parts[0].strip()
+                    code_to_debug = error_parts[1].strip()
+                else:
+                    error_message = remainder
+        elif ":" in prompt:
+            # Format: "debug: [code]"
+            parts = prompt.split(":", 1)
+            if len(parts) > 1:
+                code_to_debug = parts[1].strip()
+    
+    # Prompt for missing information
+    if not error_message:
+        error_message = typer.prompt("Enter the error message (or press Enter to skip)", default="")
+    
+    if not code_to_debug or len(code_to_debug.strip()) < 10:
+        console.print("[yellow]Code not found in prompt.[/yellow]")
+        code_input = typer.prompt("Enter code or file path to debug", default="")
+        if code_input:
+            if os.path.exists(code_input):
+                try:
+                    code_to_debug, _ = editor.read_file(code_input)
+                except Exception as e:
+                    console.print(f"[red]Error reading file: {e}[/red]")
+                    return
             else:
-                error_message = error_and_code
-    elif "bug" in prompt.lower() or "fix" in prompt.lower():
-        # Assume format is "fix this bug in [code]"
-        parts = prompt.split("in", 1)
-        if len(parts) > 1:
-            code_to_debug = parts[1].strip()
-    
-    # If we couldn't extract code, provide a generic response
-    if not code_to_debug:
-        # Try to extract any code-like content
-        import re
-        code_pattern = r'([\w\s\(\)\[\]\{\}\=\+\-\*\/\<\>\!\,\.:;\"\'\_\n\t]+)'
-        matches = re.findall(code_pattern, prompt)
-        if matches:
-            code_to_debug = matches[-1].strip()
+                code_to_debug = code_input
     
     if not code_to_debug:
-        debugging_info = "Please provide the code you'd like debugged. Use formats like: 'debug this error: [error message] in [your code here]' or 'fix this bug in [your code here]'"
-    else:
-        # Use the editor to debug the code
-        debugging_info = editor.debug_code(code_to_debug, error_message, language)
+        console.print("[red]No code provided for debugging.[/red]")
+        return
     
-    console.print(debugging_info)
+    # Use the core debug_code method
+    console.print("[dim]Analyzing code...[/dim]\n")
+    debug_report = editor._core.debug_code(code_to_debug, error_message)
+    
+    # Display the debugging report
+    console.print(f"[bold]Error Type:[/bold] {debug_report.error_type}")
+    console.print(f"[bold]Error Message:[/bold] {debug_report.error_message}\n")
+    
+    if debug_report.suggestions:
+        console.print("[bold]Suggestions:[/bold]")
+        for i, suggestion in enumerate(debug_report.suggestions, 1):
+            console.print(f"  {i}. {suggestion}")
+    
+    if debug_report.code_snippets:
+        console.print("\n[bold]Suggested Code Fixes:[/bold]")
+        for i, snippet in enumerate(debug_report.code_snippets, 1):
+            console.print(f"\n[bold]Fix {i}:[/bold]")
+            console.print(f"[code]{snippet}[/code]")
 
 
 def _handle_code_refactoring(editor: CodeEditor, prompt: str, dry_run: bool) -> None:
     """Handle code refactoring operations."""
-    console.print("[bold]Code Refactoring:[/bold]")
+    console.print("[bold]Code Refactoring:[/bold]\n")
     
-    # Extract code and refactoring goal from prompt
-    code_to_refactor = ""
+    # Extract refactoring goal and code from prompt
     refactoring_goal = ""
-    language = "python"  # Default to Python
+    code_to_refactor = ""
+    language = "python"  # Default
     
-    # Simple heuristic to extract code and goal from prompt
     prompt_lower = prompt.lower()
-    if "refactor" in prompt_lower or "optimize" in prompt_lower or "improve" in prompt_lower:
-        # Try to extract the goal (what comes after the action word)
-        action_words = ["refactor", "optimize", "improve"]
-        for word in action_words:
-            if word in prompt_lower:
-                parts = prompt.split(word, 1)
-                if len(parts) > 1:
-                    refactoring_goal = parts[1].strip()
-                    break
-        
-        # Try to extract code (look for code after "code:")
+    
+    # Extract refactoring goal
+    action_words = ["refactor", "optimize", "improve", "simplify"]
+    for word in action_words:
+        if word in prompt_lower:
+            parts = prompt.split(word, 1)
+            if len(parts) > 1:
+                remainder = parts[1].strip()
+                # Check if there's a "to" or "for" that separates goal from code
+                if " to " in remainder.lower() or " for " in remainder.lower():
+                    import re
+                    goal_match = re.search(r'^(.*?)(?:\s+to\s+|\s+for\s+)(.+)$', remainder, re.IGNORECASE)
+                    if goal_match:
+                        refactoring_goal = goal_match.group(2).strip()
+                        potential_code = goal_match.group(1).strip()
+                        if len(potential_code) > 20:  # Likely code
+                            code_to_refactor = potential_code
+                    else:
+                        refactoring_goal = remainder
+                else:
+                    refactoring_goal = remainder
+                break
+    
+    # Check for file path in prompt
+    words = prompt.split()
+    for word in words:
+        if os.path.exists(word):
+            try:
+                code_to_refactor, detected_language = editor.read_file(word)
+                language = detected_language
+                console.print(f"[dim]Reading code from file: {word}[/dim]\n")
+                break
+            except Exception as e:
+                console.print(f"[yellow]Could not read file {word}: {e}[/yellow]")
+    
+    # If no file found, try to extract code from prompt
+    if not code_to_refactor:
         if "code:" in prompt:
             parts = prompt.split("code:", 1)
             if len(parts) > 1:
                 code_to_refactor = parts[1].strip()
-        else:
-            # Try to extract any code-like content at the end
+        elif len(prompt) > 100:  # Might be code embedded in prompt
+            # Try to find code-like patterns
             import re
-            # Look for function definitions or code blocks
-            code_patterns = [
-                r'(def\s+\w+\s*\([^)]*\):[\s\S]*?)(?=\s*$)',
-                r'([\w\s\(\)\[\]\{\}\=\+\-\*\/\<\>\!\,\.:;\"\'\_\n\t]+)$'
-            ]
-            
-            for pattern in code_patterns:
-                matches = re.findall(pattern, prompt, re.MULTILINE)
-                if matches:
-                    code_to_refactor = matches[-1].strip()
-                    break
+            code_pattern = r'(def\s+\w+|function\s+\w+|class\s+\w+)[\s\S]*$'
+            match = re.search(code_pattern, prompt, re.IGNORECASE)
+            if match:
+                code_to_refactor = match.group(0)
     
-    # If we couldn't extract code, provide a generic response
+    # Prompt for missing information
+    if not refactoring_goal:
+        refactoring_goal = typer.prompt("What should be improved? (e.g., 'performance', 'readability', 'simplify')", default="improve code quality")
+    
+    if not code_to_refactor or len(code_to_refactor.strip()) < 10:
+        console.print("[yellow]Code not found in prompt.[/yellow]")
+        code_input = typer.prompt("Enter code or file path to refactor", default="")
+        if code_input:
+            if os.path.exists(code_input):
+                try:
+                    code_to_refactor, detected_language = editor.read_file(code_input)
+                    language = detected_language
+                except Exception as e:
+                    console.print(f"[red]Error reading file: {e}[/red]")
+                    return
+            else:
+                code_to_refactor = code_input
+    
     if not code_to_refactor:
-        refactoring_info = "Please provide the code you'd like refactored. Use formats like: 'refactor this code to be more efficient: [your code here]'"
-    else:
-        # Use the editor to refactor the code
-        refactoring_info = editor.refactor_code(code_to_refactor, refactoring_goal, language)
+        console.print("[red]No code provided for refactoring.[/red]")
+        return
     
-    console.print(refactoring_info)
+    # Determine language if not already set
+    if not language or language == "text":
+        path = Path(code_to_refactor) if os.path.exists(code_to_refactor) else None
+        if path:
+            language = editor.get_language_from_extension(path.suffix)
+        else:
+            language = "python"  # Default
+    
+    # Use the core refactor_code method
+    console.print(f"[dim]Refactoring code ({refactoring_goal})...[/dim]\n")
+    refactored_code = editor._core.refactor_code(code_to_refactor, refactoring_goal, {"language": language})
+    
+    if dry_run:
+        console.print("[bold]Refactored code:[/bold]\n")
+        console.print(refactored_code)
+    else:
+        console.print("[bold]Refactored code:[/bold]\n")
+        console.print(refactored_code)
+        
+        if typer.confirm("\nSave refactored code to a file?"):
+            default_filename = f"refactored_code.{_get_extension_for_language(language)}"
+            filename = typer.prompt("Enter filename", default=default_filename)
+            
+            if editor.write_file(filename, refactored_code):
+                console.print(f"[green]Refactored code saved to {filename}[/green]")
+            else:
+                console.print("[red]Failed to save refactored code.[/red]")
 
 
 def _handle_code_generation(editor: CodeEditor, prompt: str, language: Optional[str], dry_run: bool) -> None:
     """Handle code generation operations."""
-    console.print("[bold]Code Generation:[/bold]")
+    console.print("[bold]Code Generation:[/bold]\n")
     
     # Determine language if not specified
     if not language:
@@ -979,39 +1156,26 @@ def _handle_code_generation(editor: CodeEditor, prompt: str, language: Optional[
             language = "python"
         elif "javascript" in prompt_lower or "js" in prompt_lower:
             language = "javascript"
+        elif "typescript" in prompt_lower or "ts" in prompt_lower:
+            language = "typescript"
         elif "bash" in prompt_lower or "shell" in prompt_lower:
             language = "bash"
         else:
-            language = "python"  # Default to Python
+            language = typer.prompt("Programming language", default="python")
     
-    # Try to use cloud model for better code generation if available
-    generated_code = None
-    try:
-        # Check if cloud models are available
-        import os
-        use_cloud = os.getenv("JOSHU_USE_CLOUD", "false").lower() == "true"
-        if use_cloud:
-            # Try to generate code using cloud model
-            from joshu.models.inference import get_model
-            model = get_model("default")
-            if model:
-                generated_code = editor.generate_code(prompt, language)
-    except Exception as e:
-        logger.debug(f"Cloud code generation failed: {e}")
-    
-    # Fallback to local generation if cloud failed
-    if not generated_code:
-        generated_code = editor.generate_code(prompt, language)
+    # Use the core generate_code method (which already handles LLM)
+    console.print(f"[dim]Generating {language} code...[/dim]\n")
+    generated_code = editor._core.generate_code(prompt, language)
     
     if dry_run:
-        console.print(f"[bold]Generated {language} code:[/bold]")
+        console.print(f"[bold]Generated {language} code:[/bold]\n")
         console.print(generated_code)
     else:
         # Show the generated code and ask if user wants to save it
-        console.print(f"[bold]Generated {language} code:[/bold]")
+        console.print(f"[bold]Generated {language} code:[/bold]\n")
         console.print(generated_code)
         
-        if typer.confirm("Save this code to a file?"):
+        if typer.confirm("\nSave this code to a file?"):
             default_filename = f"generated_code.{_get_extension_for_language(language)}"
             filename = typer.prompt("Enter filename", default=default_filename)
             
@@ -1037,9 +1201,19 @@ def _get_extension_for_language(language: str) -> str:
     return extensions.get(language.lower(), "txt")
 
 
-def start_interactive_mode(model: str, sandbox: bool = False) -> None:
+def start_interactive_mode(model: str, sandbox: bool = False, verbose: bool = False) -> None:
     """Start interactive chat mode."""
     global context_provider
+    
+    # Set logging level based on verbose mode
+    if verbose:
+        logging.getLogger().setLevel(logging.DEBUG)
+        logging.getLogger('joshu').setLevel(logging.DEBUG)
+        logger.setLevel(logging.DEBUG)
+    else:
+        logging.getLogger().setLevel(logging.WARNING)
+        logging.getLogger('joshu').setLevel(logging.WARNING)
+        logger.setLevel(logging.WARNING)
     
     # Get configuration manager
     from joshu.core.config import get_config_manager
@@ -1053,8 +1227,8 @@ def start_interactive_mode(model: str, sandbox: bool = False) -> None:
     
     if enhanced_interactive:
         try:
-            from joshu.ui.enhanced_interactive import start_enhanced_interactive_mode
-            start_enhanced_interactive_mode(model, sandbox, config_manager)
+            from joshu.ui.interactive import start_interactive_mode
+            start_interactive_mode(model, sandbox, verbose=verbose)
             return
         except ImportError:
             pass  # Fall back to basic mode if enhanced mode is not available
@@ -1094,6 +1268,45 @@ def start_basic_interactive_mode(model: str, sandbox: bool, config_manager) -> N
 
             console.print(f"[bold]Proposed command:[/bold] [cyan]{translation.command}[/cyan]")
             console.print(f"[dim]{translation.explanation}[/dim]\n")
+            
+            # Check if this needs execution (conversational responses don't need confirmation)
+            # Check the flag first
+            needs_execution = getattr(translation, 'needs_execution', True)
+            
+            # SAFETY CHECK: Also check explanation and command format directly as backup
+            explanation_lower = translation.explanation.lower()
+            command_normalized = translation.command.replace('\\"', '"').replace("\\'", "'")
+            
+            # Conversational indicators in explanation
+            conversational_keywords = [
+                "conversational response", "direct response", "direct answer",
+                "to user's query", "to user's question", "user's query", "user's question",
+                "answering", "providing answer", "providing response"
+            ]
+            
+            # Check if explanation indicates conversational
+            is_conversational_explanation = any(keyword in explanation_lower for keyword in conversational_keywords)
+            
+            # Check if command is a long informational echo (conversational)
+            is_conversational_command = (
+                '"""' in command_normalized or
+                (command_normalized.startswith('echo "') and len(translation.command) > 100)
+            )
+            
+            # Override needs_execution if we detect conversational response
+            if is_conversational_explanation or is_conversational_command:
+                needs_execution = False
+            
+            if not needs_execution:
+                # This is a conversational response - execute it directly without asking
+                code, out, err = run_command(translation.command)
+                if code == 0:
+                    if out:
+                        console.print(out)
+                else:
+                    if err:
+                        console.print(f"[red]{err}[/red]")
+                continue
             
             report = assess_command_safety(translation.command, sandbox)
             
