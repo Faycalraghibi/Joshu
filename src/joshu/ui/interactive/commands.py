@@ -140,6 +140,12 @@ class CommandHandler:
             return self.handle_session_command(command)
         
         if command == '/clear':
+            # Clear prompt history from storage
+            from joshu.core.storage import QueryFilter, EntryType
+            filter = QueryFilter(entry_type=EntryType.PROMPT_HISTORY)
+            self.interactive_mode.context_provider.storage.delete_entries(filter)
+            # Reload history
+            self.interactive_mode.prompt_history._load_history()
             self.interactive_mode.command_history = []
             self.interactive_mode._show_message("✅ Command history cleared.")
             return True
@@ -184,12 +190,15 @@ class CommandHandler:
     
     def display_history(self):
         """Display command history."""
-        if not self.interactive_mode.command_history:
+        # Load from prompt history storage
+        history_strings = self.interactive_mode.prompt_history.load_history_strings()
+        
+        if not history_strings:
             self.interactive_mode._show_message("No command history")
             return
         
         self.interactive_mode._show_message("Command History:")
-        for i, cmd in enumerate(self.interactive_mode.command_history[-20:], 1):
+        for i, cmd in enumerate(history_strings[-20:], 1):
             self.interactive_mode._show_message(f"{i}: {cmd}")
     
     def show_help(self):

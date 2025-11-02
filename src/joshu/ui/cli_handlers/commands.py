@@ -89,26 +89,43 @@ def handle_config(
 
 def handle_history(limit: int, context_provider: Optional[ContextProvider] = None) -> None:
     """Show command execution history."""
-    if context_provider is None:
-        context_provider = ContextProvider()
+    from pathlib import Path
+    from joshu.core.storage import JsonFileStorage, QueryFilter, EntryType
     
-    history_messages = context_provider.conversation_context.messages
+    # Try to get history from context provider first
+    if context_provider and context_provider.conversation_context.messages:
+        history_messages = context_provider.conversation_context.messages
+        user_commands = [msg for msg in history_messages if msg["role"] == "user"]
+        
+        if user_commands:
+            user_commands = user_commands[-limit:]
+            console.print(f"[bold]Command History (last {len(user_commands)} entries):[/bold]")
+            for i, msg in enumerate(user_commands, 1):
+                console.print(f"  {i}. {msg['content']}")
+            return
     
-    if not history_messages:
+    # Fallback: Read from JSON storage
+    try:
+        storage = JsonFileStorage(Path.cwd() / '.joshu_data.json')
+        filter = QueryFilter(
+            entry_type=EntryType.CONVERSATION,
+            role="user",
+            limit=limit
+        )
+        entries = storage.query_entries(filter)
+        
+        if not entries:
+            console.print("[yellow]No command history available.[/yellow]")
+            return
+        
+        console.print(f"[bold]Command History (last {len(entries)} entries):[/bold]")
+        for i, entry in enumerate(entries, 1):
+            content = entry.data.get("content", "")
+            console.print(f"  {i}. {content}")
+    
+    except Exception as e:
+        console.print(f"[red]Error reading history from storage: {e}[/red]")
         console.print("[yellow]No history available.[/yellow]")
-        return
-    
-    user_commands = [msg for msg in history_messages if msg["role"] == "user"]
-    
-    if not user_commands:
-        console.print("[yellow]No command history available.[/yellow]")
-        return
-    
-    user_commands = user_commands[-limit:]
-    
-    console.print(f"[bold]Command History (last {len(user_commands)} entries):[/bold]")
-    for i, msg in enumerate(user_commands, 1):
-        console.print(f"  {i}. {msg['content']}")
 
 
 def handle_repeat_last(context_provider: Optional[ContextProvider] = None) -> None:

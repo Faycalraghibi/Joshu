@@ -9,11 +9,9 @@ from typing import List, Dict, Optional, Any
 
 try:
     from prompt_toolkit.shortcuts import prompt
-    from prompt_toolkit.history import FileHistory
     PROMPT_TOOLKIT_AVAILABLE = True
 except ImportError:
     prompt = None
-    FileHistory = None
     PROMPT_TOOLKIT_AVAILABLE = False
 
 from joshu.core.config import get_config_manager
@@ -27,8 +25,9 @@ from .modes import AskModeHandler, PlanModeHandler, AgentModeHandler
 from .commands import CommandHandler
 from .prompt import get_style, get_prompt
 from .completers import get_path_completer, get_command_completer, get_file_completions
+from .history import JsonHistory
 from .utils import (
-    load_command_history, process_command_substitution,
+    process_command_substitution,
     copy_to_clipboard, paste_from_clipboard, execute_file_content
 )
 
@@ -49,12 +48,15 @@ class InteractiveMode:
         self.sandbox = sandbox
         self.config_manager = get_config_manager()
         
-        # History file path
-        self.history_file = Path.cwd() / '.joshu_history'
         self.max_history_entries = self.config_manager.get('history_limit', 1000)
         
-        # Initialize context provider
-        self.context_provider = ContextProvider(conversation_log_file=self.history_file)
+        # Initialize context provider (uses JSON storage by default)
+        self.context_provider = ContextProvider()
+        
+        # Initialize JSON-backed prompt history (for prompt_toolkit up/down arrow navigation)
+        # Share the same storage backend as context provider for consistency
+        storage_path = Path.cwd() / '.joshu_data.json'
+        self.prompt_history = JsonHistory(storage_path=storage_path)
         
         # Mode state
         self.vim_mode = 'INSERT'
@@ -126,13 +128,21 @@ class InteractiveMode:
         self.command_completer = get_command_completer()
     
     def _load_history(self):
-        """Load command history from file."""
-        self.command_history = load_command_history(self.history_file, self.max_history_entries)
+        """Load command history from JSON storage."""
+        # Load from prompt history storage
+        self.command_history = self.prompt_history.load_history_strings()[:self.max_history_entries]
     
     def _add_to_history(self, command: str):
         """Add command to history."""
-        if command and (not self.command_history or command != self.command_history[-1]):
-            self.command_history.append(command)
+        if command and command.strip():
+            # Store in prompt history (JSON storage)
+            self.prompt_history.store_string(command)
+            # Update in-memory list
+            if not self.command_history or self.command_history[-1] != command:
+                self.command_history.append(command)
+                # Keep only last N entries in memory
+                if len(self.command_history) > self.max_history_entries:
+                    self.command_history = self.command_history[-self.max_history_entries:]
     
     def _navigate_history(self, direction: str):
         """Navigate through command history."""
@@ -470,7 +480,7 @@ class InteractiveMode:
                     key_bindings=self.key_bindings,
                     style=self.style,
                     completer=self.command_completer,
-                    history=FileHistory(str(self.history_file)),
+                    history=self.prompt_history,
                     multiline=self.multiline_mode
                 )
                 

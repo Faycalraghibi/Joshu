@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import uuid
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
@@ -11,6 +12,7 @@ from dataclasses import dataclass, asdict
 
 from .context import ConversationContext
 from .memory import MemoryStore
+from .storage import StorageBackend, StorageEntry, EntryType, QueryFilter, JsonFileStorage
 from ..models.openrouter import chat_completion
 
 logger = logging.getLogger(__name__)
@@ -31,26 +33,38 @@ class ContextProvider:
     and keeps the LLM updated with relevant context.
     """
     
-    def __init__(self, max_history: int = 100, max_memory_entries: int = 1000, conversation_log_file: Optional[Path] = None) -> None:
+    def __init__(self, max_history: int = 100, max_memory_entries: int = 1000, 
+                 conversation_log_file: Optional[Path] = None,
+                 storage_backend: Optional[StorageBackend] = None) -> None:
         """
         Initialize the context provider.
         
         Args:
             max_history: Maximum number of conversation history entries to keep
             max_memory_entries: Maximum number of memory entries to keep
-            conversation_log_file: Optional path to conversation log file. If None, uses .joshu_conversation_log in current directory
+            conversation_log_file: Optional path (deprecated, kept for backward compatibility only)
+            storage_backend: Optional storage backend. If None, creates a JsonFileStorage.
         """
+        # Initialize storage backend
+        if storage_backend is None:
+            storage_backend = JsonFileStorage(Path.cwd() / '.joshu_data.json')
+        self.storage = storage_backend
+        
         self.conversation_context = ConversationContext()
-        self.memory_store = MemoryStore()
+        self.memory_store = MemoryStore(storage_backend=self.storage)
         self.max_history = max_history
         self.max_memory_entries = max_memory_entries
         self.system_info: Optional[str] = None
         
-        # Conversation log file for formatted history
-        # Default to .joshu_history in current directory
+        # conversation_log_file is deprecated - no longer used
+        # All data is now stored in JSON format via storage backend
+        # Keep a reference for session file location only
         if conversation_log_file is None:
-            conversation_log_file = Path.cwd() / '.joshu_history'
-        self.conversation_log_file = Path(conversation_log_file)
+            # Use storage path parent for session files
+            storage_path = Path.cwd()
+        else:
+            storage_path = Path(conversation_log_file).parent
+        self._storage_path = storage_path
         
         # Session ID for grouping related conversations
         # Always create a NEW session when interactive mode starts (don't resume old sessions)
@@ -66,6 +80,32 @@ class ContextProvider:
         # Track last user message for pairing with assistant response
         self._last_user_message: Optional[Dict[str, Any]] = None
         self._last_user_timestamp: Optional[float] = None
+        
+        # Load existing conversation history from storage
+        self._load_conversation_history()
+    
+    def _load_conversation_history(self) -> None:
+        """Load conversation history from storage backend."""
+        try:
+            filter = QueryFilter(
+                entry_type=EntryType.CONVERSATION,
+                limit=self.max_history,
+                session_id=self.session_id
+            )
+            entries = self.storage.query_entries(filter)
+            
+            # Convert storage entries to conversation context messages
+            for entry in entries:
+                self.conversation_context.add(
+                    role=entry.data["role"],
+                    content=entry.data["content"],
+                    timestamp=entry.timestamp,
+                    metadata=entry.metadata
+                )
+            
+            logger.debug(f"Loaded {len(entries)} conversation entries from storage")
+        except Exception as e:
+            logger.warning(f"Failed to load conversation history from storage: {e}")
     
     def _create_new_session_id(self) -> str:
         """
@@ -78,7 +118,6 @@ class ContextProvider:
             Session ID string (UUID format)
         """
         new_session_id = str(uuid.uuid4())
-        session_file = self.conversation_log_file.parent / '.joshu_sessions'
         
         # Load existing sessions to append this new one
         sessions = self._load_all_sessions()
@@ -99,7 +138,7 @@ class ContextProvider:
     
     def _get_sessions_file(self) -> Path:
         """Get the path to the sessions metadata file."""
-        return self.conversation_log_file.parent / '.joshu_sessions.json'
+        return self._storage_path / '.joshu_sessions.json'
     
     def _load_all_sessions(self) -> Dict[str, Dict[str, Any]]:
         """Load all sessions from the sessions file."""
@@ -261,7 +300,7 @@ class ContextProvider:
             metadata: Optional metadata about the entry (e.g., mode, timestamp, command results)
         """
         # Determine timestamp from metadata or use current time
-        timestamp = metadata.get("timestamp") if metadata and "timestamp" in metadata else None
+        timestamp = metadata.get("timestamp") if metadata and "timestamp" in metadata else time.time()
         
         # Add session ID to metadata for context awareness
         if metadata is None:
@@ -271,6 +310,22 @@ class ContextProvider:
         
         # Add to conversation context with metadata
         self.conversation_context.add(role, content, timestamp=timestamp, metadata=metadata)
+        
+        # Save to storage backend
+        try:
+            entry = StorageEntry(
+                id=str(uuid.uuid4()),
+                type=EntryType.CONVERSATION,
+                data={
+                    "role": role,
+                    "content": content
+                },
+                timestamp=timestamp,
+                metadata=metadata
+            )
+            self.storage.save_entry(entry)
+        except Exception as e:
+            logger.warning(f"Failed to save conversation entry to storage: {e}")
         
         # Trim history if it exceeds max_history (keep most recent messages for memory efficiency)
         if len(self.conversation_context.messages) > self.max_history:
@@ -287,10 +342,7 @@ class ContextProvider:
             self._last_user_timestamp = timestamp
             logger.debug(f"Tracked user message for logging: {content[:50]}... (mode: {metadata.get('mode') if metadata else 'N/A'})")
         elif role == "assistant":
-            # Save paired user and assistant messages together
-            logger.debug(f"Saving assistant response to log file: {self.conversation_log_file}")
-            self._save_to_conversation_log(role, content, timestamp, metadata)
-            # Clear tracked user message after saving
+            # Clear tracked user message after saving (data already saved to JSON storage above)
             self._last_user_message = None
             self._last_user_timestamp = None
         
@@ -528,96 +580,3 @@ class ContextProvider:
         """
         return list(self.conversation_context.messages)
     
-    def _save_to_conversation_log(self, role: str, content: str, timestamp: Optional[float], metadata: Optional[Dict[str, Any]]) -> None:
-        """
-        Save conversation entry to formatted log file.
-        
-        Format:
-        # 2025-10-31 18:28:12.990775
-        
-        [ASK] user input
-        
-        💬 assistant response
-        
-        Args:
-            role: The role (user, assistant) - should be "assistant" when called
-            content: The assistant message content
-            timestamp: Timestamp for the message
-            metadata: Optional metadata including mode
-        """
-        try:
-            # Use the last user message's timestamp and mode if available
-            if self._last_user_message:
-                user_content = self._last_user_message.get("content", "")
-                user_metadata = self._last_user_message.get("metadata", {}) or {}
-                user_mode = user_metadata.get("mode", "UNKNOWN").upper()
-                log_timestamp = self._last_user_timestamp if self._last_user_timestamp else timestamp
-                logger.debug(f"Writing conversation log: user_mode={user_mode}, user_content={user_content[:50]}...")
-            else:
-                # Fallback if no user message tracked - this shouldn't normally happen
-                logger.warning("No user message tracked when saving assistant response - using fallback")
-                user_content = ""
-                user_mode = metadata.get("mode", "UNKNOWN").upper() if metadata else "UNKNOWN"
-                log_timestamp = timestamp if timestamp else None
-            
-            # Format timestamp
-            if log_timestamp is None:
-                from time import time
-                log_timestamp = time()
-            
-            dt = datetime.fromtimestamp(log_timestamp)
-            timestamp_str = dt.strftime("%Y-%m-%d %H:%M:%S.%f")
-            
-            # Format assistant response - preserve emojis and formatting
-            assistant_content = content
-            
-            # Ensure the directory exists
-            self.conversation_log_file.parent.mkdir(parents=True, exist_ok=True)
-            
-            # Append to log file with the desired format
-            # Use 'a' mode with explicit encoding to ensure UTF-8 support for emojis
-            try:
-                # Ensure file exists and is writable
-                self.conversation_log_file.parent.mkdir(parents=True, exist_ok=True)
-                
-                # Check if this is the first entry in the session (to add session header)
-                is_first_entry = False
-                if self.conversation_log_file.exists():
-                    try:
-                        with open(self.conversation_log_file, 'r', encoding='utf-8') as check_f:
-                            content = check_f.read()
-                            # Check if session ID already appears in file
-                            if f"Session: {self.session_id[:8]}" not in content:
-                                is_first_entry = True
-                    except:
-                        is_first_entry = True
-                else:
-                    is_first_entry = True
-                
-                with open(self.conversation_log_file, 'a', encoding='utf-8', newline='\n') as f:
-                    # Add session header if this is the first entry of a new session
-                    if is_first_entry:
-                        session_short = self.session_id[:8]
-                        f.write(f"\n{'='*60}\n")
-                        f.write(f"Session: {session_short}... (ID: {self.session_id})\n")
-                        f.write(f"{'='*60}\n\n")
-                    
-                    # Write the formatted conversation entry with session ID
-                    f.write(f"# {timestamp_str} [Session: {self.session_id[:8]}...]\n\n")
-                    if self._last_user_message:
-                        f.write(f"[{user_mode}] {user_content}\n\n")
-                    f.write(f"{assistant_content}\n\n")
-                    f.flush()  # Ensure data is written immediately
-                    os.fsync(f.fileno())  # Force write to disk
-                    
-                    logger.info(f"✅ Saved conversation log entry to {self.conversation_log_file} (Session: {self.session_id[:8]}...)")
-                    logger.debug(f"Entry: [{user_mode}] {user_content[:50]}... -> {assistant_content[:50]}...")
-            except (IOError, OSError, PermissionError) as io_error:
-                # If file write fails, log the error but don't crash
-                logger.error(f"❌ Failed to write to conversation log file {self.conversation_log_file}: {io_error}")
-                # Don't raise - allow the application to continue even if log write fails
-            
-        except Exception as e:
-            logger.warning(f"Failed to save to conversation log: {e}")
-            import traceback
-            logger.debug(traceback.format_exc())
