@@ -14,8 +14,8 @@ from .display import print_banner
 from joshu.core.translate import translate_to_command
 
 # Import modular handlers
-from .cli.code_handlers import handle_code_command
-from .cli.commands import (
+from .cli_handlers.code_handlers import handle_code_command
+from .cli_handlers.commands import (
     handle_config,
     handle_history,
     handle_repeat_last,
@@ -24,8 +24,8 @@ from .cli.commands import (
     handle_commands_list,
     handle_explain
 )
-from .cli.translation_helpers import handle_translation_execution
-from .cli.init import initialize_context, setup_logging
+from .cli_handlers.translation_helpers import handle_translation_execution
+from .cli_handlers.init import initialize_context, setup_logging
 
 # Import interactive mode
 try:
@@ -134,13 +134,13 @@ def interactive(
             start_interactive_mode(model, sandbox, verbose=verbose)
         except ImportError:
             # Fallback to basic mode
-            from .cli.basic_interactive import start_basic_interactive_mode
+            from .cli_handlers.basic_interactive import start_basic_interactive_mode
             from joshu.core.config import get_config_manager
             config_manager = get_config_manager()
             start_basic_interactive_mode(model, sandbox, config_manager, context_provider)
     else:
         # Fallback to basic mode
-        from .cli.basic_interactive import start_basic_interactive_mode
+        from .cli_handlers.basic_interactive import start_basic_interactive_mode
         from joshu.core.config import get_config_manager
         config_manager = get_config_manager()
         start_basic_interactive_mode(model, sandbox, config_manager, context_provider)
@@ -176,11 +176,11 @@ def run(
                 start_interactive_mode(model, sandbox, verbose=verbose)
             except ImportError:
                 # Fallback to basic mode
-                from .cli.basic_interactive import start_basic_interactive_mode
+                from .cli_handlers.basic_interactive import start_basic_interactive_mode
                 start_basic_interactive_mode(model, sandbox, config_manager, context_provider)
         else:
             # Fallback to basic mode
-            from .cli.basic_interactive import start_basic_interactive_mode
+            from .cli_handlers.basic_interactive import start_basic_interactive_mode
             start_basic_interactive_mode(model, sandbox, config_manager, context_provider)
         return
     

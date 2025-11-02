@@ -30,6 +30,20 @@ class CommandHandler:
         
         subcommand = parts[1].lower()
         
+        if subcommand == 'help':
+            self.interactive_mode._show_message("📚 Session Management Commands:")
+            self.interactive_mode._show_message("")
+            self.interactive_mode._show_message("  /session           - Show current session ID")
+            self.interactive_mode._show_message("  /session list      - List all sessions")
+            self.interactive_mode._show_message("  /session new       - Start a new session")
+            self.interactive_mode._show_message("  /session end       - End current session and start a new one")
+            self.interactive_mode._show_message("  /session switch <id> - Switch to a session by ID (full or short)")
+            self.interactive_mode._show_message("  /session delete <id> - Delete a session by ID (full or short)")
+            self.interactive_mode._show_message("  /session help      - Show this help message")
+            self.interactive_mode._show_message("")
+            self.interactive_mode._show_message("💡 Tip: Use short IDs (first 8 characters) or full IDs")
+            return True
+        
         if subcommand == 'list':
             sessions = self.context_provider.list_sessions()
             if not sessions:
@@ -102,9 +116,21 @@ class CommandHandler:
                 self.interactive_mode._show_message("💡 Use /session list to see available sessions")
             return True
         
+        elif subcommand == 'end':
+            current_session_id = self.context_provider.session_id
+            if self.context_provider.end_session():
+                self.interactive_mode._show_message(f"✅ Ended and deleted session: {current_session_id[:8]}...")
+                # Automatically start a new session
+                new_session_id = self.context_provider.new_session()
+                self.interactive_mode._show_message(f"🆕 Started new session: {new_session_id[:8]}...")
+            else:
+                self.interactive_mode._show_message("❌ Failed to end current session")
+            return True
+        
         else:
             self.interactive_mode._show_message(f"❌ Unknown session command: {subcommand}")
-            self.interactive_mode._show_message("💡 Available commands: list, new, switch, delete")
+            self.interactive_mode._show_message("💡 Available commands: list, new, switch, delete, end, help")
+            self.interactive_mode._show_message("💡 Type '/session help' for detailed information")
             return True
     
     def handle_slash_command(self, command: str) -> bool:
@@ -197,8 +223,10 @@ Special Commands:
   @file:n-m - Inject lines n to m from file
   /clear       - Clear command history
   /session     - Show current session
+  /session help - Show session management help
   /session list - List all sessions
   /session new - Start a new session
+  /session end - End current session and start a new one
   /session switch <id> - Switch to a session
   /session delete <id> - Delete a session
   /history     - Show command history

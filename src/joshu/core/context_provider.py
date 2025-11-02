@@ -200,6 +200,22 @@ class ContextProvider:
         
         return False
     
+    def end_session(self) -> bool:
+        """
+        End the current session by deleting it from the sessions file.
+        
+        Returns:
+            True if session was ended successfully, False otherwise
+        """
+        sessions = self._load_all_sessions()
+        if self.session_id in sessions:
+            # Delete the session from the sessions dictionary
+            del sessions[self.session_id]
+            self._save_all_sessions(sessions)
+            logger.info(f"Ended and deleted session: {self.session_id[:8]}...")
+            return True
+        return False
+    
     def new_session(self) -> str:
         """
         Start a new session (generate new session ID).
