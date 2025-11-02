@@ -17,6 +17,30 @@ from dataclasses import dataclass
 logger = logging.getLogger(__name__)
 
 
+def _clean_code_block_markdown(text: str) -> str:
+    """
+    Remove markdown code block formatting from LLM responses.
+    
+    Args:
+        text: Text that may contain markdown code blocks
+        
+    Returns:
+        Text with code blocks extracted and markdown removed
+    """
+    import re
+    
+    # Remove markdown code blocks (```language\n...``` or ```\n...```)
+    pattern = r'```(?:[a-zA-Z]+)?\n?(.*?)```'
+    matches = re.findall(pattern, text, re.DOTALL)
+    
+    if matches:
+        # If we found code blocks, return the content of the first one
+        return matches[0].strip()
+    
+    # If no code blocks found, return the text as-is (may already be clean code)
+    return text.strip()
+
+
 @dataclass
 class CodeEdit:
     """Represents a code edit operation."""
@@ -441,93 +465,227 @@ class CodeEditorCore:
             Generated code as string
         """
         try:
-            # Use the LLM to generate code
-            from joshu.models.inference import get_model
+            import json
+            import re
+            import os
             
-            # Create a specific prompt for code generation
-            system_prompt = f"""You are a code generation assistant. Generate {language} code based on the user's request.
-Follow these guidelines:
-1. Generate only valid {language} code
-2. Include appropriate comments
-3. Handle edge cases
-4. Follow best practices for {language}
-5. Respond ONLY with the code, no additional text or JSON formatting
-
-User request:"""
+            # Build context string if provided
+            context_str = ""
+            if context:
+                context_items = [f"{k}: {v}" for k, v in context.items()]
+                context_str = f"\n\nAdditional context:\n" + "\n".join(context_items)
             
-            full_prompt = f"{system_prompt}\n{prompt}"
+            # Try to use OpenRouter API directly for code generation (bypasses EchoModel)
+            # Check for OpenRouter API key first (primary method)
+            openrouter_key = os.getenv("OPENROUTER_API_KEY")
             
-            # Get the model and generate code
-            model = get_model("default")
-            if model:
-                generated_code = model.generate(full_prompt)
-                
-                # Extract code from response if it contains extra text
-                if generated_code:
-                    # Handle case where response might be JSON
-                    if generated_code.strip().startswith('{') and '"command"' in generated_code:
-                        # This is a JSON response from the translation system, not code
-                        # Try to extract just the explanation part and generate proper code
-                        import json
-                        try:
-                            response_data = json.loads(generated_code)
-                            # Create a new prompt focusing on code generation
-                            code_prompt = f"Generate {language} code that {response_data.get('explanation', prompt)}. Do not return JSON, just return the code."
-                            generated_code = model.generate(code_prompt)
-                        except json.JSONDecodeError:
-                            pass
+            # Also check for model-specific API keys that work with OpenRouter
+            model_specific_keys = [
+                "DEEPSEEK_API_KEY",
+                "TONGYI_API_KEY", 
+                "QWEN_API_KEY",
+                "KIMI_DEV_API_KEY",
+                "AGENTICAT_API_KEY",
+                "GLM_API_KEY"
+            ]
+            has_model_key = any(os.getenv(key) for key in model_specific_keys)
+            
+            # Check if cloud is enabled (default to true if we have an API key)
+            use_cloud_env = os.getenv("JOSHU_USE_CLOUD", "").lower()
+            # If JOSHU_USE_CLOUD is not set but we have an API key, assume cloud should be used
+            if use_cloud_env == "" and (openrouter_key or has_model_key):
+                use_cloud = True
+                logger.debug("JOSHU_USE_CLOUD not set, but API key found - enabling cloud mode for code generation")
+            else:
+                use_cloud = use_cloud_env == "true"
+            
+            # Use OpenRouter if we have ANY API key (OpenRouter or model-specific)
+            should_use_openrouter = openrouter_key or has_model_key
+            
+            if should_use_openrouter:
+                # Use OpenRouter directly with explicit code generation system message
+                try:
+                    from joshu.models.openrouter import chat_completion
                     
-                    # Try to extract code block if it's in markdown format
-                    import re
-                    code_block_match = re.search(r'```(?:[a-zA-Z]+)?\n(.*?)```', generated_code, re.DOTALL)
-                    if code_block_match:
-                        return code_block_match.group(1).strip()
+                    system_message = f"""You are an expert {language} programmer. Generate clean, production-ready {language} code.
+
+IMPORTANT: You are generating CODE, not translating commands. Do NOT return JSON with "command" or "explanation" fields.
+Return ONLY {language} source code - no JSON, no explanations, no markdown formatting.
+
+Requirements:
+1. Write valid {language} source code only
+2. Follow {language} best practices and conventions
+3. Include helpful comments
+4. Handle edge cases
+5. Write idiomatic, production-ready code"""
+
+                    user_message = f"""Generate {language} code for: {prompt}{context_str}
+
+Return only the code:"""
+                    
+                    # Get model name from environment, preferring OPENROUTER_MODEL
+                    model_name = os.getenv("OPENROUTER_MODEL") or "openai/gpt-4o-mini"
+                    
+                    messages = [
+                        {"role": "system", "content": system_message},
+                        {"role": "user", "content": user_message}
+                    ]
+                    
+                    logger.debug(f"Calling OpenRouter API with model: {model_name}")
+                    response = chat_completion(
+                        messages=messages,
+                        model=model_name,
+                        temperature=0.3,
+                        max_tokens=2048  # More tokens for code generation
+                    )
+                    
+                    if response:
+                        logger.debug(f"OpenRouter API returned response of length: {len(response)}")
                     else:
-                        # If no code block found, return the generated code as is
-                        # But first check if it's still JSON and try to extract the command
-                        if generated_code.strip().startswith('{'):
-                            try:
-                                import json
-                                data = json.loads(generated_code)
-                                if "command" in data:
-                                    # This is still a command response, not code
-                                    # Generate proper code directly
-                                    direct_code_prompt = f"Generate {language} implementation for: {prompt}"
-                                    direct_model = get_model("default")
-                                    if direct_model:
-                                        direct_code = direct_model.generate(direct_code_prompt)
-                                        if direct_code and not direct_code.strip().startswith('{'):
-                                            # Try to extract code block
-                                            code_block_match = re.search(r'```(?:[a-zA-Z]+)?\n(.*?)```', direct_code, re.DOTALL)
-                                            if code_block_match:
-                                                return code_block_match.group(1).strip()
-                                            else:
-                                                return direct_code.strip()
-                            except json.JSONDecodeError:
-                                pass
+                        logger.warning("OpenRouter API returned None, falling back to local model")
+                    
+                    if response:
+                        cleaned_code = _clean_code_block_markdown(response).strip()
                         
-                        # If we still have JSON or command response, generate code directly
-                        if generated_code.strip().startswith('{') or "echo" in generated_code:
-                            direct_code_prompt = f"Write {language} code to implement: {prompt}"
-                            direct_model = get_model("default")
-                            if direct_model:
-                                direct_code = direct_model.generate(direct_code_prompt)
-                                if direct_code:
-                                    # Try to extract code block
-                                    code_block_match = re.search(r'```(?:[a-zA-Z]+)?\n(.*?)```', direct_code, re.DOTALL)
-                                    if code_block_match:
-                                        return code_block_match.group(1).strip()
-                                    else:
-                                        return direct_code.strip()
-                        
-                        return generated_code.strip()
+                        # Verify it's not JSON
+                        try:
+                            parsed = json.loads(cleaned_code)
+                            if isinstance(parsed, dict) and ("command" in parsed or "explanation" in parsed):
+                                logger.warning("OpenRouter returned JSON, falling back to local model")
+                            else:
+                                return cleaned_code
+                        except (json.JSONDecodeError, ValueError):
+                            # Not JSON, check if it looks like code
+                            if not cleaned_code.startswith('{') or '"command"' not in cleaned_code:
+                                return cleaned_code
+                except Exception as e:
+                    logger.debug(f"OpenRouter code generation failed: {e}, falling back to local model")
             
-            # Fallback to placeholder if LLM fails
-            return f"# Generated {language} code based on: {prompt}\n\n# TODO: Implement functionality\n"
+            # Fallback to local model via get_model, but check if it's EchoModel first
+            from joshu.models.inference import get_model
+            from joshu.models.local_models import EchoModel
+            
+            # Get the model and check its type
+            model = get_model("default")
+            if not model:
+                raise ValueError("Failed to get model instance")
+            
+            # Check if we're using EchoModel (which always returns JSON for code generation)
+            is_echo_model = isinstance(model, EchoModel) or (
+                hasattr(model, '__class__') and 'Echo' in model.__class__.__name__
+            )
+            
+            # If using EchoModel, skip attempts and show helpful message immediately
+            if is_echo_model:
+                logger.info("EchoModel detected - skipping code generation attempts")
+                return f"""# Code Generation Requires Cloud Model API Key
+
+# Your request: {prompt}
+
+# The current setup is using EchoModel which cannot generate code.
+# To enable code generation, please configure a cloud model API key:
+
+# Option 1: OpenRouter (recommended)
+#   export OPENROUTER_API_KEY=your_api_key_here
+#   export OPENROUTER_MODEL=openai/gpt-4o-mini  # or another model
+
+# Option 2: Model-specific API keys
+#   export DEEPSEEK_API_KEY=your_key  # for DeepSeek models
+#   export JOSHU_USE_CLOUD=true
+
+# After setting the API key, run the command again.
+"""
+            
+            # For real models, try code generation
+            # Create a very explicit system prompt that emphasizes this is CODE GENERATION, not translation
+            system_prompt = f"""TASK: CODE GENERATION (NOT COMMAND TRANSLATION)
+
+You are a code generator, NOT a command translator. Your task is to write {language} code, NOT to translate natural language to shell commands.
+
+DO NOT return JSON with "command" and "explanation" fields.
+DO NOT return shell commands.
+DO return actual {language} source code.
+
+Generate clean, well-structured {language} code based on the user's request.
+
+Requirements:
+1. Write ONLY {language} source code - no JSON, no explanations, no markdown, no command translations
+2. Follow {language} best practices
+3. Include helpful comments
+4. Handle edge cases
+5. Write production-ready, idiomatic {language} code
+
+User request: {prompt}{context_str}
+
+Now generate the {language} code (code only, no JSON, no explanations):"""
+            
+            # Try multiple times if we get JSON responses
+            max_retries = 3
+            for attempt in range(max_retries):
+                generated_code = model.generate(system_prompt)
+                
+                if not generated_code:
+                    raise ValueError("Empty response from model")
+                
+                # Clean markdown code blocks from response
+                cleaned_code = _clean_code_block_markdown(generated_code).strip()
+                
+                # Check if it's JSON (command translation format)
+                is_json = False
+                try:
+                    # Try to parse as JSON
+                    parsed = json.loads(cleaned_code)
+                    if isinstance(parsed, dict) and ("command" in parsed or "explanation" in parsed):
+                        is_json = True
+                        logger.warning(f"Received JSON response (attempt {attempt + 1}/{max_retries}), retrying...")
+                except (json.JSONDecodeError, ValueError):
+                    # Not valid JSON, check if it starts with JSON-like structure
+                    if cleaned_code.startswith('{') and ('"command"' in cleaned_code or '"explanation"' in cleaned_code):
+                        is_json = True
+                        logger.warning(f"Detected JSON-like response (attempt {attempt + 1}/{max_retries}), retrying...")
+                
+                if not is_json:
+                    # Check if it's actual code (has code-like patterns)
+                    code_patterns = [
+                        r'^\s*(def|function|class|import|from|const|let|var|public|private|protected)',
+                        r'^\s*(if|for|while|return|print|console\.log)',
+                        r'^\s*[a-zA-Z_][a-zA-Z0-9_]*\s*=',
+                        r'^\s*#.*$',  # Comments
+                    ]
+                    has_code_pattern = any(re.search(pattern, cleaned_code, re.MULTILINE) for pattern in code_patterns)
+                    
+                    if has_code_pattern or len(cleaned_code) > 50:
+                        # Looks like actual code
+                        return cleaned_code
+                
+                # If we got here, either it's JSON or doesn't look like code
+                if attempt < max_retries - 1:
+                    # More aggressive prompt for retry
+                    system_prompt = f"""You MUST write {language} code. DO NOT return JSON. DO NOT return commands.
+
+User wants: {prompt}
+
+Write the {language} code NOW (code only):"""
+            
+            # If all retries failed and we still have JSON, show helpful error
+            if is_json:
+                logger.error("Model persisted in returning JSON format despite retries")
+                return f"""# Error: Unable to generate code - model is configured for command translation.
+
+# Your request: {prompt}
+
+# Solution: Configure an API key for cloud models to enable code generation:
+#   1. Set OPENROUTER_API_KEY environment variable, OR
+#   2. Set JOSHU_USE_CLOUD=true and configure a cloud model API key
+
+# Example: export OPENROUTER_API_KEY=your_api_key_here
+"""
+            
+            return cleaned_code
+            
         except Exception as e:
-            logger.warning(f"Code generation failed: {e}")
-            # Fallback to placeholder
-            return f"# Generated {language} code based on: {prompt}\n\n# TODO: Implement functionality\n"
+            logger.error(f"Code generation failed: {e}")
+            return f"# Error generating code: {str(e)}\n# Request: {prompt}\n"
 
     def edit_code_region(self, filepath: str, start_line: int, end_line: int, new_code: str) -> bool:
         """
@@ -568,21 +726,178 @@ User request:"""
             logger.error(f"Error editing code region in {filepath}: {e}")
             return False
     
+    def edit_file(self, filepath: str, instruction: str) -> Dict[str, Any]:
+        """
+        Edit a file based on a natural language instruction using LLM.
+        
+        Args:
+            filepath: Path to the file to edit
+            instruction: Natural language instruction describing the desired changes
+            
+        Returns:
+            Dictionary with success status, message, and backup_path
+        """
+        import shutil
+        from datetime import datetime
+        
+        backup_path = None
+        
+        try:
+            # Read the file if it exists
+            if not Path(filepath).exists():
+                return {
+                    "success": False,
+                    "message": f"File {filepath} does not exist",
+                    "backup_path": None
+                }
+            
+            original_content, _ = self.read_file(filepath)
+            
+            # Determine language from file extension
+            language = self.get_language_from_extension(Path(filepath).suffix)
+            
+            # Create backup before editing
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_path = str(Path(filepath).with_suffix(f"{Path(filepath).suffix}.backup_{timestamp}"))
+            shutil.copy2(filepath, backup_path)
+            logger.info(f"Created backup: {backup_path}")
+            
+            # Use LLM to generate the modified content
+            from joshu.models.inference import get_model
+            
+            system_prompt = f"""You are an expert code editor. Modify the following {language} code according to the user's instruction.
+
+Requirements:
+1. Make the requested changes precisely
+2. Maintain code quality and formatting
+3. Preserve functionality that should not change
+4. Return ONLY the complete modified file content - no explanations, no markdown, no JSON
+5. Include all original code except where modifications are needed
+
+Original code:
+```{language}
+{original_content}
+```
+
+User instruction: {instruction}
+
+Modified code (complete file content):"""
+            
+            # Get the model and generate modified content
+            model = get_model("default")
+            if not model:
+                raise ValueError("Failed to get model instance")
+            
+            modified_response = model.generate(system_prompt)
+            
+            if not modified_response:
+                raise ValueError("Empty response from model")
+            
+            # Clean markdown code blocks from response
+            modified_content = _clean_code_block_markdown(modified_response)
+            
+            # Verify we got actual modified content (not just the original)
+            if modified_content.strip() == original_content.strip():
+                # Retry with more explicit instruction
+                retry_prompt = f"Modify this {language} code: {instruction}. Apply actual changes and return the complete modified file:\n\n{original_content}"
+                modified_response = model.generate(retry_prompt)
+                modified_content = _clean_code_block_markdown(modified_response)
+            
+            # Write the modified content
+            if self.write_file(filepath, modified_content, backup=False):
+                return {
+                    "success": True,
+                    "message": f"File {filepath} edited successfully",
+                    "backup_path": backup_path
+                }
+            else:
+                return {
+                    "success": False,
+                    "message": f"Failed to write modified content to {filepath}",
+                    "backup_path": backup_path
+                }
+                
+        except FileNotFoundError:
+            return {
+                "success": False,
+                "message": f"File {filepath} does not exist",
+                "backup_path": backup_path
+            }
+        except Exception as e:
+            logger.error(f"Error editing file {filepath}: {e}")
+            return {
+                "success": False,
+                "message": f"Error editing file: {str(e)}",
+                "backup_path": backup_path
+            }
+    
     def refactor_code(self, code: str, refactor_type: str, options: Dict) -> str:
         """
         Code refactoring operations.
         
         Args:
             code: Code to refactor
-            refactor_type: Type of refactoring
+            refactor_type: Type of refactoring (e.g., "improve readability", "optimize performance", "simplify")
             options: Refactoring options
             
         Returns:
             Refactored code
         """
-        # This is a placeholder implementation
-        # In a real implementation, this would perform actual refactoring
-        return f"# Refactored code ({refactor_type})\n{code}"
+        try:
+            from joshu.models.inference import get_model
+            
+            # Determine language from code or options
+            language = options.get("language", "python")
+            
+            # Build refactoring goal description
+            refactoring_goal = refactor_type or "improve the code"
+            if isinstance(refactoring_goal, dict):
+                refactoring_goal = options.get("goal", "improve the code")
+            
+            # Create detailed system prompt for refactoring
+            system_prompt = f"""You are an expert code refactoring assistant. Refactor the following {language} code to {refactoring_goal}.
+
+Requirements:
+1. Maintain the same functionality - do not change what the code does
+2. Improve code quality, readability, or performance based on the refactoring goal
+3. Follow {language} best practices
+4. Return ONLY the refactored code - no explanations, no markdown, no JSON
+5. Preserve all functionality and behavior
+
+Original code:
+```{language}
+{code}
+```
+
+Refactoring goal: {refactoring_goal}
+
+Refactored code:"""
+            
+            # Get the model and refactor code
+            model = get_model("default")
+            if not model:
+                raise ValueError("Failed to get model instance")
+            
+            refactored_code = model.generate(system_prompt)
+            
+            if not refactored_code:
+                raise ValueError("Empty response from model")
+            
+            # Clean markdown code blocks from response
+            cleaned_code = _clean_code_block_markdown(refactored_code)
+            
+            # If we only got the original code back, try a different approach
+            if cleaned_code.strip() == code.strip():
+                retry_prompt = f"Refactor this {language} code to {refactoring_goal}. Make actual improvements:\n\n{code}\n\nReturn only the refactored code."
+                refactored_code = model.generate(retry_prompt)
+                cleaned_code = _clean_code_block_markdown(refactored_code)
+            
+            return cleaned_code
+            
+        except Exception as e:
+            logger.error(f"Code refactoring failed: {e}")
+            # Return original code with error comment
+            return f"# Error refactoring code: {str(e)}\n{code}"
     
     # 4. Documentation & Explanation
     def explain_code(self, code: str, detail_level: str = "medium") -> str:
@@ -596,9 +911,66 @@ User request:"""
         Returns:
             Explanation of the code
         """
-        # This is a placeholder implementation
-        # In a real implementation, this would use an LLM to explain code
-        return f"Code explanation ({detail_level} detail):\n\n{code}\n\nThis code performs [functionality description]."
+        try:
+            from joshu.models.inference import get_model
+            
+            # Determine language from code (simple heuristic)
+            language = "python"  # Default
+            if any(keyword in code for keyword in ["function", "const ", "let ", "var ", "=>"]):
+                language = "javascript"
+            elif any(keyword in code for keyword in ["def ", "import ", "class ", "__init__"]):
+                language = "python"
+            
+            # Adjust detail instructions based on detail_level
+            detail_instructions = {
+                "low": "Provide a brief, high-level explanation in 1-2 sentences.",
+                "medium": "Provide a clear explanation covering the main functionality and key concepts.",
+                "high": "Provide a detailed explanation covering functionality, structure, algorithms, edge cases, and potential improvements."
+            }
+            detail_instruction = detail_instructions.get(detail_level.lower(), detail_instructions["medium"])
+            
+            # Create detailed system prompt for code explanation
+            system_prompt = f"""You are an expert code explanation assistant. Explain the following {language} code clearly and concisely.
+
+{detail_instruction}
+
+Explain the code in plain language that helps developers understand:
+- What the code does
+- How it works
+- Key concepts and patterns used
+- Important details based on the requested detail level
+
+Code to explain:
+```{language}
+{code}
+```
+
+Explanation:"""
+            
+            # Get the model and generate explanation
+            model = get_model("default")
+            if not model:
+                raise ValueError("Failed to get model instance")
+            
+            explanation = model.generate(system_prompt)
+            
+            if not explanation:
+                raise ValueError("Empty response from model")
+            
+            # Remove markdown code blocks if present (explanations might include them)
+            cleaned_explanation = _clean_code_block_markdown(explanation)
+            
+            # If the cleaned explanation is the same as the code, it's likely just code returned
+            if cleaned_explanation.strip() == code.strip():
+                retry_prompt = f"Explain what this {language} code does in plain English. Do not return the code itself, only the explanation:\n\n{code}"
+                explanation = model.generate(retry_prompt)
+                cleaned_explanation = explanation.strip()
+            
+            return cleaned_explanation
+            
+        except Exception as e:
+            logger.error(f"Code explanation failed: {e}")
+            return f"Error explaining code: {str(e)}"
     
     def generate_docstring(self, function_code: str, language: str) -> str:
         """
@@ -755,14 +1127,95 @@ User request:"""
         Returns:
             DebuggingReport object
         """
-        # This is a placeholder implementation
-        # In a real implementation, this would provide detailed debugging
-        return DebuggingReport(
-            error_type="GenericError",
-            error_message=error_message,
-            suggestions=[f"Review the code for common issues related to: {error_message}"],
-            code_snippets=[]
-        )
+        try:
+            from joshu.models.inference import get_model
+            
+            # Determine language from code
+            language = "python"  # Default
+            if any(keyword in code for keyword in ["function", "const ", "let ", "var "]):
+                language = "javascript"
+            elif any(keyword in code for keyword in ["def ", "import ", "class "]):
+                language = "python"
+            
+            # Create detailed system prompt for debugging
+            error_context = f"\n\nError message:\n{error_message}" if error_message else ""
+            
+            system_prompt = f"""You are an expert debugging assistant. Analyze the following {language} code and the error message to identify the problem and suggest fixes.
+
+Analyze:
+1. Identify the error type and root cause
+2. Explain why the error occurs
+3. Provide specific, actionable suggestions to fix the issue
+4. If applicable, provide corrected code snippets
+
+Code to debug:
+```{language}
+{code}
+```{error_context}
+
+Provide a detailed debugging analysis:"""
+            
+            # Get the model and generate debugging report
+            model = get_model("default")
+            if not model:
+                raise ValueError("Failed to get model instance")
+            
+            debug_response = model.generate(system_prompt)
+            
+            if not debug_response:
+                raise ValueError("Empty response from model")
+            
+            # Parse the response to extract information
+            # The LLM response should contain error type, analysis, and suggestions
+            cleaned_response = debug_response.strip()
+            
+            # Extract error type (try to find it in the response)
+            error_type = "Error"
+            if "error" in cleaned_response.lower():
+                import re
+                error_type_match = re.search(r'(?:error|exception|type|class)[:]\s*([A-Za-z]+(?:Error|Exception)?)', cleaned_response, re.IGNORECASE)
+                if error_type_match:
+                    error_type = error_type_match.group(1)
+            
+            # Extract suggestions (look for numbered lists, bullet points, or "suggestion")
+            suggestions = []
+            lines = cleaned_response.split('\n')
+            for line in lines:
+                line = line.strip()
+                if line and (line.startswith('-') or line.startswith('*') or 
+                            any(line.startswith(f"{i}.") for i in range(1, 10)) or
+                            'suggestion' in line.lower() or 'fix' in line.lower()):
+                    # Clean up the suggestion
+                    clean_line = re.sub(r'^[-*\d.\s]+', '', line)
+                    if clean_line and len(clean_line) > 10:  # Only add substantial suggestions
+                        suggestions.append(clean_line)
+            
+            # If no structured suggestions found, use the response as a single suggestion
+            if not suggestions:
+                suggestions = [cleaned_response] if cleaned_response else ["Review the code for common issues"]
+            
+            # Extract code snippets from response (look for code blocks)
+            code_snippets = []
+            import re
+            code_block_pattern = r'```(?:[a-zA-Z]+)?\n?(.*?)```'
+            code_matches = re.findall(code_block_pattern, cleaned_response, re.DOTALL)
+            code_snippets = [match.strip() for match in code_matches if match.strip()]
+            
+            return DebuggingReport(
+                error_type=error_type,
+                error_message=error_message or "No error message provided",
+                suggestions=suggestions[:5],  # Limit to 5 suggestions
+                code_snippets=code_snippets[:3]  # Limit to 3 code snippets
+            )
+            
+        except Exception as e:
+            logger.error(f"Code debugging failed: {e}")
+            return DebuggingReport(
+                error_type="DebuggingError",
+                error_message=error_message or "No error message provided",
+                suggestions=[f"Debugging analysis failed: {str(e)}", "Please review the code manually"],
+                code_snippets=[]
+            )
     
     # 6. Version Control Integration
     def git_diff(self, filepath: Optional[str] = None) -> str:

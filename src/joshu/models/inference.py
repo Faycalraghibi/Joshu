@@ -38,9 +38,8 @@ def establish_model_connection(model_name: str) -> bool:
         return True
     
     try:
-        # Check if OpenRouter API key is available and user wants to use cloud models
+        # Check if OpenRouter API key is available or model-specific keys
         openrouter_key = os.getenv("OPENROUTER_API_KEY")
-        use_cloud = os.getenv("JOSHU_USE_CLOUD", "false").lower() == "true"
         
         # Also check for model-specific API keys
         model_specific_keys = [
@@ -53,6 +52,18 @@ def establish_model_connection(model_name: str) -> bool:
         ]
         
         has_model_specific_key = any(os.getenv(key) for key in model_specific_keys)
+        
+        # Auto-enable cloud if API key is present (unless explicitly disabled)
+        use_cloud_env = os.getenv("JOSHU_USE_CLOUD", "").lower()
+        if use_cloud_env == "false":
+            use_cloud = False
+        elif use_cloud_env == "true":
+            use_cloud = True
+        elif openrouter_key or has_model_specific_key:
+            use_cloud = True  # Auto-enable if API key found
+            logger.debug("Auto-enabling cloud mode due to API key presence")
+        else:
+            use_cloud = False
         
         if (openrouter_key or has_model_specific_key) and use_cloud:
             # Try to establish connection to OpenRouter
@@ -126,12 +137,59 @@ def get_model(model_name: str) -> LLM:
             logger.debug("Attempting to establish model connection...")
             establish_model_connection(model_name)
         
-        # Check if OpenRouter API key is available and user wants to use cloud models
+        # Check if OpenRouter API key is available or model-specific keys
         openrouter_key = os.getenv("OPENROUTER_API_KEY")
-        use_cloud = os.getenv("JOSHU_USE_CLOUD", "false").lower() == "true"
         
-        if openrouter_key and use_cloud:
+        # Check for model-specific API keys that work with OpenRouter
+        model_specific_keys = [
+            "DEEPSEEK_API_KEY",
+            "TONGYI_API_KEY", 
+            "QWEN_API_KEY",
+            "KIMI_DEV_API_KEY",
+            "AGENTICAT_API_KEY",
+            "GLM_API_KEY"
+        ]
+        has_model_key = any(os.getenv(key) for key in model_specific_keys)
+        
+        # Check cloud setting - auto-enable if API key is present unless explicitly disabled
+        use_cloud_env = os.getenv("JOSHU_USE_CLOUD", "").lower()
+        
+        # Determine if we should use cloud:
+        # 1. If explicitly set to "false", don't use cloud (unless forced)
+        # 2. If explicitly set to "true", use cloud
+        # 3. If not set but we have an API key, auto-enable cloud
+        if use_cloud_env == "false":
+            use_cloud = False
+            logger.debug("JOSHU_USE_CLOUD explicitly set to false")
+        elif use_cloud_env == "true":
+            use_cloud = True
+            logger.debug("JOSHU_USE_CLOUD explicitly set to true")
+        elif openrouter_key or has_model_key:
+            # Auto-enable if API key is present
+            use_cloud = True
+            logger.debug("JOSHU_USE_CLOUD not set, but API key found - enabling cloud mode automatically")
+        else:
+            use_cloud = False
+        
+        # Use OpenRouter if we have ANY API key (OpenRouter or model-specific) and cloud is enabled
+        should_use_openrouter = (openrouter_key or has_model_key) and use_cloud
+        
+        if should_use_openrouter:
             # Use OpenRouter model
+            # Determine which model to use: prefer OPENROUTER_MODEL env var, or use provided model_name if it looks like a cloud model
+            openrouter_model = os.getenv("OPENROUTER_MODEL")
+            # If model_name is a local model name (like "llama-3-8b") but we have OPENROUTER_MODEL set, use that
+            # Otherwise, if model_name looks like a cloud model (contains /), use it
+            if openrouter_model:
+                actual_model = openrouter_model
+            elif "/" in model_name or model_name.startswith("openai/") or model_name.startswith("deepseek/"):
+                actual_model = model_name
+            else:
+                # Default to a cloud model
+                actual_model = openrouter_model or "openai/gpt-4o-mini"
+            
+            logger.info(f"Using OpenRouter API with model: {actual_model}")
+            
             class OpenRouterModel(LLM):
                 def __init__(self, model_name: str) -> None:
                     self.model_name = model_name
@@ -153,7 +211,7 @@ def get_model(model_name: str) -> LLM:
                             "explanation": f"Failed to get response from OpenRouter API for request: '{user_request}'. Please check your configuration or try again later."
                         })
             
-            model = OpenRouterModel(model_name)
+            model = OpenRouterModel(actual_model)
             _model_cache[model_name] = model
             return model
         

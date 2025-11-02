@@ -8,7 +8,7 @@ class ConversationContext:
     def __init__(self) -> None:
         self.messages: List[Dict[str, Any]] = []
 
-    def add(self, role: str, content: str, timestamp: Optional[float] = None) -> None:
+    def add(self, role: str, content: str, timestamp: Optional[float] = None, metadata: Optional[Dict[str, Any]] = None) -> None:
         """
         Add a message to the conversation context.
         
@@ -16,6 +16,7 @@ class ConversationContext:
             role: The role of the speaker (user, assistant, system)
             content: The content of the message
             timestamp: Optional timestamp for the message
+            metadata: Optional metadata dictionary
         """
         message: Dict[str, Any] = {
             "role": role,
@@ -25,6 +26,9 @@ class ConversationContext:
             message["timestamp"] = timestamp
         else:
             message["timestamp"] = time.time()
+        
+        if metadata:
+            message["metadata"] = metadata
             
         self.messages.append(message)
 

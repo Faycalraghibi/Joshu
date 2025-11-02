@@ -58,8 +58,10 @@ def establish_connection(model_name: str = "default") -> bool:
 
 @dataclass
 class Translation:
+    """Translation result with optional execution flag."""
     command: str
     explanation: str
+    needs_execution: bool = True  # If False, just display the response without asking for execution
 
 
 COMMON_PATTERNS: List[Tuple[re.Pattern[str], str, str]] = [
@@ -109,24 +111,99 @@ COMMON_PATTERNS: List[Tuple[re.Pattern[str], str, str]] = [
         'echo "Use the backup feature"',
         "Create a backup of your source code.",
     ),
-    # Code generation patterns
-    (
-        re.compile(r"(give|show|provide|write|generate|code)\s+(me\s+)?(the\s+)?(binary\s+search|code|program|script).*\b(python|javascript|java|c\+\+|c#|go|rust|php|ruby|swift)\b", re.I),
-        'echo "Use the code command: joshu code \\"your request\\""', 
-        "This is a code generation request. Use the 'code' command instead.",
-    ),
-    (
-        re.compile(r"(give|show|provide|write|generate|code)\s+(me\s+)?(the\s+)?(.*\s+)?(code|program|script)\b", re.I),
-        'echo "Use the code command: joshu code \\"your request\\""', 
-        "This is a code generation request. Use the 'code' command instead.",
-    ),
-    # Additional pattern for questions about coding
-    (
-        re.compile(r"(can\s+(you\s+)?(please\s+)?(code|write|generate))|(.*\bcode\b.*\bpython\b)", re.I),
-        'echo "Use the code command: joshu code \\"your request\\""', 
-        "This is a code generation request. Use the 'code' command instead.",
-    ),
+    # Note: Code generation requests are not pattern-matched here. They are handled by the dedicated `joshu code` command.
 ]
+
+
+def _handle_conversational_query(text: str, context_provider: Optional[ContextProvider] = None,
+                                model_name: str = "default") -> Optional[Translation]:
+    """
+    Handle conversational queries with direct responses instead of command translation.
+    
+    Returns a Translation with an echo command that shows a conversational response.
+    """
+    text_lower = text.lower().strip()
+    
+    # Handle simple greetings with friendly responses
+    if text_lower in ["hi", "hello", "hey", "greetings"]:
+        return Translation(
+            command='echo "Hello! I\'m Joshu, your AI assistant. I can help you with:\n- Running commands: \"list all files\" or \"show disk usage\"\n- Code generation: use \'joshu code \"your request\"\'\n- General questions and conversations\n\nWhat would you like to do?"',
+            explanation="Greeting response - providing an introduction and helpful information",
+            needs_execution=False  # Conversational response, no execution needed
+        )
+    
+    # For other conversational queries, use LLM to generate a direct response
+    try:
+        from joshu.models.openrouter import chat_completion
+        import os
+        
+        # Try OpenRouter first for conversational responses
+        openrouter_key = os.getenv("OPENROUTER_API_KEY")
+        model_specific_keys = ["DEEPSEEK_API_KEY", "TONGYI_API_KEY", "QWEN_API_KEY", 
+                              "KIMI_DEV_API_KEY", "AGENTICAT_API_KEY", "GLM_API_KEY"]
+        has_model_key = any(os.getenv(key) for key in model_specific_keys)
+        
+        # Auto-enable cloud if API key is present (unless explicitly disabled)
+        use_cloud_env = os.getenv("JOSHU_USE_CLOUD", "").lower()
+        if use_cloud_env == "false":
+            use_cloud = False
+        elif use_cloud_env == "true":
+            use_cloud = True
+        elif openrouter_key or has_model_key:
+            use_cloud = True  # Auto-enable if API key found
+        else:
+            use_cloud = False
+        
+        if (openrouter_key or has_model_key) and use_cloud:
+            system_message = """You are Joshu, a friendly AI assistant. The user is asking a conversational question or making a comment.
+Provide a helpful, direct response. You don't need to generate commands for this - just answer their question naturally.
+Keep responses concise and friendly."""
+            
+            model_name_env = os.getenv("OPENROUTER_MODEL") or "openai/gpt-4o-mini"
+            messages = [
+                {"role": "system", "content": system_message},
+                {"role": "user", "content": text}
+            ]
+            
+            response = chat_completion(messages, model=model_name_env, temperature=0.7, max_tokens=512)
+            if response:
+                # Return response as an echo command so it displays to the user
+                return Translation(
+                    command=f'echo """{response}"""',
+                    explanation="Conversational response - providing direct answer to user's question",
+                    needs_execution=False  # Conversational response, no execution needed
+                )
+        
+        # Fallback to local model for conversational responses
+        from joshu.models.inference import get_model
+        model = get_model(model_name)
+        if model:
+            conversational_prompt = f"""You are Joshu, a friendly AI assistant. The user said: "{text}"
+Provide a helpful, direct response. Keep it concise and friendly. Do not generate commands."""
+            
+            response = model.generate(conversational_prompt)
+            if response:
+                # Clean any JSON or command formatting from response
+                cleaned_response = response.strip()
+                if cleaned_response.startswith('{') and '"command"' in cleaned_response:
+                    # If model returned JSON, extract explanation or provide default
+                    cleaned_response = "I understand your question. I'm here to help with both conversations and command execution. Feel free to ask me anything!"
+                
+                return Translation(
+                    command=f'echo """{cleaned_response}"""',
+                    explanation="Conversational response - providing direct answer",
+                    needs_execution=False  # Conversational response, no execution needed
+                )
+    
+    except Exception as e:
+        logger.debug(f"Conversational response generation failed: {e}")
+    
+    # Fallback for simple queries
+    return Translation(
+        command='echo "I understand. How can I help you? You can ask me questions, request commands, or use \'joshu code\' for code generation."',
+        explanation="Default conversational response",
+        needs_execution=False  # Conversational response, no execution needed
+    )
 
 
 def generate_memory_summary_with_llm(context_provider: ContextProvider, prompt: str) -> Optional[Translation]:
@@ -193,12 +270,51 @@ Please provide a natural, conversational summary of what we've discussed and wha
     )
 
 
+def _is_conversational_query(text: str) -> bool:
+    """
+    Detect if a query is conversational (should get a direct response) vs a command request.
+    
+    Returns True if the query appears to be conversational/chat rather than a command request.
+    """
+    text_lower = text.lower().strip()
+    
+    # Simple greetings - definitely conversational
+    if text_lower in ["hi", "hello", "hey", "greetings", "good morning", "good afternoon", "good evening"]:
+        return True
+    
+    # Questions that don't request actions - conversational
+    question_patterns = [
+        r"^(what|how|why|when|where|who|is|are|can|do|does|did|will|would)\s+.*\?",
+        r".*\?$",  # Ends with question mark
+    ]
+    for pattern in question_patterns:
+        if re.match(pattern, text_lower):
+            # But exclude questions that clearly request commands
+            command_indicators = [
+                "how to", "how do i", "how can i", "show me", "list", "find", 
+                "display", "create", "delete", "run", "execute", "get"
+            ]
+            if not any(indicator in text_lower for indicator in command_indicators):
+                return True
+    
+    # General chat/phrases without action verbs
+    if len(text_lower.split()) <= 3 and not any(word in text_lower for word in ["list", "show", "find", "get", "create", "delete", "run"]):
+        return True
+    
+    return False
+
+
 def translate_to_command(prompt: str, context_provider: Optional[ContextProvider] = None, 
                         model_name: str = "default") -> Optional[Translation]:
     text = prompt.strip()
     
     # Only log the prompt for debugging if needed
     logger.debug(f"Translating prompt: {text}")
+    
+    # Check if this is a conversational query first
+    if _is_conversational_query(text):
+        # Return a conversational response instead of a command
+        return _handle_conversational_query(text, context_provider, model_name)
     
     # Check connection status
     global _connection_established, _connection_error
@@ -214,13 +330,7 @@ def translate_to_command(prompt: str, context_provider: Optional[ContextProvider
         
         logger.debug(f"Pattern matched: {pattern.pattern}")
         
-        # Special handling for code generation requests
-        if re.search(r"(give|show|provide|write|generate)\s+(me\s+)?(the\s+)?(binary\s+search|code|program|script).*\b(python|javascript|java|c\+\+|c#|go|rust|php|ruby|swift)\b", text, re.I) or \
-           re.search(r"(give|show|provide|write|generate)\s+(me\s+)?(the\s+)?(.*\s+)?(code|program|script)\b", text, re.I):
-            return Translation(
-                command=template,
-                explanation=explanation
-            )
+        # Code generation requests are intentionally not handled here; the `joshu code` command covers them.
         
         # Special handling for memory/history requests
         if re.search(r"(show|tell|what|give|provide)(\s+is)?\s+(me\s+)?(the\s+)?(conversation\s+)?(history|memory|context)\b", text, re.I):
@@ -372,9 +482,67 @@ def translate_with_llm(prompt: str, context_provider: Optional[ContextProvider] 
         translation = translate_with_openrouter(prompt, context_provider, model_name)
         if translation:
             command = translation["command"]
+            explanation = translation.get("explanation", "")
             # Adapt command for Windows if needed
             command = adapt_command_for_windows(command)
-            return Translation(command=command, explanation=translation["explanation"])
+            # Check if this is a conversational response (needs_execution=False)
+            # PRIORITY: Check explanation first - it's the most reliable indicator
+            explanation_lower = explanation.lower()
+            
+            # Check explanation for conversational indicators
+            conversational_explanation_keywords = [
+                "conversational response",
+                "direct response",
+                "direct answer",
+                "to user's query",
+                "to user's question",
+                "user's query",
+                "user's question",
+                "answering",
+                "providing answer",
+                "providing response"
+            ]
+            
+            is_explanation_conversational = any(keyword in explanation_lower for keyword in conversational_explanation_keywords)
+            
+            # Also check command format - long echo commands with triple quotes are conversational
+            command_normalized = command.replace('\\"', '"').replace("\\'", "'")
+            is_command_conversational = (
+                '"""' in command_normalized or  # Has triple quotes
+                command_normalized.startswith('echo "') and len(command) > 100  # Long echo command
+            )
+            
+            # If either the explanation OR command suggests conversational, it's conversational
+            is_conversational = is_explanation_conversational or is_command_conversational
+            
+            # Force needs_execution to False if conversational
+            needs_execution = not is_conversational
+            return Translation(command=command, explanation=explanation, needs_execution=needs_execution)
+        
+        # If OpenRouter returned None, it might be a conversational response
+        # Try to generate a conversational response using OpenRouter
+        if not translation:
+            try:
+                from joshu.models.openrouter import chat_completion
+                import os
+                openrouter_key = os.getenv("OPENROUTER_API_KEY")
+                if openrouter_key:
+                    system_message = """You are Joshu, a friendly AI assistant. The user's request wasn't a command request.
+Provide a helpful, direct conversational response. Keep it concise and friendly."""
+                    model_name_env = os.getenv("OPENROUTER_MODEL") or "openai/gpt-4o-mini"
+                    messages = [
+                        {"role": "system", "content": system_message},
+                        {"role": "user", "content": prompt}
+                    ]
+                    response = chat_completion(messages, model=model_name_env, temperature=0.7, max_tokens=512)
+                    if response:
+                        return Translation(
+                            command=f'echo """{response}"""',
+                            explanation="Conversational response",
+                            needs_execution=False  # Conversational response, no execution needed
+                        )
+            except Exception:
+                pass  # Fall through to local model
             
         # Fallback to local model
         translation = translate_with_local_model(prompt, context_provider, model_name)
@@ -382,7 +550,9 @@ def translate_with_llm(prompt: str, context_provider: Optional[ContextProvider] 
             command = translation.command
             # Adapt command for Windows if needed
             command = adapt_command_for_windows(command)
-            return Translation(command=command, explanation=translation.explanation)
+            # Preserve the needs_execution flag from the translation
+            needs_execution = getattr(translation, 'needs_execution', True)
+            return Translation(command=command, explanation=translation.explanation, needs_execution=needs_execution)
             
     except Exception as e:
         logger.warning(f"LLM translation failed: {e}")
@@ -421,9 +591,15 @@ def translate_with_openrouter(prompt: str, context_provider: Optional[ContextPro
         system_info = get_system_info()
         system_prompt = f"""You are a CLI assistant that translates natural language to shell commands.
 The user is on a {system_info} system. Generate appropriate commands for this platform.
-Respond ONLY with a JSON object containing "command" and "explanation" fields.
+
+IMPORTANT: Only generate commands when the user explicitly requests an action.
+For conversational queries (greetings, questions, comments), provide a natural response instead of JSON.
+
+When a command IS needed, respond with a JSON object containing "command" and "explanation" fields.
 Example response:
 {{"command": "dir", "explanation": "List all files and directories in the current directory"}}
+
+For conversational queries, provide a natural text response (not JSON).
 
 User request:"""
         
@@ -482,9 +658,15 @@ def translate_command_with_openrouter_context_aware(messages: List[Dict[str, str
     system_prompt = f"""You are a CLI assistant that translates natural language to shell commands.
 The user is on a {system_info} system. Generate appropriate commands for this platform.
 You have access to conversation history and user preferences to provide better responses.
-Respond ONLY with a JSON object containing "command" and "explanation" fields.
+
+IMPORTANT: Only generate commands when the user explicitly requests an action (like "list files", "show disk usage", "find all python files").
+For conversational queries (greetings, general questions, comments), return a helpful conversational response instead.
+
+When a command is needed, respond with a JSON object containing "command" and "explanation" fields.
 Example response:
 {{"command": "dir", "explanation": "List all files and directories in the current directory"}}
+
+For conversational queries, you can provide direct helpful responses.
 
 User request:"""
     
@@ -516,15 +698,34 @@ User request:"""
         # Strip any leading/trailing whitespace that might remain
         cleaned_response = cleaned_response.strip()
         
-        # Parse JSON response
-        data = json.loads(cleaned_response)
-        command = data.get("command", "").strip()
-        explanation = data.get("explanation", "").strip()
-        
-        if command and explanation:
-            return {"command": command, "explanation": explanation}
-    except json.JSONDecodeError:
-        logger.warning(f"Failed to parse OpenRouter response as JSON: {response}")
+        # Check if response is JSON (command) or conversational text
+        try:
+            # Try to parse as JSON
+            data = json.loads(cleaned_response)
+            if isinstance(data, dict) and ("command" in data or "explanation" in data):
+                command = data.get("command", "").strip()
+                explanation = data.get("explanation", "").strip()
+                
+                if command and explanation:
+                    return {"command": command, "explanation": explanation}
+            
+            # If JSON but not command format, might be conversational
+            logger.debug("Response is JSON but not command format - treating as conversational")
+            # Return it as a conversational response dict
+            return {
+                "command": f'echo """{cleaned_response}"""',
+                "explanation": "Conversational response - direct answer to user's question"
+            }
+        except json.JSONDecodeError:
+            # Not JSON - this is likely a conversational response
+            # Return it as a conversational response dict
+            logger.debug(f"OpenRouter returned conversational response (not JSON): {response[:100]}...")
+            return {
+                "command": f'echo """{cleaned_response}"""',
+                "explanation": "Conversational response - direct answer to user's question"
+            }
+    except Exception as e:
+        logger.debug(f"Error processing OpenRouter response: {e}")
         return None
     
     return None
@@ -557,17 +758,28 @@ Use the following context to provide better responses:
 
 {context_str}
 
-Respond ONLY with a JSON object containing "command" and "explanation" fields.
+IMPORTANT: Only generate commands when the user explicitly requests an action (like "list files", "show disk usage", "run a script").
+For conversational queries (greetings, general questions, comments), provide a helpful conversational response instead of a command.
+
+When a command IS needed, respond with a JSON object containing "command" and "explanation" fields.
 Example response:
 {{"command": "dir", "explanation": "List all files and directories in the current directory"}}
+
+For conversational queries, provide a natural response (not JSON).
 
 User request:"""
     else:
         system_prompt = f"""You are a CLI assistant that translates natural language to shell commands.
 The user is on a {system_info} system. Generate appropriate commands for this platform.
-Respond ONLY with a JSON object containing "command" and "explanation" fields.
+
+IMPORTANT: Only generate commands when the user explicitly requests an action (like "list files", "show disk usage", "run a script").
+For conversational queries (greetings, general questions, comments), provide a helpful conversational response instead of a command.
+
+When a command IS needed, respond with a JSON object containing "command" and "explanation" fields.
 Example response:
 {{"command": "dir", "explanation": "List all files and directories in the current directory"}}
+
+For conversational queries, provide a natural response (not JSON).
 
 User request:"""
     
@@ -597,12 +809,44 @@ User request:"""
         
         logger.debug(f"Cleaned response: {response}")
         
-        data = json.loads(response)
-        command = data.get("command", "").strip()
-        explanation = data.get("explanation", "").strip()
+        # Check if response is JSON (command translation) or conversational text
+        try:
+            data = json.loads(response)
+            # It's JSON - check if it has command/explanation structure
+            if isinstance(data, dict) and ("command" in data or "explanation" in data):
+                command = data.get("command", "").strip()
+                explanation = data.get("explanation", "").strip()
+                
+                if command and explanation:
+                    return Translation(command=command, explanation=explanation)
+            # If JSON but not command format, might be conversational response
+            # Fall through to handle as conversational
+        except (json.JSONDecodeError, ValueError):
+            # Not JSON - this is likely a conversational response
+            # Check if it looks like a command request that should have been JSON
+            if any(word in response.lower() for word in ["command", "run", "execute", "list", "show", "find"]):
+                # Might be a description of a command - try to extract
+                logger.debug("Response appears to describe a command but isn't JSON format")
+            else:
+                # This is a conversational response - return it as an echo command
+                logger.debug("Response appears to be conversational, returning as echo command")
+                return Translation(
+                    command=f'echo """{response}"""',
+                    explanation="Conversational response - providing direct answer to user's question",
+                    needs_execution=False  # Conversational response, no execution needed
+                )
         
-        if command and explanation:
-            return Translation(command=command, explanation=explanation)
+        # If we got here, the response wasn't in expected format
+        # For conversational responses that don't match patterns, return them as-is
+        if not response.startswith('{') and '"command"' not in response:
+            return Translation(
+                command=f'echo """{response}"""',
+                explanation="Direct response to user's query",
+                needs_execution=False  # Conversational response, no execution needed
+            )
+        
+        # If we still have the response but it's not handled, return None
+        return None
     except (json.JSONDecodeError, Exception) as e:
         logger.warning(f"Local model translation failed: {e}")
     

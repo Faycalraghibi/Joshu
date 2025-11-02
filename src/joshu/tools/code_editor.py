@@ -11,7 +11,7 @@ import logging
 import tempfile
 import subprocess
 from pathlib import Path
-from typing import Optional, List, Dict, Tuple
+from typing import Optional, List, Dict, Tuple, Any
 from dataclasses import dataclass
 
 from joshu.tools.filesystem import get_file_info
@@ -118,7 +118,20 @@ class CodeEditor:
             Refactored code
         """
         # Delegate to the new core implementation for better functionality
-        return self._core.refactor_code(code, refactoring_goal, {})
+        return self._core.refactor_code(code, refactoring_goal, {"language": language})
+    
+    def edit_file(self, filepath: str, instruction: str) -> Dict[str, Any]:
+        """
+        Edit a file based on a natural language instruction using LLM.
+        
+        Args:
+            filepath: Path to the file to edit
+            instruction: Natural language instruction describing the desired changes
+            
+        Returns:
+            Dictionary with success status, message, and backup_path
+        """
+        return self._core.edit_file(filepath, instruction)
     
     def read_file(self, file_path: str) -> Tuple[str, str]:
         """
