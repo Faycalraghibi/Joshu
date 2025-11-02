@@ -212,3 +212,5 @@ __marimo__/
 
 .cursor/
 ./Files.txt
+.joshu_data.json
+.joshu_sessions.json
