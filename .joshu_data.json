@@ -1,0 +1,3462 @@
+{
+  "version": "1.0",
+  "updated_at": "2025-11-02T18:01:42.522674",
+  "entries": [
+    {
+      "id": "f31a35ba-2c44-447b-82d3-6bdca6dffe4e",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Hello"
+      },
+      "timestamp": 1762075945.5083766,
+      "metadata": {
+        "session_id": "865dd05f-3c0b-4174-be45-badd402f67b8"
+      }
+    },
+    {
+      "id": "6514848c-836f-4faf-afb1-2e7eeb2adf22",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "Hi there!"
+      },
+      "timestamp": 1762075945.5144818,
+      "metadata": {
+        "session_id": "865dd05f-3c0b-4174-be45-badd402f67b8"
+      }
+    },
+    {
+      "id": "4a8d77a8-14ba-46ec-ac7e-1195e101a05e",
+      "type": "memory",
+      "data": {
+        "key": "test_key",
+        "value": "test_value"
+      },
+      "timestamp": 1762075945.5463378,
+      "metadata": {
+        "key": "test_key"
+      }
+    },
+    {
+      "id": "c188238a-7e9b-4026-aff6-d03e945db1c9",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Hello"
+      },
+      "timestamp": 1762075945.5833967,
+      "metadata": {
+        "session_id": "7a8c9d06-47f7-4bf5-8257-44b6b899d987"
+      }
+    },
+    {
+      "id": "58894ebd-004f-4aee-83f4-1dc9a118bee3",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "Hi there!"
+      },
+      "timestamp": 1762075945.58745,
+      "metadata": {
+        "session_id": "7a8c9d06-47f7-4bf5-8257-44b6b899d987"
+      }
+    },
+    {
+      "id": "f6cc048c-27c5-4651-b019-4444ef4a78e5",
+      "type": "memory",
+      "data": {
+        "key": "last_user_input",
+        "value": "Hello"
+      },
+      "timestamp": 1762075945.5915983,
+      "metadata": {
+        "key": "last_user_input"
+      }
+    },
+    {
+      "id": "6505381a-39a8-4953-8acc-cb6de0197b50",
+      "type": "memory",
+      "data": {
+        "key": "last_system_response",
+        "value": "Hi there!"
+      },
+      "timestamp": 1762075945.5970874,
+      "metadata": {
+        "key": "last_system_response"
+      }
+    },
+    {
+      "id": "d37cf3d4-986e-4cc5-bfeb-7ce0255bd60b",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Hello"
+      },
+      "timestamp": 1762075945.630579,
+      "metadata": {
+        "session_id": "d4fea92e-6bde-419c-9414-e47fd492631e"
+      }
+    },
+    {
+      "id": "2e2a88df-1829-4515-a74a-2507376d66d6",
+      "type": "memory",
+      "data": {
+        "key": "test_key",
+        "value": "test_value"
+      },
+      "timestamp": 1762075945.6381245,
+      "metadata": {
+        "key": "test_key"
+      }
+    },
+    {
+      "id": "bd84e741-3744-4360-8b5f-7d98047de063",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Hello"
+      },
+      "timestamp": 1762075945.954494,
+      "metadata": {
+        "session_id": "0b8501fb-aa24-4c47-836a-807348a63c0a"
+      }
+    },
+    {
+      "id": "7fbf115c-6a8e-4551-be8d-fe6443e52154",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "Hi there!"
+      },
+      "timestamp": 1762075945.9610975,
+      "metadata": {
+        "session_id": "0b8501fb-aa24-4c47-836a-807348a63c0a"
+      }
+    },
+    {
+      "id": "04c6e315-6757-482b-93c0-937b692ba9fb",
+      "type": "memory",
+      "data": {
+        "key": "user_preference",
+        "value": "likes python"
+      },
+      "timestamp": 1762075945.9674,
+      "metadata": {
+        "key": "user_preference"
+      }
+    },
+    {
+      "id": "ef02c79d-0652-4ef7-9d42-2a9033e0336b",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Hello"
+      },
+      "timestamp": 1762075946.001398,
+      "metadata": {
+        "session_id": "80811aff-369b-41a6-9204-9e52a5813b1e"
+      }
+    },
+    {
+      "id": "9dc786e0-d35e-4341-aa0d-83fcd893142b",
+      "type": "memory",
+      "data": {
+        "key": "test_key",
+        "value": "test_value"
+      },
+      "timestamp": 1762075946.0059967,
+      "metadata": {
+        "key": "test_key"
+      }
+    },
+    {
+      "id": "7689e43c-1664-40b4-8580-8687e9406065",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Message 0"
+      },
+      "timestamp": 1762075946.0437763,
+      "metadata": {
+        "session_id": "a6559560-ff6f-44e5-8376-336127143ae6"
+      }
+    },
+    {
+      "id": "918ca664-d1ac-4363-9e2e-05e26d4f7ec0",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Message 1"
+      },
+      "timestamp": 1762075946.046756,
+      "metadata": {
+        "session_id": "a6559560-ff6f-44e5-8376-336127143ae6"
+      }
+    },
+    {
+      "id": "e28c849e-b82b-4e52-847c-2a306d0f86fd",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Message 2"
+      },
+      "timestamp": 1762075946.0509164,
+      "metadata": {
+        "session_id": "a6559560-ff6f-44e5-8376-336127143ae6"
+      }
+    },
+    {
+      "id": "cc2ade4b-cdd7-4de6-981a-04a9f627c40c",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Message 3"
+      },
+      "timestamp": 1762075946.054928,
+      "metadata": {
+        "session_id": "a6559560-ff6f-44e5-8376-336127143ae6"
+      }
+    },
+    {
+      "id": "7a03949f-29cc-45b0-8046-fb6a2989a22c",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Message 4"
+      },
+      "timestamp": 1762075946.0599828,
+      "metadata": {
+        "session_id": "a6559560-ff6f-44e5-8376-336127143ae6"
+      }
+    },
+    {
+      "id": "53a5575e-f7a8-4677-80bf-22841dd182bb",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Hello"
+      },
+      "timestamp": 1762076005.8666162,
+      "metadata": {
+        "session_id": "0fe89b5e-4b50-48b9-bcc1-f32c2bb30559"
+      }
+    },
+    {
+      "id": "e1eb4d1d-3fa1-4ee5-9ac3-658c8e19a745",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "Hi there!"
+      },
+      "timestamp": 1762076005.871452,
+      "metadata": {
+        "session_id": "0fe89b5e-4b50-48b9-bcc1-f32c2bb30559"
+      }
+    },
+    {
+      "id": "aec8346d-4f85-4f70-b9c5-ff9f8d9a3021",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "previous command"
+      },
+      "timestamp": 1762076005.9206493,
+      "metadata": {
+        "session_id": "197aecb1-5c64-4320-b099-ffddc45d7b4c"
+      }
+    },
+    {
+      "id": "3cfe79a7-9208-457d-bd88-4782b89485e7",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "previous response"
+      },
+      "timestamp": 1762076005.9265509,
+      "metadata": {
+        "session_id": "197aecb1-5c64-4320-b099-ffddc45d7b4c"
+      }
+    },
+    {
+      "id": "e986b312-7d00-4642-818c-c001de1857ca",
+      "type": "memory",
+      "data": {
+        "key": "user_preference",
+        "value": "likes python"
+      },
+      "timestamp": 1762076005.9311936,
+      "metadata": {
+        "key": "user_preference"
+      }
+    },
+    {
+      "id": "8cae64ed-92f3-4ba4-b456-698f1bbb5744",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "say hello"
+      },
+      "timestamp": 1762076005.9371402,
+      "metadata": {
+        "session_id": "197aecb1-5c64-4320-b099-ffddc45d7b4c"
+      }
+    },
+    {
+      "id": "9437da91-10bb-4b72-a9a6-07e8faf0958f",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "previous command"
+      },
+      "timestamp": 1762076005.98165,
+      "metadata": {
+        "session_id": "ef2c72df-a936-4a2b-8fe6-07534069ad8a"
+      }
+    },
+    {
+      "id": "ed52edee-36d9-4533-87dd-c9ed755cbfee",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "previous response"
+      },
+      "timestamp": 1762076005.986252,
+      "metadata": {
+        "session_id": "ef2c72df-a936-4a2b-8fe6-07534069ad8a"
+      }
+    },
+    {
+      "id": "952eae46-d2cb-4408-8e21-9e6378d6cf57",
+      "type": "memory",
+      "data": {
+        "key": "user_preference",
+        "value": "likes python"
+      },
+      "timestamp": 1762076005.9924471,
+      "metadata": {
+        "key": "user_preference"
+      }
+    },
+    {
+      "id": "707c2e87-1c3c-4cf9-934f-37af1b38a5d5",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Hello"
+      },
+      "timestamp": 1762076006.051763,
+      "metadata": {
+        "session_id": "4a6f9ef5-9cc3-4b26-9ec3-27fded55cb63"
+      }
+    },
+    {
+      "id": "773a142a-9516-4f67-983c-074be0f173d9",
+      "type": "memory",
+      "data": {
+        "key": "test_key",
+        "value": "test_value"
+      },
+      "timestamp": 1762076006.0574062,
+      "metadata": {
+        "key": "test_key"
+      }
+    },
+    {
+      "id": "d62f3863-473b-4ecb-8345-a98c92c3fef7",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Hello"
+      },
+      "timestamp": 1762076006.1235263,
+      "metadata": {
+        "session_id": "0d0ae258-f0b7-4ad4-9c20-bb4ff46be919"
+      }
+    },
+    {
+      "id": "e0f32728-1011-4acd-bb78-1f815b6861a4",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "Hi there!"
+      },
+      "timestamp": 1762076006.129851,
+      "metadata": {
+        "session_id": "0d0ae258-f0b7-4ad4-9c20-bb4ff46be919"
+      }
+    },
+    {
+      "id": "c475ef5b-267e-4443-9d46-4864df745454",
+      "type": "memory",
+      "data": {
+        "key": "test_key",
+        "value": "test_value"
+      },
+      "timestamp": 1762076006.1711135,
+      "metadata": {
+        "key": "test_key"
+      }
+    },
+    {
+      "id": "6f1f3dbf-84e9-4e5a-bf4c-288c092e1306",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Hello"
+      },
+      "timestamp": 1762076006.2073169,
+      "metadata": {
+        "session_id": "5fde7cfd-4a3a-42cc-a997-58c2caada718"
+      }
+    },
+    {
+      "id": "4301177a-a553-45cf-b568-927d9164a276",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "Hi there!"
+      },
+      "timestamp": 1762076006.2143502,
+      "metadata": {
+        "session_id": "5fde7cfd-4a3a-42cc-a997-58c2caada718"
+      }
+    },
+    {
+      "id": "bd942027-2030-468d-8a39-009248100323",
+      "type": "memory",
+      "data": {
+        "key": "last_user_input",
+        "value": "Hello"
+      },
+      "timestamp": 1762076006.221713,
+      "metadata": {
+        "key": "last_user_input"
+      }
+    },
+    {
+      "id": "d83f816b-bd7d-492c-8d3d-aac4c227a969",
+      "type": "memory",
+      "data": {
+        "key": "last_system_response",
+        "value": "Hi there!"
+      },
+      "timestamp": 1762076006.2284782,
+      "metadata": {
+        "key": "last_system_response"
+      }
+    },
+    {
+      "id": "743fda45-6211-46a1-a707-58acf81561ba",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Hello"
+      },
+      "timestamp": 1762076006.2714758,
+      "metadata": {
+        "session_id": "1f9d2f5e-427b-41b9-80fb-fc8d2ebb4a45"
+      }
+    },
+    {
+      "id": "13b8548f-c0dd-44f5-a593-77b6598bec0d",
+      "type": "memory",
+      "data": {
+        "key": "test_key",
+        "value": "test_value"
+      },
+      "timestamp": 1762076006.2770154,
+      "metadata": {
+        "key": "test_key"
+      }
+    },
+    {
+      "id": "de688f4c-91b2-4c45-8dfe-19ef8f2b92a3",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Hello"
+      },
+      "timestamp": 1762076006.3195364,
+      "metadata": {
+        "session_id": "24a6b592-2a5d-48f7-ba38-51b46a013761"
+      }
+    },
+    {
+      "id": "693b34a7-b0a4-4017-bad1-fc6b692141d5",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "Hi there!"
+      },
+      "timestamp": 1762076006.3258805,
+      "metadata": {
+        "session_id": "24a6b592-2a5d-48f7-ba38-51b46a013761"
+      }
+    },
+    {
+      "id": "8648b04f-9bfd-48c7-b5a9-9a16ab7ff012",
+      "type": "memory",
+      "data": {
+        "key": "user_preference",
+        "value": "likes python"
+      },
+      "timestamp": 1762076006.3309796,
+      "metadata": {
+        "key": "user_preference"
+      }
+    },
+    {
+      "id": "19a327a7-5a6e-4669-b937-a89f8de1466c",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Hello"
+      },
+      "timestamp": 1762076006.3722503,
+      "metadata": {
+        "session_id": "14480279-08e2-44d5-a547-d1b03aa8247d"
+      }
+    },
+    {
+      "id": "620ae9c5-e13d-40f2-a022-cebe7dd1f149",
+      "type": "memory",
+      "data": {
+        "key": "test_key",
+        "value": "test_value"
+      },
+      "timestamp": 1762076006.3776238,
+      "metadata": {
+        "key": "test_key"
+      }
+    },
+    {
+      "id": "f9cec357-236a-4b15-82b2-389e994e068e",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Message 0"
+      },
+      "timestamp": 1762076006.4217477,
+      "metadata": {
+        "session_id": "62dbca93-bc16-4d63-b439-a061f418963f"
+      }
+    },
+    {
+      "id": "49b652b8-5feb-4a7c-815a-1ef83211c888",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Message 1"
+      },
+      "timestamp": 1762076006.4274638,
+      "metadata": {
+        "session_id": "62dbca93-bc16-4d63-b439-a061f418963f"
+      }
+    },
+    {
+      "id": "8df5a6d1-768f-4f86-948c-bdb6e730862d",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Message 2"
+      },
+      "timestamp": 1762076006.4329672,
+      "metadata": {
+        "session_id": "62dbca93-bc16-4d63-b439-a061f418963f"
+      }
+    },
+    {
+      "id": "33e77eb5-228a-4670-9aa7-513babdb3833",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Message 3"
+      },
+      "timestamp": 1762076006.437518,
+      "metadata": {
+        "session_id": "62dbca93-bc16-4d63-b439-a061f418963f"
+      }
+    },
+    {
+      "id": "047e602f-e1ab-43db-9824-a31dc721cf51",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Message 4"
+      },
+      "timestamp": 1762076006.4438136,
+      "metadata": {
+        "session_id": "62dbca93-bc16-4d63-b439-a061f418963f"
+      }
+    },
+    {
+      "id": "98f054e4-72b2-4e33-86b8-36d020db8ba7",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Explain the 'tar' command in a clear and concise way. Include common usage examples and important options."
+      },
+      "timestamp": 1762076055.983195,
+      "metadata": {
+        "session_id": "fdd23df5-f60e-415f-83f4-38c5803edfa4"
+      }
+    },
+    {
+      "id": "14738ac6-4f91-46bf-9e8b-1ec09e0cd3e0",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Explain the 'unknowncommand' command in a clear and concise way. Include common usage examples and important options."
+      },
+      "timestamp": 1762076073.0226898,
+      "metadata": {
+        "session_id": "a574dc3e-3d7e-4673-bd00-8038c92fb4cb"
+      }
+    },
+    {
+      "id": "bee13bf0-78a1-44b5-ae31-7b94a4148b09",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "show disk usage"
+      },
+      "timestamp": 1762076085.4068065,
+      "metadata": {
+        "session_id": "d94858eb-37a6-416d-bbcd-0bfc1449b116"
+      }
+    },
+    {
+      "id": "6d3fef34-34f8-445f-acff-531d8911d12b",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "Executed: dir"
+      },
+      "timestamp": 1762076085.4139438,
+      "metadata": {
+        "session_id": "d94858eb-37a6-416d-bbcd-0bfc1449b116"
+      }
+    },
+    {
+      "id": "18532f80-8cbb-493c-beb3-a9d2ec307319",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "list python files"
+      },
+      "timestamp": 1762076085.420916,
+      "metadata": {
+        "session_id": "d94858eb-37a6-416d-bbcd-0bfc1449b116"
+      }
+    },
+    {
+      "id": "6ae22331-fc6b-41e5-9ced-cd02c68c9855",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "Executed: dir *.py"
+      },
+      "timestamp": 1762076085.4265583,
+      "metadata": {
+        "session_id": "d94858eb-37a6-416d-bbcd-0bfc1449b116"
+      }
+    },
+    {
+      "id": "e4642842-97b7-4900-970c-cc909bd2adfc",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "command 1"
+      },
+      "timestamp": 1762076085.4845521,
+      "metadata": {
+        "session_id": "55a0b010-1c81-46c6-b19f-569fa36759d9"
+      }
+    },
+    {
+      "id": "698819f4-1ca8-40e7-924f-b7f12ab94334",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "response 1"
+      },
+      "timestamp": 1762076085.490562,
+      "metadata": {
+        "session_id": "55a0b010-1c81-46c6-b19f-569fa36759d9"
+      }
+    },
+    {
+      "id": "c17f34de-4c62-4661-a9d0-537d26ddb1a8",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "command 2"
+      },
+      "timestamp": 1762076085.4961538,
+      "metadata": {
+        "session_id": "55a0b010-1c81-46c6-b19f-569fa36759d9"
+      }
+    },
+    {
+      "id": "26cac624-d996-45d5-a79d-401968e0bc28",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "response 2"
+      },
+      "timestamp": 1762076085.5017276,
+      "metadata": {
+        "session_id": "55a0b010-1c81-46c6-b19f-569fa36759d9"
+      }
+    },
+    {
+      "id": "ed5a7abd-4204-4aea-a07c-77198252ac2c",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "command 3"
+      },
+      "timestamp": 1762076085.5094962,
+      "metadata": {
+        "session_id": "55a0b010-1c81-46c6-b19f-569fa36759d9"
+      }
+    },
+    {
+      "id": "75c5ac76-58ad-4598-8428-0884b18645e2",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "response 3"
+      },
+      "timestamp": 1762076085.5178702,
+      "metadata": {
+        "session_id": "55a0b010-1c81-46c6-b19f-569fa36759d9"
+      }
+    },
+    {
+      "id": "77ed85e5-9ad4-4780-b63f-c1c6f8115001",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "show disk usage"
+      },
+      "timestamp": 1762076085.6457942,
+      "metadata": {
+        "session_id": "e71bac7a-e0ba-42cd-a16d-1f9b187ff0ad"
+      }
+    },
+    {
+      "id": "32373dd3-0ff1-44d6-ac09-d5afcb73c901",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "Executed: dir"
+      },
+      "timestamp": 1762076085.656179,
+      "metadata": {
+        "session_id": "e71bac7a-e0ba-42cd-a16d-1f9b187ff0ad"
+      }
+    },
+    {
+      "id": "9557ac1c-a99d-4899-9711-34ef44896fb8",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "response 1"
+      },
+      "timestamp": 1762076085.7706265,
+      "metadata": {
+        "session_id": "71c9fee2-e26a-4eed-baf5-dfb322547ffd"
+      }
+    },
+    {
+      "id": "3ab0ef44-fa28-4042-84e6-3c68f5abefa8",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "response 2"
+      },
+      "timestamp": 1762076085.7784245,
+      "metadata": {
+        "session_id": "71c9fee2-e26a-4eed-baf5-dfb322547ffd"
+      }
+    },
+    {
+      "id": "4522a388-3396-46bc-a017-093313e45007",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "show disk usage"
+      },
+      "timestamp": 1762076085.8510802,
+      "metadata": {
+        "session_id": "0a510941-1648-44f0-937d-ca691d92439a"
+      }
+    },
+    {
+      "id": "10e2f87d-2be0-4536-8574-11d636c75b23",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "This command shows the contents of the current directory using the dir command."
+      },
+      "timestamp": 1762076085.8595047,
+      "metadata": {
+        "session_id": "0a510941-1648-44f0-937d-ca691d92439a"
+      }
+    },
+    {
+      "id": "74525a15-bc1e-4646-b4b8-6084b3ee0b37",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "show disk usage"
+      },
+      "timestamp": 1762076085.983782,
+      "metadata": {
+        "session_id": "3e6ced00-8e6e-4979-ab3e-2909b67e49a6"
+      }
+    },
+    {
+      "id": "01fb45c6-fda1-4d22-807b-aa2c96f217c6",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Hello, can you help me?"
+      },
+      "timestamp": 1762076087.9387443,
+      "metadata": {
+        "session_id": "8840a1e3-7b34-44e8-abed-94595d83ce8e"
+      }
+    },
+    {
+      "id": "d15f0e7b-45da-4421-8a1f-97e22c44ba3d",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "Of course! What do you need help with?"
+      },
+      "timestamp": 1762076087.9448967,
+      "metadata": {
+        "session_id": "8840a1e3-7b34-44e8-abed-94595d83ce8e"
+      }
+    },
+    {
+      "id": "bf73e91a-ab98-4d34-be1a-44955224066a",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Show me how to list files"
+      },
+      "timestamp": 1762076087.95275,
+      "metadata": {
+        "session_id": "8840a1e3-7b34-44e8-abed-94595d83ce8e"
+      }
+    },
+    {
+      "id": "35354b4b-148a-4c84-aafe-813c779fa8da",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "You can use the 'dir' command to list files"
+      },
+      "timestamp": 1762076087.9590797,
+      "metadata": {
+        "session_id": "8840a1e3-7b34-44e8-abed-94595d83ce8e"
+      }
+    },
+    {
+      "id": "c38b81d3-9a1c-4cc2-a2e7-250e0267931e",
+      "type": "memory",
+      "data": {
+        "key": "user_preference",
+        "value": "likes python"
+      },
+      "timestamp": 1762076087.9656315,
+      "metadata": {
+        "key": "user_preference"
+      }
+    },
+    {
+      "id": "f00471b0-e4a6-45e4-870f-beba8b534b5d",
+      "type": "memory",
+      "data": {
+        "key": "last_command",
+        "value": "dir"
+      },
+      "timestamp": 1762076087.9715748,
+      "metadata": {
+        "key": "last_command"
+      }
+    },
+    {
+      "id": "3315c948-8801-48d8-9592-74e1125435f9",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Hello"
+      },
+      "timestamp": 1762076813.2872345,
+      "metadata": {
+        "session_id": "7f8a5c76-a3dc-45c3-81a9-9dd33e7f254f"
+      }
+    },
+    {
+      "id": "fe44eddd-8dfc-48a0-8ab9-07b68276242d",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "Hi there!"
+      },
+      "timestamp": 1762076813.2975097,
+      "metadata": {
+        "session_id": "7f8a5c76-a3dc-45c3-81a9-9dd33e7f254f"
+      }
+    },
+    {
+      "id": "5e52006b-2b1c-447a-9eca-0de9c8331565",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "previous command"
+      },
+      "timestamp": 1762076813.358503,
+      "metadata": {
+        "session_id": "4d2dd95e-736d-4c3a-b84b-eb015e03801a"
+      }
+    },
+    {
+      "id": "90f05b85-f299-4cda-8203-b6e44f763773",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "previous response"
+      },
+      "timestamp": 1762076813.3652456,
+      "metadata": {
+        "session_id": "4d2dd95e-736d-4c3a-b84b-eb015e03801a"
+      }
+    },
+    {
+      "id": "3753d822-c8aa-4880-9cda-4a535d8c735c",
+      "type": "memory",
+      "data": {
+        "key": "user_preference",
+        "value": "likes python"
+      },
+      "timestamp": 1762076813.3742812,
+      "metadata": {
+        "key": "user_preference"
+      }
+    },
+    {
+      "id": "8745a26e-a026-4515-baa1-194a005ca200",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "say hello"
+      },
+      "timestamp": 1762076813.3831525,
+      "metadata": {
+        "session_id": "4d2dd95e-736d-4c3a-b84b-eb015e03801a"
+      }
+    },
+    {
+      "id": "a3079647-766b-4f6e-b597-c835d86edb8e",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "previous command"
+      },
+      "timestamp": 1762076813.4274879,
+      "metadata": {
+        "session_id": "2d77c2e2-8060-45a9-8790-6de870ab18d5"
+      }
+    },
+    {
+      "id": "83b4ebfc-a947-4231-952a-39675f9cc67e",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "previous response"
+      },
+      "timestamp": 1762076813.4376276,
+      "metadata": {
+        "session_id": "2d77c2e2-8060-45a9-8790-6de870ab18d5"
+      }
+    },
+    {
+      "id": "45638d10-6675-43d8-89b8-08a299b0c79f",
+      "type": "memory",
+      "data": {
+        "key": "user_preference",
+        "value": "likes python"
+      },
+      "timestamp": 1762076813.4478343,
+      "metadata": {
+        "key": "user_preference"
+      }
+    },
+    {
+      "id": "725798a8-cdca-4908-ab0e-20420b6e48df",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Hello"
+      },
+      "timestamp": 1762076813.6076245,
+      "metadata": {
+        "session_id": "424b908f-ad2c-4efe-a1db-0c1174de27fd"
+      }
+    },
+    {
+      "id": "b86fbaf5-8589-4d13-89ee-ee53875f955a",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "Hi there!"
+      },
+      "timestamp": 1762076813.6168015,
+      "metadata": {
+        "session_id": "424b908f-ad2c-4efe-a1db-0c1174de27fd"
+      }
+    },
+    {
+      "id": "6008136c-2d77-4a98-aafb-b7f7e839b77a",
+      "type": "memory",
+      "data": {
+        "key": "test_key",
+        "value": "test_value"
+      },
+      "timestamp": 1762076813.662312,
+      "metadata": {
+        "key": "test_key"
+      }
+    },
+    {
+      "id": "2b2fda50-3cf7-4206-84f5-79ba397967ca",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Hello"
+      },
+      "timestamp": 1762076813.7236016,
+      "metadata": {
+        "session_id": "66aeaeb7-31ed-433d-8e2a-5f42eae6c240"
+      }
+    },
+    {
+      "id": "cdaf427a-ff24-4cc8-b04e-f1d8f1b7a96a",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "Hi there!"
+      },
+      "timestamp": 1762076813.7365332,
+      "metadata": {
+        "session_id": "66aeaeb7-31ed-433d-8e2a-5f42eae6c240"
+      }
+    },
+    {
+      "id": "26d441d6-ff2b-4af0-a694-508a456837a2",
+      "type": "memory",
+      "data": {
+        "key": "last_user_input",
+        "value": "Hello"
+      },
+      "timestamp": 1762076813.749928,
+      "metadata": {
+        "key": "last_user_input"
+      }
+    },
+    {
+      "id": "1be51c38-574e-4198-bccc-c93038bd9833",
+      "type": "memory",
+      "data": {
+        "key": "last_system_response",
+        "value": "Hi there!"
+      },
+      "timestamp": 1762076813.7599273,
+      "metadata": {
+        "key": "last_system_response"
+      }
+    },
+    {
+      "id": "2f738cdd-26fd-4c80-9ecc-d7f07d4c92b5",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Hello"
+      },
+      "timestamp": 1762076813.8457384,
+      "metadata": {
+        "session_id": "802cb760-56f9-404d-bb98-dacdcc9c7a7f"
+      }
+    },
+    {
+      "id": "00c701c2-20d0-4a36-b9f0-5067cf069f24",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "Hi there!"
+      },
+      "timestamp": 1762076813.8530335,
+      "metadata": {
+        "session_id": "802cb760-56f9-404d-bb98-dacdcc9c7a7f"
+      }
+    },
+    {
+      "id": "472b7314-0289-4462-a348-22c06275c44f",
+      "type": "memory",
+      "data": {
+        "key": "user_preference",
+        "value": "likes python"
+      },
+      "timestamp": 1762076813.8594139,
+      "metadata": {
+        "key": "user_preference"
+      }
+    },
+    {
+      "id": "a50ba867-cf05-488d-a857-67ca1713abc0",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Message 0"
+      },
+      "timestamp": 1762076813.9389138,
+      "metadata": {
+        "session_id": "67e96a33-8e6b-42ea-a196-5032f87901ca"
+      }
+    },
+    {
+      "id": "49ad3cb7-8bb2-4960-961c-1c76425a60dd",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Message 1"
+      },
+      "timestamp": 1762076813.9496562,
+      "metadata": {
+        "session_id": "67e96a33-8e6b-42ea-a196-5032f87901ca"
+      }
+    },
+    {
+      "id": "8d89cd52-d6c0-4d6a-951e-d8fe7b8fd74b",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Message 2"
+      },
+      "timestamp": 1762076813.9615164,
+      "metadata": {
+        "session_id": "67e96a33-8e6b-42ea-a196-5032f87901ca"
+      }
+    },
+    {
+      "id": "9709767b-824d-4a29-98cf-b59a87b78bcc",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Message 3"
+      },
+      "timestamp": 1762076813.9731932,
+      "metadata": {
+        "session_id": "67e96a33-8e6b-42ea-a196-5032f87901ca"
+      }
+    },
+    {
+      "id": "ff1a4e95-51af-4c75-a0b3-3b33f52d7dd4",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Message 4"
+      },
+      "timestamp": 1762076813.9968488,
+      "metadata": {
+        "session_id": "67e96a33-8e6b-42ea-a196-5032f87901ca"
+      }
+    },
+    {
+      "id": "3feb7090-aec9-4996-9689-5877e281f579",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Explain the 'tar' command in a clear and concise way. Include common usage examples and important options."
+      },
+      "timestamp": 1762076868.7377467,
+      "metadata": {
+        "session_id": "10f641b4-234c-4ba1-b2e4-a1d6c611abd3"
+      }
+    },
+    {
+      "id": "191c064b-4d2c-42b6-a85e-1e861a7d09e9",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Explain the 'unknowncommand' command in a clear and concise way. Include common usage examples and important options."
+      },
+      "timestamp": 1762076892.6458676,
+      "metadata": {
+        "session_id": "a97c8015-7a46-4a47-9026-222ded9c69a3"
+      }
+    },
+    {
+      "id": "1575ff4f-49bd-400d-8047-aae267cad64e",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "show disk usage"
+      },
+      "timestamp": 1762076906.8902783,
+      "metadata": {
+        "session_id": "9fa282d1-10e6-4adf-abff-5aa09e64bf73"
+      }
+    },
+    {
+      "id": "48edd449-ddb5-4662-9196-965557e0c0f0",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "Executed: dir"
+      },
+      "timestamp": 1762076906.899915,
+      "metadata": {
+        "session_id": "9fa282d1-10e6-4adf-abff-5aa09e64bf73"
+      }
+    },
+    {
+      "id": "bbd5d5d2-4319-46d2-881a-ac5d13ceadb2",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "list python files"
+      },
+      "timestamp": 1762076906.907188,
+      "metadata": {
+        "session_id": "9fa282d1-10e6-4adf-abff-5aa09e64bf73"
+      }
+    },
+    {
+      "id": "f5495f57-117c-4c3e-a070-6729878770a3",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "Executed: dir *.py"
+      },
+      "timestamp": 1762076906.9175506,
+      "metadata": {
+        "session_id": "9fa282d1-10e6-4adf-abff-5aa09e64bf73"
+      }
+    },
+    {
+      "id": "a3780005-03b1-42c7-9356-5e4b9887cfb3",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "command 1"
+      },
+      "timestamp": 1762076907.0123053,
+      "metadata": {
+        "session_id": "db4aa842-002f-4fc2-b914-04c004fe7cbf"
+      }
+    },
+    {
+      "id": "32840ab1-7050-43b0-8c1c-8d377f26dad3",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "response 1"
+      },
+      "timestamp": 1762076907.0218694,
+      "metadata": {
+        "session_id": "db4aa842-002f-4fc2-b914-04c004fe7cbf"
+      }
+    },
+    {
+      "id": "dc21ca2d-f9d6-46b8-a5e4-c2f7718f76f9",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "command 2"
+      },
+      "timestamp": 1762076907.0292578,
+      "metadata": {
+        "session_id": "db4aa842-002f-4fc2-b914-04c004fe7cbf"
+      }
+    },
+    {
+      "id": "29f934d0-e52b-43c8-b777-513fff81fd1a",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "response 2"
+      },
+      "timestamp": 1762076907.039414,
+      "metadata": {
+        "session_id": "db4aa842-002f-4fc2-b914-04c004fe7cbf"
+      }
+    },
+    {
+      "id": "a324f766-ed1a-4bf8-8b46-e86b5d7f452b",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "command 3"
+      },
+      "timestamp": 1762076907.0501785,
+      "metadata": {
+        "session_id": "db4aa842-002f-4fc2-b914-04c004fe7cbf"
+      }
+    },
+    {
+      "id": "dab1c6c1-2fc3-45d7-a317-b0c6a4c9e6bf",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "response 3"
+      },
+      "timestamp": 1762076907.0602698,
+      "metadata": {
+        "session_id": "db4aa842-002f-4fc2-b914-04c004fe7cbf"
+      }
+    },
+    {
+      "id": "73bad7be-f215-4ec3-bf6e-b954151035fa",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "show disk usage"
+      },
+      "timestamp": 1762076907.1886249,
+      "metadata": {
+        "session_id": "01ce80d1-d2eb-4586-b003-4758acfc2592"
+      }
+    },
+    {
+      "id": "ab56f338-731b-4a86-8b25-9c3c67ef7aaf",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "Executed: dir"
+      },
+      "timestamp": 1762076907.1968832,
+      "metadata": {
+        "session_id": "01ce80d1-d2eb-4586-b003-4758acfc2592"
+      }
+    },
+    {
+      "id": "11e9be07-79e0-45bb-b73d-5f10ace856ec",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "response 1"
+      },
+      "timestamp": 1762076907.3229373,
+      "metadata": {
+        "session_id": "89db0787-8fb0-47bf-b901-4b6d254256dd"
+      }
+    },
+    {
+      "id": "647a488d-0bc1-4436-ac6f-49ef36603d8b",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "response 2"
+      },
+      "timestamp": 1762076907.3303018,
+      "metadata": {
+        "session_id": "89db0787-8fb0-47bf-b901-4b6d254256dd"
+      }
+    },
+    {
+      "id": "d8cae6c2-43c2-4101-a8d3-3d15599e8423",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "show disk usage"
+      },
+      "timestamp": 1762076907.5029242,
+      "metadata": {
+        "session_id": "ec109e73-fa4a-4fdf-8a47-0967650bbfa8"
+      }
+    },
+    {
+      "id": "b9083755-bda2-4653-9efe-11666499df33",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Hello, can you help me?"
+      },
+      "timestamp": 1762076909.6172173,
+      "metadata": {
+        "session_id": "078bc5f5-199b-48c6-a2e3-cf3a6e8188be"
+      }
+    },
+    {
+      "id": "e7f231c6-b02d-42c7-9e76-efcb682230d3",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "Of course! What do you need help with?"
+      },
+      "timestamp": 1762076909.6251194,
+      "metadata": {
+        "session_id": "078bc5f5-199b-48c6-a2e3-cf3a6e8188be"
+      }
+    },
+    {
+      "id": "29f0a4b8-c544-4a40-aafa-55a2b6663f27",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Show me how to list files"
+      },
+      "timestamp": 1762076909.6313472,
+      "metadata": {
+        "session_id": "078bc5f5-199b-48c6-a2e3-cf3a6e8188be"
+      }
+    },
+    {
+      "id": "d2a4ed7e-6131-4e1c-9d7c-c8030b3c3902",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "You can use the 'dir' command to list files"
+      },
+      "timestamp": 1762076909.6389754,
+      "metadata": {
+        "session_id": "078bc5f5-199b-48c6-a2e3-cf3a6e8188be"
+      }
+    },
+    {
+      "id": "d29e6949-d031-424f-b38d-644dcbe9766f",
+      "type": "memory",
+      "data": {
+        "key": "user_preference",
+        "value": "likes python"
+      },
+      "timestamp": 1762076909.6459389,
+      "metadata": {
+        "key": "user_preference"
+      }
+    },
+    {
+      "id": "cb10ec6c-1e7f-41e8-a385-954d0102f968",
+      "type": "memory",
+      "data": {
+        "key": "last_command",
+        "value": "dir"
+      },
+      "timestamp": 1762076909.6523602,
+      "metadata": {
+        "key": "last_command"
+      }
+    },
+    {
+      "id": "a9253a4a-d6ca-47ee-bda3-44805cc2f506",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Hello"
+      },
+      "timestamp": 1762080369.7059832,
+      "metadata": {
+        "session_id": "c196c167-2342-41c2-9392-5e81649348c9"
+      }
+    },
+    {
+      "id": "9fe79fac-f090-4848-8a49-23e2ab474206",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "Hi there!"
+      },
+      "timestamp": 1762080369.7147691,
+      "metadata": {
+        "session_id": "c196c167-2342-41c2-9392-5e81649348c9"
+      }
+    },
+    {
+      "id": "3dc773fb-8feb-4871-9d69-67da98e26273",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "previous command"
+      },
+      "timestamp": 1762080369.7511003,
+      "metadata": {
+        "session_id": "e316483c-7e37-4436-bf92-7ba42fdeba2f"
+      }
+    },
+    {
+      "id": "adffc235-4dd4-4b1c-b1b3-95b095f827d2",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "previous response"
+      },
+      "timestamp": 1762080369.7583094,
+      "metadata": {
+        "session_id": "e316483c-7e37-4436-bf92-7ba42fdeba2f"
+      }
+    },
+    {
+      "id": "bfbbd49a-11a0-4f10-8ff2-3ffbe39df941",
+      "type": "memory",
+      "data": {
+        "key": "user_preference",
+        "value": "likes python"
+      },
+      "timestamp": 1762080369.765426,
+      "metadata": {
+        "key": "user_preference"
+      }
+    },
+    {
+      "id": "ff5435c7-8a78-4d08-84b1-c4693c308df6",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "say hello"
+      },
+      "timestamp": 1762080369.7723851,
+      "metadata": {
+        "session_id": "e316483c-7e37-4436-bf92-7ba42fdeba2f"
+      }
+    },
+    {
+      "id": "7f52c515-b7ce-48bc-9eda-be145a56a416",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "previous command"
+      },
+      "timestamp": 1762080369.807884,
+      "metadata": {
+        "session_id": "27e4722a-4797-4d38-b7f5-cae1289f7d5a"
+      }
+    },
+    {
+      "id": "e0c25640-2c93-4845-9dc5-a9d0da2240f9",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "previous response"
+      },
+      "timestamp": 1762080369.8154123,
+      "metadata": {
+        "session_id": "27e4722a-4797-4d38-b7f5-cae1289f7d5a"
+      }
+    },
+    {
+      "id": "ac39cf30-b4a6-4bf5-97df-6cd8c5c3dcd0",
+      "type": "memory",
+      "data": {
+        "key": "user_preference",
+        "value": "likes python"
+      },
+      "timestamp": 1762080369.8231957,
+      "metadata": {
+        "key": "user_preference"
+      }
+    },
+    {
+      "id": "b6459ce7-9f38-449a-b0cb-4d6a2fd33e13",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Hello"
+      },
+      "timestamp": 1762080369.9599335,
+      "metadata": {
+        "session_id": "8e0fa885-1b36-48e1-8553-cf03dbabf580"
+      }
+    },
+    {
+      "id": "486e0b34-fc5d-45c0-8fe7-7cc48df61c86",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "Hi there!"
+      },
+      "timestamp": 1762080369.966407,
+      "metadata": {
+        "session_id": "8e0fa885-1b36-48e1-8553-cf03dbabf580"
+      }
+    },
+    {
+      "id": "94d0d693-a023-444d-846b-685697ec0856",
+      "type": "memory",
+      "data": {
+        "key": "test_key",
+        "value": "test_value"
+      },
+      "timestamp": 1762080370.0014317,
+      "metadata": {
+        "key": "test_key"
+      }
+    },
+    {
+      "id": "534c0eda-9d18-4a2c-b295-3ffc3627f5d7",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Hello"
+      },
+      "timestamp": 1762080370.0355,
+      "metadata": {
+        "session_id": "0d907a12-ac19-4ce8-8b22-670c5f7bb31d"
+      }
+    },
+    {
+      "id": "70d276cc-deae-4359-a39b-fb6c75917800",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "Hi there!"
+      },
+      "timestamp": 1762080370.0413396,
+      "metadata": {
+        "session_id": "0d907a12-ac19-4ce8-8b22-670c5f7bb31d"
+      }
+    },
+    {
+      "id": "5755b698-a096-4c67-97b6-48974daea8ca",
+      "type": "memory",
+      "data": {
+        "key": "last_user_input",
+        "value": "Hello"
+      },
+      "timestamp": 1762080370.0470304,
+      "metadata": {
+        "key": "last_user_input"
+      }
+    },
+    {
+      "id": "c63b637b-6023-4c5c-b530-803e53f6b404",
+      "type": "memory",
+      "data": {
+        "key": "last_system_response",
+        "value": "Hi there!"
+      },
+      "timestamp": 1762080370.0541456,
+      "metadata": {
+        "key": "last_system_response"
+      }
+    },
+    {
+      "id": "931eb81b-f40f-486d-aa71-3ce9655b4f62",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Hello"
+      },
+      "timestamp": 1762080370.1148047,
+      "metadata": {
+        "session_id": "a087d4af-9b7f-4347-b1a3-aa50d488a497"
+      }
+    },
+    {
+      "id": "8d3e111c-1e6e-471b-b50f-fe58263d76fe",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "Hi there!"
+      },
+      "timestamp": 1762080370.12137,
+      "metadata": {
+        "session_id": "a087d4af-9b7f-4347-b1a3-aa50d488a497"
+      }
+    },
+    {
+      "id": "906c5f2a-ac3d-47f3-890b-7136569a4aa2",
+      "type": "memory",
+      "data": {
+        "key": "user_preference",
+        "value": "likes python"
+      },
+      "timestamp": 1762080370.1282518,
+      "metadata": {
+        "key": "user_preference"
+      }
+    },
+    {
+      "id": "6eba3b48-a7d4-4014-bb49-83f53518835c",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Message 0"
+      },
+      "timestamp": 1762080370.1910572,
+      "metadata": {
+        "session_id": "72a509ac-f688-4dfe-b085-90cbaaee180e"
+      }
+    },
+    {
+      "id": "2e630838-774c-4aa3-a0c4-65735cc6105f",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Message 1"
+      },
+      "timestamp": 1762080370.198819,
+      "metadata": {
+        "session_id": "72a509ac-f688-4dfe-b085-90cbaaee180e"
+      }
+    },
+    {
+      "id": "8609a787-512d-4eba-a78d-4ee8757e136a",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Message 2"
+      },
+      "timestamp": 1762080370.2068112,
+      "metadata": {
+        "session_id": "72a509ac-f688-4dfe-b085-90cbaaee180e"
+      }
+    },
+    {
+      "id": "8b95c9f3-94da-4cc6-a1c1-755ca820359a",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Message 3"
+      },
+      "timestamp": 1762080370.2140636,
+      "metadata": {
+        "session_id": "72a509ac-f688-4dfe-b085-90cbaaee180e"
+      }
+    },
+    {
+      "id": "d4648b37-a779-4cb3-8add-01316bd22738",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Message 4"
+      },
+      "timestamp": 1762080370.2218914,
+      "metadata": {
+        "session_id": "72a509ac-f688-4dfe-b085-90cbaaee180e"
+      }
+    },
+    {
+      "id": "e73c2caf-f243-4a5a-ac91-f2b37854ee40",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Explain the 'tar' command in a clear and concise way. Include common usage examples and important options."
+      },
+      "timestamp": 1762080437.430504,
+      "metadata": {
+        "session_id": "88b1b97b-8df6-4a14-86bc-cbce1d615f4d"
+      }
+    },
+    {
+      "id": "6f0f9ddc-e845-4b18-9c38-eb51317124db",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Explain the 'unknowncommand' command in a clear and concise way. Include common usage examples and important options."
+      },
+      "timestamp": 1762080442.9737036,
+      "metadata": {
+        "session_id": "c3964094-2244-49c9-b134-8f342f9ec198"
+      }
+    },
+    {
+      "id": "4086e8d8-d226-4d37-85b4-e4225097b226",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "show disk usage"
+      },
+      "timestamp": 1762080448.6539228,
+      "metadata": {
+        "session_id": "d0445b89-8a10-47b5-91d8-b4b434d5bfa6"
+      }
+    },
+    {
+      "id": "5d33960b-3c99-4df2-a975-cd421d983076",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "Executed: dir"
+      },
+      "timestamp": 1762080448.6624892,
+      "metadata": {
+        "session_id": "d0445b89-8a10-47b5-91d8-b4b434d5bfa6"
+      }
+    },
+    {
+      "id": "0afe011b-66e8-4671-a6b2-9bdd22569404",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "list python files"
+      },
+      "timestamp": 1762080448.671207,
+      "metadata": {
+        "session_id": "d0445b89-8a10-47b5-91d8-b4b434d5bfa6"
+      }
+    },
+    {
+      "id": "fd1bf45f-8383-465d-9945-71a19267f67a",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "Executed: dir *.py"
+      },
+      "timestamp": 1762080448.6775842,
+      "metadata": {
+        "session_id": "d0445b89-8a10-47b5-91d8-b4b434d5bfa6"
+      }
+    },
+    {
+      "id": "8846e09d-854b-4cd3-8d04-c09fb98247f9",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "command 1"
+      },
+      "timestamp": 1762080448.7541907,
+      "metadata": {
+        "session_id": "4a9d90cb-d096-4c22-a161-7a1d5181b17e"
+      }
+    },
+    {
+      "id": "e0b98523-7ded-454a-8bfe-e9bd45f88cdf",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "response 1"
+      },
+      "timestamp": 1762080448.7623465,
+      "metadata": {
+        "session_id": "4a9d90cb-d096-4c22-a161-7a1d5181b17e"
+      }
+    },
+    {
+      "id": "ef35e557-7eab-4c10-95c9-7983f00aef56",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "command 2"
+      },
+      "timestamp": 1762080448.7704978,
+      "metadata": {
+        "session_id": "4a9d90cb-d096-4c22-a161-7a1d5181b17e"
+      }
+    },
+    {
+      "id": "57b6813d-c191-478a-ac7a-58ce1c18a43d",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "response 2"
+      },
+      "timestamp": 1762080448.777571,
+      "metadata": {
+        "session_id": "4a9d90cb-d096-4c22-a161-7a1d5181b17e"
+      }
+    },
+    {
+      "id": "ebcdcce5-7c9e-41b4-9332-5bd62a7aac63",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "command 3"
+      },
+      "timestamp": 1762080448.78598,
+      "metadata": {
+        "session_id": "4a9d90cb-d096-4c22-a161-7a1d5181b17e"
+      }
+    },
+    {
+      "id": "a45d957e-febb-47fc-bdae-a6d170a42cd4",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "response 3"
+      },
+      "timestamp": 1762080448.7932994,
+      "metadata": {
+        "session_id": "4a9d90cb-d096-4c22-a161-7a1d5181b17e"
+      }
+    },
+    {
+      "id": "b1c38f4b-a8dc-4f22-997d-e8b18b449116",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "response 1"
+      },
+      "timestamp": 1762080449.0699944,
+      "metadata": {
+        "session_id": "aad24b5b-37a7-4c01-b2c0-a474315b45de"
+      }
+    },
+    {
+      "id": "4f11f220-dca4-4275-8c45-5a937bc49783",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "response 2"
+      },
+      "timestamp": 1762080449.0794322,
+      "metadata": {
+        "session_id": "aad24b5b-37a7-4c01-b2c0-a474315b45de"
+      }
+    },
+    {
+      "id": "9895f8e7-c66f-48cf-bf18-5dbad22b5e27",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "show disk usage"
+      },
+      "timestamp": 1762080449.2731674,
+      "metadata": {
+        "session_id": "24cd713f-63d3-4601-8598-ba988a555461"
+      }
+    },
+    {
+      "id": "2c14908e-1bd1-458c-ac8d-083439bb6cae",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "delete everything"
+      },
+      "timestamp": 1762083208.0963027,
+      "metadata": {
+        "session_id": "d0b49f10-b3c8-4120-837e-39beb749fe1d"
+      }
+    },
+    {
+      "id": "5e121a48-5f67-4e08-8f3f-0dad3cffc434",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "delete a file"
+      },
+      "timestamp": 1762083213.4852297,
+      "metadata": {
+        "session_id": "dfac5036-6867-43fd-bb5b-e18a0b231358"
+      }
+    },
+    {
+      "id": "3f5cde29-15a1-404f-8a45-7ecbf2ac9ede",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "give the binary search in python"
+      },
+      "timestamp": 1762083232.211145,
+      "metadata": {
+        "session_id": "dfac5036-6867-43fd-bb5b-e18a0b231358"
+      }
+    },
+    {
+      "id": "d2326085-613f-4a89-bd77-5dc90e97fbba",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Hello"
+      },
+      "timestamp": 1762083238.4634526,
+      "metadata": {
+        "session_id": "a86f8b15-b93d-4b7f-a02d-383b57b65e39"
+      }
+    },
+    {
+      "id": "2846af5c-99be-4fcb-afa9-e95069617eb4",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "Hi there!"
+      },
+      "timestamp": 1762083238.4750233,
+      "metadata": {
+        "session_id": "a86f8b15-b93d-4b7f-a02d-383b57b65e39"
+      }
+    },
+    {
+      "id": "66816e90-ec82-48f9-8317-418935bb955b",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "previous command"
+      },
+      "timestamp": 1762083238.52685,
+      "metadata": {
+        "session_id": "a72590e7-e406-406a-9fac-1fc1bba6d43a"
+      }
+    },
+    {
+      "id": "0795f3ef-f755-4a0c-af76-7016dfcd0d37",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "previous response"
+      },
+      "timestamp": 1762083238.536924,
+      "metadata": {
+        "session_id": "a72590e7-e406-406a-9fac-1fc1bba6d43a"
+      }
+    },
+    {
+      "id": "cb4151f2-e575-485a-b5b0-52b2c0544b9e",
+      "type": "memory",
+      "data": {
+        "key": "user_preference",
+        "value": "likes python"
+      },
+      "timestamp": 1762083238.5474646,
+      "metadata": {
+        "key": "user_preference"
+      }
+    },
+    {
+      "id": "e2233535-13b0-4d8a-a465-199283cbd21c",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "say hello"
+      },
+      "timestamp": 1762083238.557818,
+      "metadata": {
+        "session_id": "a72590e7-e406-406a-9fac-1fc1bba6d43a"
+      }
+    },
+    {
+      "id": "1cbf4f31-212e-4089-8142-ff68b3ef3485",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "previous command"
+      },
+      "timestamp": 1762083238.5998907,
+      "metadata": {
+        "session_id": "416a65ad-9c13-4011-bb6c-7156babc79aa"
+      }
+    },
+    {
+      "id": "5efff1f0-7fd2-426f-a8f6-9c456630aa03",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "previous response"
+      },
+      "timestamp": 1762083238.607627,
+      "metadata": {
+        "session_id": "416a65ad-9c13-4011-bb6c-7156babc79aa"
+      }
+    },
+    {
+      "id": "cfdc10ae-8923-40dc-a416-c44bf040e9e8",
+      "type": "memory",
+      "data": {
+        "key": "user_preference",
+        "value": "likes python"
+      },
+      "timestamp": 1762083238.616097,
+      "metadata": {
+        "key": "user_preference"
+      }
+    },
+    {
+      "id": "c5166ae9-d190-4b35-9f7e-5ad16fc56bc2",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Hello"
+      },
+      "timestamp": 1762083238.7520764,
+      "metadata": {
+        "session_id": "e1eda60f-bb80-479c-946d-da25c0e4530c"
+      }
+    },
+    {
+      "id": "0b6b96d1-b898-45d5-b7be-10f36d441876",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "Hi there!"
+      },
+      "timestamp": 1762083238.7613268,
+      "metadata": {
+        "session_id": "e1eda60f-bb80-479c-946d-da25c0e4530c"
+      }
+    },
+    {
+      "id": "205c53cc-8d82-4c1f-8ef4-8db644720131",
+      "type": "memory",
+      "data": {
+        "key": "test_key",
+        "value": "test_value"
+      },
+      "timestamp": 1762083238.8032348,
+      "metadata": {
+        "key": "test_key"
+      }
+    },
+    {
+      "id": "fc215244-b23d-48c5-9ea2-8f2c109bedfe",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Hello"
+      },
+      "timestamp": 1762083238.848643,
+      "metadata": {
+        "session_id": "5c5c428a-528d-4960-8319-b9d6cbfd23a5"
+      }
+    },
+    {
+      "id": "c1a09378-ceee-43f3-b7ea-020816337cd2",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "Hi there!"
+      },
+      "timestamp": 1762083238.8590684,
+      "metadata": {
+        "session_id": "5c5c428a-528d-4960-8319-b9d6cbfd23a5"
+      }
+    },
+    {
+      "id": "d9f9193a-0a5f-4443-8a98-7cdd0c6f4205",
+      "type": "memory",
+      "data": {
+        "key": "last_user_input",
+        "value": "Hello"
+      },
+      "timestamp": 1762083238.8672292,
+      "metadata": {
+        "key": "last_user_input"
+      }
+    },
+    {
+      "id": "038e5b9a-4a4d-4e9c-bca9-be3beed24878",
+      "type": "memory",
+      "data": {
+        "key": "last_system_response",
+        "value": "Hi there!"
+      },
+      "timestamp": 1762083238.874669,
+      "metadata": {
+        "key": "last_system_response"
+      }
+    },
+    {
+      "id": "5ab0c8bc-2ce5-4e33-bd72-428590446cf9",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Hello"
+      },
+      "timestamp": 1762083238.9457781,
+      "metadata": {
+        "session_id": "5f2bfd05-504e-4581-b5e8-f1fe7762d3a3"
+      }
+    },
+    {
+      "id": "47540273-1ad2-43f0-a283-8a31a3128242",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "Hi there!"
+      },
+      "timestamp": 1762083238.9569626,
+      "metadata": {
+        "session_id": "5f2bfd05-504e-4581-b5e8-f1fe7762d3a3"
+      }
+    },
+    {
+      "id": "aa960b88-eacc-4607-8ff5-7b10b003229f",
+      "type": "memory",
+      "data": {
+        "key": "user_preference",
+        "value": "likes python"
+      },
+      "timestamp": 1762083238.9647777,
+      "metadata": {
+        "key": "user_preference"
+      }
+    },
+    {
+      "id": "ab87befe-ab68-4de3-97ea-439835009176",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Message 0"
+      },
+      "timestamp": 1762083239.0365825,
+      "metadata": {
+        "session_id": "41c5f7f9-5943-44f6-bafc-1329c5582504"
+      }
+    },
+    {
+      "id": "0d817262-a3a7-4138-8266-5e7140376b54",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Message 1"
+      },
+      "timestamp": 1762083239.046717,
+      "metadata": {
+        "session_id": "41c5f7f9-5943-44f6-bafc-1329c5582504"
+      }
+    },
+    {
+      "id": "00893c79-f35d-4b79-b2b1-863e470ec4ff",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Message 2"
+      },
+      "timestamp": 1762083239.0575883,
+      "metadata": {
+        "session_id": "41c5f7f9-5943-44f6-bafc-1329c5582504"
+      }
+    },
+    {
+      "id": "5f46a187-cda0-4a47-bb00-28f2b74c16ca",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Message 3"
+      },
+      "timestamp": 1762083239.0665839,
+      "metadata": {
+        "session_id": "41c5f7f9-5943-44f6-bafc-1329c5582504"
+      }
+    },
+    {
+      "id": "3a2611b1-04e4-48ee-90a7-a613c126b0c5",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Message 4"
+      },
+      "timestamp": 1762083239.074913,
+      "metadata": {
+        "session_id": "41c5f7f9-5943-44f6-bafc-1329c5582504"
+      }
+    },
+    {
+      "id": "731debef-6cfe-432c-9f2d-edfbcf94a543",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Explain the 'tar' command in a clear and concise way. Include common usage examples and important options."
+      },
+      "timestamp": 1762083307.1140275,
+      "metadata": {
+        "session_id": "b342f49f-3f2a-4107-85d3-904af3519208"
+      }
+    },
+    {
+      "id": "29e3d81f-7ac8-43d9-abc1-a749a7812637",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Explain the 'unknowncommand' command in a clear and concise way. Include common usage examples and important options."
+      },
+      "timestamp": 1762083313.1475742,
+      "metadata": {
+        "session_id": "a36e4e17-de43-4321-bf6d-c7172c13e3c8"
+      }
+    },
+    {
+      "id": "ccce9d0b-1108-4d22-85a6-922c6daca5b1",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "response 1"
+      },
+      "timestamp": 1762083318.302624,
+      "metadata": {
+        "session_id": "fadbc0b0-6d89-418e-9d8a-f4008b9eee5d"
+      }
+    },
+    {
+      "id": "a2ab8156-73fd-4664-96f1-194bff8e8d0f",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "response 2"
+      },
+      "timestamp": 1762083318.3141017,
+      "metadata": {
+        "session_id": "fadbc0b0-6d89-418e-9d8a-f4008b9eee5d"
+      }
+    },
+    {
+      "id": "32f797d7-f3e9-4f83-8193-371b08c40558",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "show disk usage"
+      },
+      "timestamp": 1762083318.5995002,
+      "metadata": {
+        "session_id": "dde1e5a0-8c81-4d5f-9ae0-e1fa570b7906"
+      }
+    },
+    {
+      "id": "8de048ee-51ad-4968-bc79-169f518e773c",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "delete everything"
+      },
+      "timestamp": 1762083699.8878746,
+      "metadata": {
+        "session_id": "2f70e0ec-c9f1-499b-837c-62316ae5eded"
+      }
+    },
+    {
+      "id": "8a2fd66a-0995-4340-8781-cb6b0ad6dbaa",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "delete a file"
+      },
+      "timestamp": 1762083705.2238257,
+      "metadata": {
+        "session_id": "4c68566b-fd36-4929-81ed-f7b35471f088"
+      }
+    },
+    {
+      "id": "d28b1e32-a249-4273-a13e-29075a50c61a",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "give the binary search in python"
+      },
+      "timestamp": 1762083734.8535714,
+      "metadata": {
+        "session_id": "4c68566b-fd36-4929-81ed-f7b35471f088"
+      }
+    },
+    {
+      "id": "b424023b-5f94-4ed2-a7d7-f79e69d33f09",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Hello"
+      },
+      "timestamp": 1762083740.8045967,
+      "metadata": {
+        "session_id": "8875e081-d08a-4d34-a2ee-4ffb91e88e45"
+      }
+    },
+    {
+      "id": "ccb888fe-e833-4762-867f-5bab42a991a1",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "Hi there!"
+      },
+      "timestamp": 1762083740.817855,
+      "metadata": {
+        "session_id": "8875e081-d08a-4d34-a2ee-4ffb91e88e45"
+      }
+    },
+    {
+      "id": "882be3f6-18f4-4393-84ae-6a7965d98a83",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "previous command"
+      },
+      "timestamp": 1762083740.8789563,
+      "metadata": {
+        "session_id": "b6df643c-45c2-4404-bd3a-287efe9fa991"
+      }
+    },
+    {
+      "id": "5f8c277d-e02f-44ef-99f3-a80a72dd0ed6",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "previous response"
+      },
+      "timestamp": 1762083740.8893228,
+      "metadata": {
+        "session_id": "b6df643c-45c2-4404-bd3a-287efe9fa991"
+      }
+    },
+    {
+      "id": "57a57831-b9e2-442d-8749-d2657b163a1b",
+      "type": "memory",
+      "data": {
+        "key": "user_preference",
+        "value": "likes python"
+      },
+      "timestamp": 1762083740.8972414,
+      "metadata": {
+        "key": "user_preference"
+      }
+    },
+    {
+      "id": "b26800b1-1567-4c43-ad94-349caf1b38e9",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "say hello"
+      },
+      "timestamp": 1762083740.9071548,
+      "metadata": {
+        "session_id": "b6df643c-45c2-4404-bd3a-287efe9fa991"
+      }
+    },
+    {
+      "id": "6491087b-fb35-4331-82a2-6ccf7db0b8f8",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "previous command"
+      },
+      "timestamp": 1762083740.9530993,
+      "metadata": {
+        "session_id": "cf7aba5c-42ba-44b6-964d-650da0ca04a3"
+      }
+    },
+    {
+      "id": "14394fe8-8857-4ee2-815e-46470b5d31bb",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "previous response"
+      },
+      "timestamp": 1762083740.9616146,
+      "metadata": {
+        "session_id": "cf7aba5c-42ba-44b6-964d-650da0ca04a3"
+      }
+    },
+    {
+      "id": "ec7b7943-c37a-47d2-8182-8aff261e3f43",
+      "type": "memory",
+      "data": {
+        "key": "user_preference",
+        "value": "likes python"
+      },
+      "timestamp": 1762083740.9713519,
+      "metadata": {
+        "key": "user_preference"
+      }
+    },
+    {
+      "id": "8b48feb7-13ce-4248-b5e7-3ba37a01ca6c",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Hello"
+      },
+      "timestamp": 1762083741.1179209,
+      "metadata": {
+        "session_id": "7a87d7c7-8dde-44a4-afc0-0d6d7d242cfa"
+      }
+    },
+    {
+      "id": "d0ca6fa6-491c-43ea-af5b-1f42632ff9a6",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "Hi there!"
+      },
+      "timestamp": 1762083741.1285968,
+      "metadata": {
+        "session_id": "7a87d7c7-8dde-44a4-afc0-0d6d7d242cfa"
+      }
+    },
+    {
+      "id": "091437d5-33d1-49fd-915e-9d3117ea5e24",
+      "type": "memory",
+      "data": {
+        "key": "test_key",
+        "value": "test_value"
+      },
+      "timestamp": 1762083741.1733117,
+      "metadata": {
+        "key": "test_key"
+      }
+    },
+    {
+      "id": "84913bd0-2c7e-4923-b63f-f93fe41a79f5",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Hello"
+      },
+      "timestamp": 1762083741.2218049,
+      "metadata": {
+        "session_id": "1754d0b3-4b28-4751-a257-79da4fd931ab"
+      }
+    },
+    {
+      "id": "585c0e57-c742-49cf-9f8b-1f046ebbed0d",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "Hi there!"
+      },
+      "timestamp": 1762083741.2332463,
+      "metadata": {
+        "session_id": "1754d0b3-4b28-4751-a257-79da4fd931ab"
+      }
+    },
+    {
+      "id": "064e80b3-a418-4eeb-8d8a-73dd435f5621",
+      "type": "memory",
+      "data": {
+        "key": "last_user_input",
+        "value": "Hello"
+      },
+      "timestamp": 1762083741.241718,
+      "metadata": {
+        "key": "last_user_input"
+      }
+    },
+    {
+      "id": "3468d423-09a8-483b-8ecc-f5319590f1b1",
+      "type": "memory",
+      "data": {
+        "key": "last_system_response",
+        "value": "Hi there!"
+      },
+      "timestamp": 1762083741.2507405,
+      "metadata": {
+        "key": "last_system_response"
+      }
+    },
+    {
+      "id": "c9c940b4-5519-460e-bb01-c6fcc84fa9f0",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Hello"
+      },
+      "timestamp": 1762083741.3291752,
+      "metadata": {
+        "session_id": "407b0c08-d0b4-4302-b400-78cd150d779d"
+      }
+    },
+    {
+      "id": "669ee461-459c-41d8-9f15-5370cf0789d8",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "Hi there!"
+      },
+      "timestamp": 1762083741.3388906,
+      "metadata": {
+        "session_id": "407b0c08-d0b4-4302-b400-78cd150d779d"
+      }
+    },
+    {
+      "id": "bb4d12b6-1243-4097-84a6-ee250163f4ee",
+      "type": "memory",
+      "data": {
+        "key": "user_preference",
+        "value": "likes python"
+      },
+      "timestamp": 1762083741.34963,
+      "metadata": {
+        "key": "user_preference"
+      }
+    },
+    {
+      "id": "1772a35a-4904-46a3-99ce-e3dcad3ade45",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Message 0"
+      },
+      "timestamp": 1762083741.448677,
+      "metadata": {
+        "session_id": "30b48075-744e-41d1-a9c2-f4c4f4c73493"
+      }
+    },
+    {
+      "id": "bd3636a4-9b56-4fc5-9208-742ca57ed3f2",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Message 1"
+      },
+      "timestamp": 1762083741.4591742,
+      "metadata": {
+        "session_id": "30b48075-744e-41d1-a9c2-f4c4f4c73493"
+      }
+    },
+    {
+      "id": "eca40a1b-1d01-42b8-ae56-903bcc336787",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Message 2"
+      },
+      "timestamp": 1762083741.4708948,
+      "metadata": {
+        "session_id": "30b48075-744e-41d1-a9c2-f4c4f4c73493"
+      }
+    },
+    {
+      "id": "0d430142-3c0a-4471-9dfd-6920d4f141b6",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Message 3"
+      },
+      "timestamp": 1762083741.480714,
+      "metadata": {
+        "session_id": "30b48075-744e-41d1-a9c2-f4c4f4c73493"
+      }
+    },
+    {
+      "id": "2c021086-1563-48ed-ba02-3481936297d3",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Message 4"
+      },
+      "timestamp": 1762083741.4924583,
+      "metadata": {
+        "session_id": "30b48075-744e-41d1-a9c2-f4c4f4c73493"
+      }
+    },
+    {
+      "id": "e0b98b21-1c54-4eae-8db0-29666407c039",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Explain the 'tar' command in a clear and concise way. Include common usage examples and important options."
+      },
+      "timestamp": 1762083801.83712,
+      "metadata": {
+        "session_id": "f4516147-a854-4ad9-b1fa-56d152ef4289"
+      }
+    },
+    {
+      "id": "27507c61-7b98-4efa-b722-c8ec3d4f2efb",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Explain the 'unknowncommand' command in a clear and concise way. Include common usage examples and important options."
+      },
+      "timestamp": 1762083809.548558,
+      "metadata": {
+        "session_id": "bf28ef0e-2036-493a-abce-e61fcd067882"
+      }
+    },
+    {
+      "id": "68663152-574f-4282-9774-fcc390942a63",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "response 1"
+      },
+      "timestamp": 1762083815.1126428,
+      "metadata": {
+        "session_id": "11a16029-463b-4a0e-a5af-cbe3fca3f4dd"
+      }
+    },
+    {
+      "id": "ad9c1596-82a4-4116-b183-b19dfd304f6a",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "response 2"
+      },
+      "timestamp": 1762083815.1233003,
+      "metadata": {
+        "session_id": "11a16029-463b-4a0e-a5af-cbe3fca3f4dd"
+      }
+    },
+    {
+      "id": "357c6d4e-1b44-46f7-8f2b-a8d29190674f",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "show disk usage"
+      },
+      "timestamp": 1762083815.3285196,
+      "metadata": {
+        "session_id": "6cf47f92-2995-4211-8c68-58a09b9dead7"
+      }
+    },
+    {
+      "id": "71ba4877-8699-4c54-bc15-9f910ffac438",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "delete everything"
+      },
+      "timestamp": 1762104282.339218,
+      "metadata": {
+        "session_id": "b688ed29-b0e4-4fa3-9cf2-30f557699103"
+      }
+    },
+    {
+      "id": "ecd084c8-16c6-457c-b816-e477be1b192f",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "delete a file"
+      },
+      "timestamp": 1762104287.7481685,
+      "metadata": {
+        "session_id": "0ea611f9-38a6-4cb9-a150-68640aae1f13"
+      }
+    },
+    {
+      "id": "23c92364-a2ab-4150-8e69-10dad5af1149",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "give the binary search in python"
+      },
+      "timestamp": 1762104318.6705642,
+      "metadata": {
+        "session_id": "0ea611f9-38a6-4cb9-a150-68640aae1f13"
+      }
+    },
+    {
+      "id": "95ac65ad-39d9-460f-b461-8975a09e4ed0",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Hello"
+      },
+      "timestamp": 1762104325.850928,
+      "metadata": {
+        "session_id": "2680f197-acce-4fb4-9c12-e8bc8816ad69"
+      }
+    },
+    {
+      "id": "462c5618-6ee3-4c27-9897-cb9342e53abd",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "Hi there!"
+      },
+      "timestamp": 1762104325.8617504,
+      "metadata": {
+        "session_id": "2680f197-acce-4fb4-9c12-e8bc8816ad69"
+      }
+    },
+    {
+      "id": "15482f97-ac9f-410d-bba3-a92c6eb028c4",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "previous command"
+      },
+      "timestamp": 1762104325.921119,
+      "metadata": {
+        "session_id": "b43fa871-029f-44e9-90c0-2507f80766e7"
+      }
+    },
+    {
+      "id": "18440bdc-cfb1-4bbb-87c2-c8a42bb51609",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "previous response"
+      },
+      "timestamp": 1762104325.932498,
+      "metadata": {
+        "session_id": "b43fa871-029f-44e9-90c0-2507f80766e7"
+      }
+    },
+    {
+      "id": "4c0d64dc-82f4-420a-b3f9-374e39968fd5",
+      "type": "memory",
+      "data": {
+        "key": "user_preference",
+        "value": "likes python"
+      },
+      "timestamp": 1762104325.9498339,
+      "metadata": {
+        "key": "user_preference"
+      }
+    },
+    {
+      "id": "0dfa73d9-0292-4c3e-a9f7-5d6c7f6ee050",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "say hello"
+      },
+      "timestamp": 1762104325.9745471,
+      "metadata": {
+        "session_id": "b43fa871-029f-44e9-90c0-2507f80766e7"
+      }
+    },
+    {
+      "id": "b6b89111-a272-4c3b-87d0-845d06f6cbf2",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "previous command"
+      },
+      "timestamp": 1762104326.1816366,
+      "metadata": {
+        "session_id": "f438b68a-945e-464e-8df2-453ec0649f76"
+      }
+    },
+    {
+      "id": "312ca70d-8314-4311-812e-4c5a3d0ee5d2",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "previous response"
+      },
+      "timestamp": 1762104326.2202992,
+      "metadata": {
+        "session_id": "f438b68a-945e-464e-8df2-453ec0649f76"
+      }
+    },
+    {
+      "id": "22b7587a-749f-4e10-9d28-92a1c86868d6",
+      "type": "memory",
+      "data": {
+        "key": "user_preference",
+        "value": "likes python"
+      },
+      "timestamp": 1762104326.2439995,
+      "metadata": {
+        "key": "user_preference"
+      }
+    },
+    {
+      "id": "68c5b998-821c-43ec-a448-278f8d086206",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Hello"
+      },
+      "timestamp": 1762104326.4851294,
+      "metadata": {
+        "session_id": "dc6a011e-cfa5-43ed-a24b-5b657a518102"
+      }
+    },
+    {
+      "id": "b21ff8cb-a2a8-4bd8-a9e5-1b400640be64",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "Hi there!"
+      },
+      "timestamp": 1762104326.4990427,
+      "metadata": {
+        "session_id": "dc6a011e-cfa5-43ed-a24b-5b657a518102"
+      }
+    },
+    {
+      "id": "8228d6c6-0cf4-4386-bdcc-b31cb4f6f2c8",
+      "type": "memory",
+      "data": {
+        "key": "test_key",
+        "value": "test_value"
+      },
+      "timestamp": 1762104326.6051977,
+      "metadata": {
+        "key": "test_key"
+      }
+    },
+    {
+      "id": "71cb18e8-1211-44bf-8eba-8e793e41ac10",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Hello"
+      },
+      "timestamp": 1762104326.9349034,
+      "metadata": {
+        "session_id": "d2c641e3-8bfd-4f1e-903d-473581f5d51d"
+      }
+    },
+    {
+      "id": "5c204bc6-34b2-45d1-b896-b7e9268ee9b7",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "Hi there!"
+      },
+      "timestamp": 1762104326.970834,
+      "metadata": {
+        "session_id": "d2c641e3-8bfd-4f1e-903d-473581f5d51d"
+      }
+    },
+    {
+      "id": "53c9e061-b87f-4e53-88b3-67b9310e717a",
+      "type": "memory",
+      "data": {
+        "key": "last_user_input",
+        "value": "Hello"
+      },
+      "timestamp": 1762104327.0028782,
+      "metadata": {
+        "key": "last_user_input"
+      }
+    },
+    {
+      "id": "5bc73cb3-226c-4528-82b2-070a2efa6ef9",
+      "type": "memory",
+      "data": {
+        "key": "last_system_response",
+        "value": "Hi there!"
+      },
+      "timestamp": 1762104327.035824,
+      "metadata": {
+        "key": "last_system_response"
+      }
+    },
+    {
+      "id": "70eae3cd-cc94-4d14-83bd-c08878ea1475",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Hello"
+      },
+      "timestamp": 1762104327.4124768,
+      "metadata": {
+        "session_id": "f7104fcb-9a1e-4ad2-9271-7df9fa4c7699"
+      }
+    },
+    {
+      "id": "a6afdd11-ecd7-4fc7-8f04-d3d2661c459e",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "Hi there!"
+      },
+      "timestamp": 1762104327.434447,
+      "metadata": {
+        "session_id": "f7104fcb-9a1e-4ad2-9271-7df9fa4c7699"
+      }
+    },
+    {
+      "id": "e59e9510-587c-49bc-86cc-f14ee6ccc257",
+      "type": "memory",
+      "data": {
+        "key": "user_preference",
+        "value": "likes python"
+      },
+      "timestamp": 1762104327.4544003,
+      "metadata": {
+        "key": "user_preference"
+      }
+    },
+    {
+      "id": "0c2624d4-ca76-4afd-906d-7158c1ab8b05",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Message 0"
+      },
+      "timestamp": 1762104327.6027126,
+      "metadata": {
+        "session_id": "07811233-4fd0-4876-a01b-4d489fe154d2"
+      }
+    },
+    {
+      "id": "1a007ff9-f4ec-475f-a847-33a6579a6ba9",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Message 1"
+      },
+      "timestamp": 1762104327.627442,
+      "metadata": {
+        "session_id": "07811233-4fd0-4876-a01b-4d489fe154d2"
+      }
+    },
+    {
+      "id": "a06cffa0-3c7c-4909-94a4-2a4ede71c557",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Message 2"
+      },
+      "timestamp": 1762104327.6905906,
+      "metadata": {
+        "session_id": "07811233-4fd0-4876-a01b-4d489fe154d2"
+      }
+    },
+    {
+      "id": "c57ecce3-73a6-40e4-8555-a017b8f837e5",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Message 3"
+      },
+      "timestamp": 1762104327.7209492,
+      "metadata": {
+        "session_id": "07811233-4fd0-4876-a01b-4d489fe154d2"
+      }
+    },
+    {
+      "id": "66af6ba8-e70f-4af6-a175-4ca8d10d739d",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Message 4"
+      },
+      "timestamp": 1762104327.7429807,
+      "metadata": {
+        "session_id": "07811233-4fd0-4876-a01b-4d489fe154d2"
+      }
+    },
+    {
+      "id": "2b0301c8-97e9-4edf-8ec1-4551f7b5b045",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Explain the 'tar' command in a clear and concise way. Include common usage examples and important options."
+      },
+      "timestamp": 1762104393.7442415,
+      "metadata": {
+        "session_id": "eb93afb4-c225-4770-a36d-84341bbeb797"
+      }
+    },
+    {
+      "id": "4870479d-7573-401a-9abf-35c722460179",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Explain the 'unknowncommand' command in a clear and concise way. Include common usage examples and important options."
+      },
+      "timestamp": 1762104398.214191,
+      "metadata": {
+        "session_id": "47dcecb7-8d07-405d-afdb-df57d006ed87"
+      }
+    },
+    {
+      "id": "7789ad7c-3283-4f62-b490-a999b4c4b184",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "response 1"
+      },
+      "timestamp": 1762104404.057998,
+      "metadata": {
+        "session_id": "a3b25714-e083-4149-ab59-2ebf25792cf2"
+      }
+    },
+    {
+      "id": "03cc0b3d-510f-4390-8794-0134eac46ffe",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "response 2"
+      },
+      "timestamp": 1762104404.0735042,
+      "metadata": {
+        "session_id": "a3b25714-e083-4149-ab59-2ebf25792cf2"
+      }
+    },
+    {
+      "id": "009a8ad7-8c1b-4cc8-8037-ca824a75df59",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "show disk usage"
+      },
+      "timestamp": 1762104404.2958667,
+      "metadata": {
+        "session_id": "1e40559b-cfd1-4cd1-af50-ff1a640594df"
+      }
+    },
+    {
+      "id": "93b65fb6-ee87-4296-b32a-93c9b8e92884",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "delete everything"
+      },
+      "timestamp": 1762106352.7929244,
+      "metadata": {
+        "session_id": "479b8211-251c-4de5-95b8-0f530e7c32be"
+      }
+    },
+    {
+      "id": "371b2c51-b598-45aa-99b9-0eff60da9249",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "delete a file"
+      },
+      "timestamp": 1762106358.1923842,
+      "metadata": {
+        "session_id": "a3e9c800-76f8-4dc7-9fc7-53fc206531eb"
+      }
+    },
+    {
+      "id": "9a039272-db6d-4596-96f7-6b2b1a3a1e91",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "give the binary search in python"
+      },
+      "timestamp": 1762106416.3038568,
+      "metadata": {
+        "session_id": "a3e9c800-76f8-4dc7-9fc7-53fc206531eb"
+      }
+    },
+    {
+      "id": "9f6149a6-0519-42eb-83d7-bdc8008df850",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Hello"
+      },
+      "timestamp": 1762106424.234144,
+      "metadata": {
+        "session_id": "03e5ee25-84f4-4733-bc07-26f6dc68daaa"
+      }
+    },
+    {
+      "id": "6fa3b7cc-44bc-4b30-a81a-2199b44e5fee",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "Hi there!"
+      },
+      "timestamp": 1762106424.2494392,
+      "metadata": {
+        "session_id": "03e5ee25-84f4-4733-bc07-26f6dc68daaa"
+      }
+    },
+    {
+      "id": "71cbaeb2-f984-4f33-af9b-c3696691b06d",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "previous command"
+      },
+      "timestamp": 1762106424.3124208,
+      "metadata": {
+        "session_id": "dc6bb3c4-dc57-4d7a-8557-5707eef81b97"
+      }
+    },
+    {
+      "id": "c2aedc31-7fbf-4834-8baf-29ae037f5c0a",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "previous response"
+      },
+      "timestamp": 1762106424.3314457,
+      "metadata": {
+        "session_id": "dc6bb3c4-dc57-4d7a-8557-5707eef81b97"
+      }
+    },
+    {
+      "id": "e5c3e712-c607-4732-9f95-43ea3512a358",
+      "type": "memory",
+      "data": {
+        "key": "user_preference",
+        "value": "likes python"
+      },
+      "timestamp": 1762106424.3483038,
+      "metadata": {
+        "key": "user_preference"
+      }
+    },
+    {
+      "id": "1d7781bb-0929-47f9-946e-a607a730716c",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "say hello"
+      },
+      "timestamp": 1762106424.3650465,
+      "metadata": {
+        "session_id": "dc6bb3c4-dc57-4d7a-8557-5707eef81b97"
+      }
+    },
+    {
+      "id": "59361c42-7d9c-4096-9c05-f734c6d231bb",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "previous command"
+      },
+      "timestamp": 1762106424.4305198,
+      "metadata": {
+        "session_id": "efbccba3-e7a8-4e24-ae12-2fa79572ac24"
+      }
+    },
+    {
+      "id": "4f3c6171-8534-461d-afd9-7140505d90a7",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "previous response"
+      },
+      "timestamp": 1762106424.4409888,
+      "metadata": {
+        "session_id": "efbccba3-e7a8-4e24-ae12-2fa79572ac24"
+      }
+    },
+    {
+      "id": "bc96b471-143b-4213-bd6d-0dab557e3f0a",
+      "type": "memory",
+      "data": {
+        "key": "user_preference",
+        "value": "likes python"
+      },
+      "timestamp": 1762106424.451474,
+      "metadata": {
+        "key": "user_preference"
+      }
+    },
+    {
+      "id": "8884893f-3060-4c61-8d45-17eb692ce5da",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Hello"
+      },
+      "timestamp": 1762106424.6586869,
+      "metadata": {
+        "session_id": "c182ba82-3db3-4a08-aaaa-08e0ab4f173f"
+      }
+    },
+    {
+      "id": "3554d773-8393-499c-b25a-43a53934986e",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "Hi there!"
+      },
+      "timestamp": 1762106424.6714437,
+      "metadata": {
+        "session_id": "c182ba82-3db3-4a08-aaaa-08e0ab4f173f"
+      }
+    },
+    {
+      "id": "eba4269d-12a0-4c26-9163-aedf48a1e844",
+      "type": "memory",
+      "data": {
+        "key": "test_key",
+        "value": "test_value"
+      },
+      "timestamp": 1762106424.7304246,
+      "metadata": {
+        "key": "test_key"
+      }
+    },
+    {
+      "id": "5d1c713f-4f61-4c2b-aab9-9fe2c2e450b5",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Hello"
+      },
+      "timestamp": 1762106424.813174,
+      "metadata": {
+        "session_id": "aca28c33-618a-46f7-a1e4-c1c98e78d8b8"
+      }
+    },
+    {
+      "id": "41489b2c-3346-494c-a7bc-4129d30189ce",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "Hi there!"
+      },
+      "timestamp": 1762106424.8290265,
+      "metadata": {
+        "session_id": "aca28c33-618a-46f7-a1e4-c1c98e78d8b8"
+      }
+    },
+    {
+      "id": "885103fc-e194-4858-b12b-970eaa0d1cf5",
+      "type": "memory",
+      "data": {
+        "key": "last_user_input",
+        "value": "Hello"
+      },
+      "timestamp": 1762106424.8467376,
+      "metadata": {
+        "key": "last_user_input"
+      }
+    },
+    {
+      "id": "7e73cd5e-e8d1-4f0f-9a24-7c1b943e1721",
+      "type": "memory",
+      "data": {
+        "key": "last_system_response",
+        "value": "Hi there!"
+      },
+      "timestamp": 1762106424.863349,
+      "metadata": {
+        "key": "last_system_response"
+      }
+    },
+    {
+      "id": "123c0d30-a784-4945-8679-2503e542c442",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Hello"
+      },
+      "timestamp": 1762106424.9733672,
+      "metadata": {
+        "session_id": "a31b1a5f-5d48-4db7-bc70-33291c6cbfd9"
+      }
+    },
+    {
+      "id": "95596c5a-fb94-4f68-b47c-0665251e118d",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "Hi there!"
+      },
+      "timestamp": 1762106424.9894104,
+      "metadata": {
+        "session_id": "a31b1a5f-5d48-4db7-bc70-33291c6cbfd9"
+      }
+    },
+    {
+      "id": "28a71abf-fedf-4ea2-afab-8535c9881288",
+      "type": "memory",
+      "data": {
+        "key": "user_preference",
+        "value": "likes python"
+      },
+      "timestamp": 1762106425.0038214,
+      "metadata": {
+        "key": "user_preference"
+      }
+    },
+    {
+      "id": "f7beb305-9e1c-4ec6-b7e5-8346e0d7db0b",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Message 0"
+      },
+      "timestamp": 1762106425.112337,
+      "metadata": {
+        "session_id": "895c19c6-b2b8-47ad-9c43-371236c8731f"
+      }
+    },
+    {
+      "id": "e5d7952b-c8a1-4d59-8eb9-cb8692d0c430",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Message 1"
+      },
+      "timestamp": 1762106425.1265745,
+      "metadata": {
+        "session_id": "895c19c6-b2b8-47ad-9c43-371236c8731f"
+      }
+    },
+    {
+      "id": "c5ac4cf7-f0fe-4030-832e-60bd83dcb027",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Message 2"
+      },
+      "timestamp": 1762106425.1410003,
+      "metadata": {
+        "session_id": "895c19c6-b2b8-47ad-9c43-371236c8731f"
+      }
+    },
+    {
+      "id": "aeae427c-0c26-477c-9691-fce6df3c69a4",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Message 3"
+      },
+      "timestamp": 1762106425.155914,
+      "metadata": {
+        "session_id": "895c19c6-b2b8-47ad-9c43-371236c8731f"
+      }
+    },
+    {
+      "id": "1d8c591f-efa5-470a-8241-091864795bb6",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Message 4"
+      },
+      "timestamp": 1762106425.16791,
+      "metadata": {
+        "session_id": "895c19c6-b2b8-47ad-9c43-371236c8731f"
+      }
+    },
+    {
+      "id": "15a712c6-6fa2-4531-bca3-588c35953d1d",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Explain the 'tar' command in a clear and concise way. Include common usage examples and important options."
+      },
+      "timestamp": 1762106490.5258605,
+      "metadata": {
+        "session_id": "894e380f-b987-4533-b562-50bc4dc27445"
+      }
+    },
+    {
+      "id": "f4ffebe4-87ef-4ca9-b7e2-a4150b096214",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "Explain the 'unknowncommand' command in a clear and concise way. Include common usage examples and important options."
+      },
+      "timestamp": 1762106496.3170428,
+      "metadata": {
+        "session_id": "64a82712-50f8-42b6-aaef-04a6ae178579"
+      }
+    },
+    {
+      "id": "5f36e1b0-648c-4012-9da2-528ab0c200f0",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "response 1"
+      },
+      "timestamp": 1762106502.1716056,
+      "metadata": {
+        "session_id": "5d158697-9288-426b-9864-6b44650f3b59"
+      }
+    },
+    {
+      "id": "d62426e7-df3e-43e1-9cea-586480ad23c7",
+      "type": "conversation",
+      "data": {
+        "role": "assistant",
+        "content": "response 2"
+      },
+      "timestamp": 1762106502.1859167,
+      "metadata": {
+        "session_id": "5d158697-9288-426b-9864-6b44650f3b59"
+      }
+    },
+    {
+      "id": "97d9afa3-e2bd-46c8-a3cd-2212dbe2c71c",
+      "type": "conversation",
+      "data": {
+        "role": "user",
+        "content": "show disk usage"
+      },
+      "timestamp": 1762106502.5218318,
+      "metadata": {
+        "session_id": "23e1b0f7-ff18-464b-a2a4-0952e983d712"
+      }
+    }
+  ]
+}

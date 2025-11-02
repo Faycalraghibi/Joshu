@@ -85,40 +85,54 @@ def test_context_provider_integration_in_translate_with_local_model():
 
 def test_context_provider_update_from_response():
     """Test that context provider updates correctly from responses."""
-    context_provider = ContextProvider()
+    import tempfile
+    from pathlib import Path
+    from joshu.core.storage import JsonFileStorage
     
-    # Initial state
-    assert len(context_provider.conversation_context.messages) == 0
-    assert len(context_provider.memory_store.kv) == 0
-    
-    # Update context from response
-    context_provider.update_context_from_response("Hello", "Hi there!")
-    
-    # Should have added to history
-    assert len(context_provider.conversation_context.messages) == 2
-    assert context_provider.conversation_context.messages[0]["role"] == "user"
-    assert context_provider.conversation_context.messages[0]["content"] == "Hello"
-    assert context_provider.conversation_context.messages[1]["role"] == "assistant"
-    assert context_provider.conversation_context.messages[1]["content"] == "Hi there!"
-    
-    # Should have stored last interaction in memory
-    assert context_provider.get_memory("last_user_input") == "Hello"
-    assert context_provider.get_memory("last_system_response") == "Hi there!"
+    # Use temporary storage to avoid interference from existing data
+    with tempfile.TemporaryDirectory() as tmpdir:
+        storage = JsonFileStorage(Path(tmpdir) / 'test_data.json')
+        context_provider = ContextProvider(storage_backend=storage)
+        
+        # Initial state
+        assert len(context_provider.conversation_context.messages) == 0
+        assert len(context_provider.memory_store.kv) == 0
+        
+        # Update context from response
+        context_provider.update_context_from_response("Hello", "Hi there!")
+        
+        # Should have added to history
+        assert len(context_provider.conversation_context.messages) == 2
+        assert context_provider.conversation_context.messages[0]["role"] == "user"
+        assert context_provider.conversation_context.messages[0]["content"] == "Hello"
+        assert context_provider.conversation_context.messages[1]["role"] == "assistant"
+        assert context_provider.conversation_context.messages[1]["content"] == "Hi there!"
+        
+        # Should have stored last interaction in memory
+        assert context_provider.get_memory("last_user_input") == "Hello"
+        assert context_provider.get_memory("last_system_response") == "Hi there!"
 
 
 def test_context_provider_clear_context():
     """Test that context provider clears correctly."""
-    context_provider = ContextProvider()
+    import tempfile
+    from pathlib import Path
+    from joshu.core.storage import JsonFileStorage
     
-    # Add some data
-    context_provider.add_to_history("user", "Hello")
-    context_provider.set_memory("test_key", "test_value")
-    
-    assert len(context_provider.conversation_context.messages) == 1
-    assert len(context_provider.memory_store.kv) == 1
-    
-    # Clear context
-    context_provider.clear_context()
-    
-    assert len(context_provider.conversation_context.messages) == 0
-    assert len(context_provider.memory_store.kv) == 0
+    # Use temporary storage to avoid interference from existing data
+    with tempfile.TemporaryDirectory() as tmpdir:
+        storage = JsonFileStorage(Path(tmpdir) / 'test_data.json')
+        context_provider = ContextProvider(storage_backend=storage)
+        
+        # Add some data
+        context_provider.add_to_history("user", "Hello")
+        context_provider.set_memory("test_key", "test_value")
+        
+        assert len(context_provider.conversation_context.messages) == 1
+        assert len(context_provider.memory_store.kv) == 1
+        
+        # Clear context
+        context_provider.clear_context()
+        
+        assert len(context_provider.conversation_context.messages) == 0
+        assert len(context_provider.memory_store.kv) == 0

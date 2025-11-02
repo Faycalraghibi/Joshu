@@ -3,7 +3,7 @@
 # Clean dev install for Joshu Assistant on Linux/Unix
 # - Creates fresh venv at .joshuvenv
 # - Upgrades pip/setuptools/wheel
-# - Installs runtime + dev requirements
+# - Installs runtime + dev requirements from pyproject.toml
 # - Editable install of the package
 
 set -e  # Exit on any error
@@ -53,19 +53,14 @@ echo "[info] Python: $(python --version)"
 echo "[info] Upgrading pip/setuptools/wheel"
 python -m pip install -U pip setuptools wheel
 
-# Install dependencies
-echo "[info] Installing dependencies"
-# Install basic requirements and development tools
-pip install -r requirements.txt
+# Install package with dev dependencies (from pyproject.toml)
+echo "[info] Installing package with dev dependencies"
 pip install -e .[dev]
 
 # Optionally install LLM dependencies (uncomment if needed)
 # echo "[info] Installing optional LLM dependencies"
-# pip install -r requirements-llm.txt
-
-# Editable install
-echo "[info] Editable install"
-pip install -e .
+# pip install -e .[llm]
+# Or install both dev and llm: pip install -e .[dev,llm]
 
 echo -e "\n[done] Development environment ready.\n"
 echo "Next steps:"
@@ -74,8 +69,10 @@ echo "     export OPENROUTER_API_KEY=\"sk-...\""
 echo "     export OPENROUTER_MODEL=\"openai/gpt-4o\""
 echo "     export OPENROUTER_SITE_URL=\"https://your-site\""
 echo "     export OPENROUTER_SITE_TITLE=\"Your Site\""
-echo "  2) Install optional LLM dependencies (if needed):"
-echo "     pip install -r requirements-llm.txt"
+echo "  2) Install optional LLM dependencies (if needed for local models):"
+echo "     pip install -e .[llm]"
+echo "     # Or install both dev and llm: pip install -e .[dev,llm]"
+echo "     # Note: LLM dependencies may require compilation and can be large"
 echo "  3) Run tests:"
 echo "     pytest -q"
 echo "  4) Use the CLI:"

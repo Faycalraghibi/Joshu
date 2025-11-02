@@ -36,6 +36,8 @@ All specified libraries from Rules.md have been used as required:
 - `llama-cpp-python==0.2.55` - Used for local LLM inference
 - `openai==1.22.0` - Used for OpenRouter API integration
 - `httpx==0.27.0` - Used for HTTP requests
+- `chromadb` vector database (local, easy to use, no server needed)
+- `sentence-transformers` with the all-MiniLM-L6-v2 model (lightweight, fast, runs on CPU)
 
 **CLI Libraries:**
 

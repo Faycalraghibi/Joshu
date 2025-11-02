@@ -224,8 +224,9 @@ class CodeEditorCore:
             with open(temp_path, 'w', encoding='utf-8') as f:
                 f.write(content)
             
-            # Rename temp file to target file
-            temp_path.rename(path)
+            # Replace target file with temp file (works on Windows too)
+            # replace() will overwrite the target if it exists
+            temp_path.replace(path)
             
             logger.info(f"Successfully wrote to {filepath}")
             return True

@@ -25,11 +25,15 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Development tools (testing, linting, formatting)
 dev = [
     "pytest==8.4.2",
     "black==24.4.0",
     "flake8==7.0.0"
 ]
+# LLM dependencies for local model support (optional, may require compilation)
+# Note: These dependencies are large and may take time to install
+# On Windows, sentencepiece may need: pip install --only-binary=sentencepiece sentencepiece
 llm = [
     "transformers==4.36.2",
     "torch==2.9.0",

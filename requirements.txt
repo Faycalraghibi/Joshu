@@ -1,4 +1,13 @@
-# Basic Joshu dependencies (required)
+# Basic Joshu runtime dependencies (required)
+# 
+# This file contains only the core runtime dependencies.
+# Optional dependencies are defined in pyproject.toml:
+#   - Development tools: pip install -e .[dev]
+#   - LLM dependencies: pip install -e .[llm]
+#   - Both: pip install -e .[dev,llm]
+#
+# For a complete setup, use: pip install -e .[dev,llm]
+
 # API and networking
 openai==1.22.0
 httpx==0.27.0
@@ -15,35 +24,27 @@ requests==2.32.5
 tqdm==4.67.1
 PyYAML==6.0.3
 
-# Development and testing
-pytest==8.4.2
-black==24.4.0
-flake8==7.0.0
-
-# Additional dependencies that were installed
-annotated-types==0.7.0
-anyio==4.11.0
-certifi==2025.10.5
-charset-normalizer==3.4.4
-click==8.3.0
-colorama==0.4.6
-distro==1.9.0
-h11==0.16.0
-httpcore==1.0.9
-idna==3.11
-iniconfig==2.3.0
-markdown-it-py==4.0.0
-mdurl==0.1.2
-packaging==25.0
-pluggy==1.6.0
-pydantic-core==2.41.4
-Pygments==2.19.2
-shellingham==1.5.4
-sniffio==1.3.1
-typing-extensions==4.15.0
-typing-inspection==0.4.2
-urllib3==2.5.0
-wcwidth==0.2.14
-
-# Optional LLM dependencies are in requirements-llm.txt
-# Install with: pip install -r requirements-llm.txt
+# Transitive dependencies (automatically installed, listed for reference)
+# annotated-types==0.7.0
+# anyio==4.11.0
+# certifi==2025.10.5
+# charset-normalizer==3.4.4
+# click==8.3.0
+# colorama==0.4.6
+# distro==1.9.0
+# h11==0.16.0
+# httpcore==1.0.9
+# idna==3.11
+# iniconfig==2.3.0
+# markdown-it-py==4.0.0
+# mdurl==0.1.2
+# packaging==25.0
+# pluggy==1.6.0
+# pydantic-core==2.41.4
+# Pygments==2.19.2
+# shellingham==1.5.4
+# sniffio==1.3.1
+# typing-extensions==4.15.0
+# typing-inspection==0.4.2
+# urllib3==2.5.0
+# wcwidth==0.2.14

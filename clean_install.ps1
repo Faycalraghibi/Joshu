@@ -2,9 +2,9 @@ Param()
 $ErrorActionPreference = "Stop"
 
 # Clean dev install for Joshu Assistant on Windows PowerShell
-# - Creates fresh venv at .venv
+# - Creates fresh venv at .joshuvenv
 # - Upgrades pip/setuptools/wheel
-# - Installs runtime + dev requirements
+# - Installs runtime + dev requirements from pyproject.toml
 # - Editable install of the package
 
 function Resolve-Python {
@@ -45,17 +45,14 @@ Write-Host "[info] Python: $(& python --version)"
 Write-Host "[info] Upgrading pip/setuptools/wheel"
 python -m pip install -U pip setuptools wheel
 
-Write-Host "[info] Installing dependencies"
-# Install basic requirements and development tools
-pip install -r requirements.txt
+# Install package with dev dependencies (from pyproject.toml)
+Write-Host "[info] Installing package with dev dependencies"
 pip install -e .[dev]
 
 # Optionally install LLM dependencies (uncomment if needed)
 # Write-Host "[info] Installing optional LLM dependencies"
-# pip install -r requirements-llm.txt
-
-Write-Host "[info] Editable install"
-pip install -e .
+# pip install -e .[llm]
+# Or install both dev and llm: pip install -e .[dev,llm]
 
 Write-Host "`n[done] Development environment ready.`n"
 Write-Host "Next steps:"
@@ -64,8 +61,10 @@ Write-Host "     `$env:OPENROUTER_API_KEY = `"sk-...`""
 Write-Host "     `$env:OPENROUTER_MODEL = `"openai/gpt-4o`""
 Write-Host "     `$env:OPENROUTER_SITE_URL = `"https://your-site`""
 Write-Host "     `$env:OPENROUTER_SITE_TITLE = `"Your Site`""
-Write-Host "  2) Install optional LLM dependencies (if needed):"
-Write-Host "     pip install -r requirements-llm.txt"
+Write-Host "  2) Install optional LLM dependencies (if needed for local models):"
+Write-Host "     pip install -e .[llm]"
+Write-Host "     # Or install both dev and llm: pip install -e .[dev,llm]"
+Write-Host "     # Note: LLM dependencies may require compilation and can be large"
 Write-Host "  3) Run tests:"
 Write-Host "     pytest -q"
 Write-Host "  4) Use the CLI:"

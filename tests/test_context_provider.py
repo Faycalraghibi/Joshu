@@ -1,16 +1,22 @@
 import pytest
+import tempfile
+from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 from joshu.core.context_provider import ContextProvider, ContextEntry
+from joshu.core.storage import JsonFileStorage
 
 
 def test_context_provider_initialization():
     """Test that ContextProvider initializes correctly."""
-    provider = ContextProvider()
-    assert provider.max_history == 100
-    assert provider.max_memory_entries == 1000
-    assert len(provider.conversation_context.messages) == 0
-    assert len(provider.memory_store.kv) == 0
+    # Use temporary storage to avoid interference from existing data
+    with tempfile.TemporaryDirectory() as tmpdir:
+        storage = JsonFileStorage(Path(tmpdir) / 'test_data.json')
+        provider = ContextProvider(storage_backend=storage)
+        assert provider.max_history == 100
+        assert provider.max_memory_entries == 1000
+        assert len(provider.conversation_context.messages) == 0
+        assert len(provider.memory_store.kv) == 0
 
 
 def test_context_provider_add_to_history():
@@ -49,18 +55,21 @@ def test_context_provider_update_context_from_response():
 
 def test_context_provider_clear_context():
     """Test clearing all context."""
-    provider = ContextProvider()
-    
-    provider.add_to_history("user", "Hello")
-    provider.set_memory("test_key", "test_value")
-    
-    assert len(provider.conversation_context.messages) == 1
-    assert len(provider.memory_store.kv) == 1
-    
-    provider.clear_context()
-    
-    assert len(provider.conversation_context.messages) == 0
-    assert len(provider.memory_store.kv) == 0
+    # Use temporary storage to avoid interference from existing data
+    with tempfile.TemporaryDirectory() as tmpdir:
+        storage = JsonFileStorage(Path(tmpdir) / 'test_data.json')
+        provider = ContextProvider(storage_backend=storage)
+        
+        provider.add_to_history("user", "Hello")
+        provider.set_memory("test_key", "test_value")
+        
+        assert len(provider.conversation_context.messages) == 1
+        assert len(provider.memory_store.kv) == 1
+        
+        provider.clear_context()
+        
+        assert len(provider.conversation_context.messages) == 0
+        assert len(provider.memory_store.kv) == 0
 
 
 def test_context_provider_get_relevant_context():
@@ -85,18 +94,21 @@ def test_context_provider_get_relevant_context():
 
 def test_context_provider_get_context_summary():
     """Test getting context summary."""
-    provider = ContextProvider()
-    provider.set_system_info("Linux")
-    
-    provider.add_to_history("user", "Hello")
-    provider.set_memory("test_key", "test_value")
-    
-    summary = provider.get_context_summary()
-    
-    assert summary["history_length"] == 1
-    assert summary["memory_entries"] == 1
-    assert summary["system_info"] == "Linux"
-    assert len(summary["recent_history"]) == 1
+    # Use temporary storage to avoid interference from existing data
+    with tempfile.TemporaryDirectory() as tmpdir:
+        storage = JsonFileStorage(Path(tmpdir) / 'test_data.json')
+        provider = ContextProvider(storage_backend=storage)
+        provider.set_system_info("Linux")
+        
+        provider.add_to_history("user", "Hello")
+        provider.set_memory("test_key", "test_value")
+        
+        summary = provider.get_context_summary()
+        
+        assert summary["history_length"] == 1
+        assert summary["memory_entries"] == 1
+        assert summary["system_info"] == "Linux"
+        assert len(summary["recent_history"]) == 1
 
 
 def test_context_provider_history_limit():

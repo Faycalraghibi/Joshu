@@ -10,29 +10,26 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 def test_interactive_mode_can_be_imported():
     """Test that the interactive mode components can be imported."""
     try:
-        from joshu.ui.enhanced_interactive import EnhancedInteractiveMode, PROMPT_TOOLKIT_AVAILABLE
-        assert EnhancedInteractiveMode is not None
+        from joshu.ui.interactive import InteractiveMode
+        from joshu.ui.cli import PROMPT_TOOLKIT_AVAILABLE
+        assert InteractiveMode is not None
         # PROMPT_TOOLKIT_AVAILABLE should be True in the test environment
         assert PROMPT_TOOLKIT_AVAILABLE is True
     except ImportError:
-        pytest.fail("Failed to import enhanced interactive mode")
+        pytest.fail("Failed to import interactive mode")
 
 
 def test_interactive_mode_can_be_instantiated():
     """Test that the enhanced interactive mode can be instantiated."""
-    with patch('joshu.ui.enhanced_interactive.get_config_manager') as mock_config_manager, \
-         patch('joshu.ui.enhanced_interactive.ContextProvider') as mock_context_provider:
+    with patch('joshu.core.config.get_config_manager') as mock_config_manager:
         
         # Mock config manager
         mock_config = MagicMock()
         mock_config.get.return_value = 1000
         mock_config_manager.return_value = mock_config
         
-        # Mock context provider
-        mock_context_provider.return_value = MagicMock()
-        
-        from joshu.ui.enhanced_interactive import EnhancedInteractiveMode
-        mode = EnhancedInteractiveMode("test-model")
+        from joshu.ui.interactive import InteractiveMode
+        mode = InteractiveMode("test-model", sandbox=False, verbose=False)
         
         assert mode is not None
         assert mode.model == "test-model"
