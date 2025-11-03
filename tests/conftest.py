@@ -159,9 +159,9 @@ def agenticat_api_key() -> str:
 SKIP_LLM_TESTS_ENV_VAR = "SKIP_LLM_TESTS"
 
 LLM_MOCKED_METHODS = [
-    "joshu.models.openrouter.OpenRouterModel.generate",
-    "joshu.models.llama_cpp_loader.LlamaCppModel.generate",
-    "joshu.models.local_models.EchoModel.generate",
+    "joshu.models.providers.openrouter.OpenRouterProvider.generate",
+    "joshu.models.providers.llama_cpp.LlamaCppProvider.generate",
+    "joshu.models.providers.echo.EchoProvider.generate",
 ]
 
 

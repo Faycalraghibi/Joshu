@@ -564,7 +564,7 @@ Return only the code:"""
             
             # Fallback to local model via get_model, but check if it's EchoModel first
             from joshu.models.inference import get_model
-            from joshu.models.local_models import EchoModel
+            from joshu.models import EchoModel
             
             # Get the model and check its type
             model = get_model("default")

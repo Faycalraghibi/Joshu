@@ -5,7 +5,7 @@ from unittest.mock import patch, MagicMock
 
 from joshu.core.translate import translate_to_command, translate_with_openrouter, translate_with_local_model, adapt_command_for_windows
 from joshu.tools.system_info import get_system_info
-from joshu.models.llm_interface import LLM
+from joshu.models import LLM
 
 
 def test_translate_llm_success():

@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-import os
 import json
 import logging
-import platform
 from typing import Any, Dict, List, Optional
 
 from openai import OpenAI
+
+from .config import ModelConfig
+from .utils import parse_json_response
 from joshu.tools.system_info import get_system_info
 
 logger = logging.getLogger(__name__)
@@ -41,44 +42,8 @@ def establish_openrouter_connection(model_name: Optional[str] = None) -> bool:
 
 
 def get_openrouter_client(model_name: Optional[str] = None) -> Optional[OpenAI]:
-    # Determine which API key to use based on the model
-    api_key = None
-    if model_name:
-        # Check for model-specific API keys
-        if "deepseek/deepseek-chat-v3.1:free" in model_name.lower():
-            api_key = os.getenv("DEEPSEEK_API_KEY")
-        elif "tongyi" in model_name.lower():
-            api_key = os.getenv("TONGYI_API_KEY")
-        elif "qwen" in model_name.lower():
-            api_key = os.getenv("QWEN_API_KEY")
-        elif "kimi" in model_name.lower():
-            api_key = os.getenv("KIMI_DEV_API_KEY")
-        elif "agentica" in model_name.lower():
-            api_key = os.getenv("AGENTICAT_API_KEY")
-        elif "glm" in model_name.lower():
-            api_key = os.getenv("GLM_API_KEY")
-    
-    # Fallback to general OpenRouter API key
-    if not api_key:
-        api_key = os.getenv("OPENROUTER_API_KEY")
-    
-    # If still no API key, check for any model-specific keys
-    if not api_key:
-        # Check for any available model-specific API keys
-        model_specific_keys = [
-            "DEEPSEEK_API_KEY",
-            "TONGYI_API_KEY", 
-            "QWEN_API_KEY",
-            "KIMI_DEV_API_KEY",
-            "AGENTICAT_API_KEY",
-            "GLM_API_KEY"
-        ]
-        
-        for key in model_specific_keys:
-            api_key = os.getenv(key)
-            if api_key:
-                break
-    
+    """Get OpenRouter client using centralized configuration."""
+    api_key = ModelConfig.get_openrouter_api_key(model_name)
     if not api_key:
         return None
     return OpenAI(base_url="https://openrouter.ai/api/v1", api_key=api_key)
@@ -91,10 +56,10 @@ def chat_completion(
     temperature: float = 0.1,
     max_tokens: int = 512,
 ) -> Optional[str]:
-    # Use the provided model, otherwise fall back to environment default
+    """Chat completion using OpenRouter (backward compatible wrapper)."""
+    # Use centralized config
     if model is None or model == "default":
-        # Try to get the default model from environment or config
-        model_name = os.getenv("OPENROUTER_MODEL") or "openai/gpt-4o-mini"
+        model_name = ModelConfig.get_openrouter_model(model)
     else:
         model_name = model
     
@@ -108,10 +73,7 @@ def chat_completion(
     if client is None:
         return None
 
-    headers = {
-        "HTTP-Referer": os.getenv("OPENROUTER_SITE_URL", ""),
-        "X-Title": os.getenv("OPENROUTER_SITE_TITLE", "Joshu Assistant"),
-    }
+    headers = ModelConfig.get_openrouter_headers()
     if extra_headers:
         headers.update({k: v for k, v in extra_headers.items() if v})
 
@@ -145,41 +107,19 @@ User request:"""
         {"role": "user", "content": prompt}
     ]
     
-    # Use the default model from environment
-    model_name = os.getenv("OPENROUTER_MODEL") or "openai/gpt-4o-mini"
+    # Use centralized config
+    model_name = ModelConfig.get_openrouter_model()
     response = chat_completion(messages, model=model_name, temperature=0.1, max_tokens=256)
     if not response:
         return None
         
-    try:
-        # Clean up the response to handle markdown code blocks
-        cleaned_response = response.strip()
-        if cleaned_response.startswith("```json"):
-            cleaned_response = cleaned_response[7:]  # Remove ```json
-        if cleaned_response.startswith("```"):
-            cleaned_response = cleaned_response[3:]  # Remove ```
-        if cleaned_response.endswith("```"):
-            cleaned_response = cleaned_response[:-3]  # Remove ```
-        
-        # Strip any leading/trailing whitespace that might remain
-        cleaned_response = cleaned_response.strip()
-        
-        # Handle case where the response might have extra text around JSON
-        # Find the first { and last } to extract the JSON object
-        first_brace = cleaned_response.find('{')
-        last_brace = cleaned_response.rfind('}')
-        if first_brace != -1 and last_brace != -1 and first_brace < last_brace:
-            cleaned_response = cleaned_response[first_brace:last_brace+1]
-        
-        # Parse JSON response
-        data = json.loads(cleaned_response)
+    # Use shared utility for JSON parsing
+    data = parse_json_response(response)
+    if data:
         command = data.get("command", "").strip()
         explanation = data.get("explanation", "").strip()
         
         if command and explanation:
             return {"command": command, "explanation": explanation}
-    except json.JSONDecodeError as e:
-        logger.warning(f"Failed to parse multi-provider response as JSON: {response}")
-        return None
     
     return None

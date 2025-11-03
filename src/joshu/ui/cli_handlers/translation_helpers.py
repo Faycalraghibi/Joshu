@@ -75,7 +75,14 @@ def handle_translation_execution(
     """
     from joshu.core.safety import assess_command_safety
     
-    # Check if conversational response
+    # Safety check FIRST - never bypass safety even for conversational responses
+    if not skip_safety_check:
+        report = assess_command_safety(translation.command, sandbox)
+        if not report.safe:
+            display_safety_report(report)
+            return 3
+    
+    # Check if conversational response (after safety check)
     if check_conversational_response(translation):
         # Execute conversational response directly without asking
         code, out, err = run_command(translation.command)
@@ -93,13 +100,6 @@ def handle_translation_execution(
         console.print(f"[yellow]   joshu code \"{user_input}\"[/yellow]")
         console.print("[yellow]This will generate the code directly instead of trying to translate to a shell command.[/yellow]")
         return 0
-    
-    # Safety check
-    if not skip_safety_check:
-        report = assess_command_safety(translation.command, sandbox)
-        if not report.safe:
-            display_safety_report(report)
-            return 3
     
     # Auto-execute or ask for confirmation
     if auto_execute:
