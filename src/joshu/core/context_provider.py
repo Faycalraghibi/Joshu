@@ -13,6 +13,7 @@ from dataclasses import dataclass, asdict
 from .context import ConversationContext
 from .memory import MemoryStore
 from .storage import StorageBackend, StorageEntry, EntryType, QueryFilter, JsonFileStorage
+from .storage.semantic_memory import SemanticMemory
 from ..models.openrouter import chat_completion
 
 logger = logging.getLogger(__name__)
@@ -50,12 +51,6 @@ class ContextProvider:
             storage_backend = JsonFileStorage(Path.cwd() / '.joshu_data.json')
         self.storage = storage_backend
         
-        self.conversation_context = ConversationContext()
-        self.memory_store = MemoryStore(storage_backend=self.storage)
-        self.max_history = max_history
-        self.max_memory_entries = max_memory_entries
-        self.system_info: Optional[str] = None
-        
         # conversation_log_file is deprecated - no longer used
         # All data is now stored in JSON format via storage backend
         # Keep a reference for session file location only
@@ -65,6 +60,17 @@ class ContextProvider:
         else:
             storage_path = Path(conversation_log_file).parent
         self._storage_path = storage_path
+        
+        self.conversation_context = ConversationContext()
+        self.memory_store = MemoryStore(storage_backend=self.storage)
+        
+        # Initialize semantic memory (optional - will be disabled if dependencies not available)
+        semantic_persist_dir = storage_path / ".joshu_chromadb"
+        self.semantic_memory = SemanticMemory(persist_directory=semantic_persist_dir)
+        
+        self.max_history = max_history
+        self.max_memory_entries = max_memory_entries
+        self.system_info: Optional[str] = None
         
         # Session ID for grouping related conversations
         # Always create a NEW session when interactive mode starts (don't resume old sessions)
@@ -243,6 +249,10 @@ class ContextProvider:
         """
         End the current session by deleting it from the sessions file.
         
+        Note: Semantic memories are preserved for cross-session recall.
+        To clear semantic memories for this session, call semantic_memory.delete_by_session()
+        directly if needed.
+        
         Returns:
             True if session was ended successfully, False otherwise
         """
@@ -311,10 +321,13 @@ class ContextProvider:
         # Add to conversation context with metadata
         self.conversation_context.add(role, content, timestamp=timestamp, metadata=metadata)
         
+        # Generate entry ID for use in both storage and semantic memory
+        entry_id = str(uuid.uuid4())
+        
         # Save to storage backend
         try:
             entry = StorageEntry(
-                id=str(uuid.uuid4()),
+                id=entry_id,
                 type=EntryType.CONVERSATION,
                 data={
                     "role": role,
@@ -326,6 +339,21 @@ class ContextProvider:
             self.storage.save_entry(entry)
         except Exception as e:
             logger.warning(f"Failed to save conversation entry to storage: {e}")
+        
+        # Also store in semantic memory for long-term recall
+        # Only store substantial messages (skip very short ones like acknowledgements)
+        if self.semantic_memory.enabled and len(content.strip()) > 10:
+            try:
+                self.semantic_memory.add_memory(
+                    content=content,
+                    role=role,
+                    session_id=self.session_id,
+                    entry_id=entry_id,
+                    metadata=metadata,
+                    timestamp=timestamp
+                )
+            except Exception as e:
+                logger.debug(f"Failed to add to semantic memory (non-critical): {e}")
         
         # Trim history if it exceeds max_history (keep most recent messages for memory efficiency)
         if len(self.conversation_context.messages) > self.max_history:
@@ -457,11 +485,28 @@ class ContextProvider:
         Returns:
             Dictionary of relevant memory entries
         """
-        # For now, return all memory entries (in a real implementation, 
-        # this would use semantic search or other relevance filtering)
         memory_dict = {}
+        
+        # First, get traditional key-value memory entries
         for key in self.memory_store.kv:
             memory_dict[key] = self.memory_store.kv[key]
+        
+        # Then, add semantically relevant memories from semantic memory
+        if self.semantic_memory.enabled:
+            try:
+                semantic_results = self.semantic_memory.search(
+                    query=query,
+                    limit=5,
+                    session_id=self.session_id,
+                    min_score=0.3  # Only include reasonably relevant results
+                )
+                
+                # Add semantic memories as entries
+                for i, entry in enumerate(semantic_results):
+                    memory_dict[f"semantic_memory_{i}"] = f"{entry.role}: {entry.content}"
+            except Exception as e:
+                logger.debug(f"Failed to get semantic memory (non-critical): {e}")
+        
         return memory_dict
     
     def update_context_from_response(self, user_input: str, response: str) -> None:
@@ -514,10 +559,24 @@ class ContextProvider:
         self.system_info = system_info
     
     def clear_context(self) -> None:
-        """Clear all conversation context and memory."""
-        self.conversation_context.messages.clear()
-        self.memory_store.kv.clear()
-        logger.debug("Cleared all context and memory")
+        """
+        Clear all context, including conversation history and memory.
+        
+        This method is useful for resetting the conversation state,
+        but should be used with caution as it removes all stored context.
+        """
+        self.conversation_context.clear()
+        self.memory_store.clear()
+        self.system_info = None
+        
+        # Clear semantic memory if enabled
+        if self.semantic_memory.enabled:
+            try:
+                self.semantic_memory.clear()
+            except Exception as e:
+                logger.warning(f"Failed to clear semantic memory: {e}")
+        
+        logger.info("Context cleared")
     
     def get_context_summary(self) -> Dict[str, Any]:
         """

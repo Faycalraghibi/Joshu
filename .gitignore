@@ -212,9 +212,10 @@ __marimo__/
 
 .cursor/
 ./Files.txt
-./.joshu_data.json
-./.joshu_sessions.json
-
+.joshu_data.json
+.joshu_sessions.json
+.joshu_chromadb/
+*.chromadb/
 ./MERGED_IMPLEMENTATION_SUMMARY.md
 ./tests/TEST_ALIGNMENT_FIXES.md
 ./tests/TEST_FIXES_SUMMARY.md

@@ -41,6 +41,12 @@ llm = [
     "llama-cpp-python==0.2.55",
     "sentencepiece==0.1.99"
 ]
+# Semantic memory dependencies (vector database and embeddings)
+# Requires: chromadb for local vector storage, sentence-transformers for embeddings
+semantic = [
+    "chromadb>=0.4.0",
+    "sentence-transformers>=2.2.0"
+]
 
 [project.scripts]
 joshu = "joshu.ui.cli:main"
