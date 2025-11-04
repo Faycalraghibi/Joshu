@@ -3,6 +3,7 @@
 from .echo import EchoProvider
 from .llama_cpp import LlamaCppProvider, LlamaCppWrapper, maybe_load_llama_from_env
 from .openrouter import OpenRouterProvider
+from .vllm import VLLMProvider
 
 # Alias for backward compatibility
 LocalModelProvider = LlamaCppProvider
@@ -14,5 +15,6 @@ __all__ = [
     "maybe_load_llama_from_env",
     "LocalModelProvider",  # Backward compatibility
     "OpenRouterProvider",
+    "VLLMProvider",
 ]
 

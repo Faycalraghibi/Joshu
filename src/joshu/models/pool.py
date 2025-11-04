@@ -8,7 +8,7 @@ from typing import Any, Dict, Generator, List, Optional
 
 from .base import LLM, ModelProvider
 from .config import ModelConfig
-from .providers import EchoProvider, LlamaCppProvider, OpenRouterProvider
+from .providers import EchoProvider, LlamaCppProvider, OpenRouterProvider, VLLMProvider
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ class ModelPool:
         self._lock = Lock()
         self._initialized = False
         
-        if not providers:
+        if providers is None:
             self._auto_discover_providers()
     
     def _auto_discover_providers(self) -> None:
@@ -64,6 +64,18 @@ class ModelPool:
                     logger.debug("Auto-discovered OpenRouter provider")
             except Exception as e:
                 logger.debug(f"Failed to auto-discover OpenRouter: {e}")
+        
+        # Try vLLM/LM Studio if configured
+        try:
+            vllm_url = ModelConfig.get_vllm_url()
+            vllm_model = ModelConfig.get_vllm_model_identifier()
+            if vllm_url and vllm_model:
+                vllm_provider = VLLMProvider()
+                if vllm_provider.initialize():
+                    self.add_provider(vllm_provider)
+                    logger.debug("Auto-discovered vLLM provider")
+        except Exception as e:
+            logger.debug(f"Failed to auto-discover vLLM: {e}")
         
         # Try to discover local models
         for model_name in ModelConfig.SUPPORTED_LOCAL_MODELS.keys():

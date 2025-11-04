@@ -206,5 +206,25 @@ class ModelConfig:
             "HTTP-Referer": os.getenv("OPENROUTER_SITE_URL", ""),
             "X-Title": os.getenv("OPENROUTER_SITE_TITLE", "Joshu Assistant"),
         }
+    
+    @classmethod
+    def get_vllm_url(cls) -> Optional[str]:
+        """
+        Get vLLM/LM Studio API URL from environment.
+        
+        Returns:
+            API URL string or None if not found
+        """
+        return os.getenv("VLLM_URL") or os.getenv("LM_STUDIO_URL")
+    
+    @classmethod
+    def get_vllm_model_identifier(cls) -> Optional[str]:
+        """
+        Get vLLM/LM Studio model identifier from environment.
+        
+        Returns:
+            Model identifier string or None if not found
+        """
+        return os.getenv("VLLM_MODEL_IDENTIFIER") or os.getenv("LM_STUDIO_MODEL_IDENTIFIER") or os.getenv("VLLM_MODEL")
 
 
