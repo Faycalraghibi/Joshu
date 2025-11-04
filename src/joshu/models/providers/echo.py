@@ -209,16 +209,8 @@ class EchoProvider(LLM, ModelProvider):
         prompt_stripped = prompt.strip()
         if re.match(r'^[a-zA-Z][a-zA-Z0-9_-]*(\s+.*)?$', prompt_stripped):
             words = prompt_stripped.split()
-            if len(words) == 1:
-                common_commands = {
-                    'ls', 'dir', 'pwd', 'cd', 'cat', 'type', 'find', 'grep',
-                    'mkdir', 'rm', 'del', 'cp', 'copy', 'mv', 'move', 'echo',
-                    'git', 'python', 'pip', 'npm', 'docker', 'kubectl',
-                    'terraform', 'aws', 'gcloud', 'az'
-                }
-                if words[0].lower() in common_commands:
-                    return prompt_stripped
-            else:
+            if len(words) > 0:
+                # Common commands that can be recognized
                 common_commands = {
                     'ls', 'dir', 'pwd', 'cd', 'cat', 'type', 'find', 'grep',
                     'mkdir', 'rm', 'del', 'cp', 'copy', 'mv', 'move', 'echo',
@@ -235,55 +227,192 @@ class EchoProvider(LLM, ModelProvider):
         command_lower = command.lower().strip()
         is_windows = self._is_windows()
         
-        explanations = {
+        # Direct command mappings
+        command_explanations = {
             "dir": "List all files and directories in the current directory",
-            "ls -la": "List all files and directories in the current directory",
+            "ls": "List files and directories",
+            "ls -la": "List all files and directories in the current directory with details",
+            "pwd": "Print working directory",
             "cd": "Show current directory path" if is_windows else "Print working directory",
             "type": "Display the contents of a file",
             "cat": "Display the contents of a file",
+            "clear": "Clear the terminal screen",
+            "cls": "Clear the terminal screen",
+            "exit": "Exit the current shell or program",
+            "help": "Display help information",
+            "man": "Display manual page for a command",
+            "history": "Display command history",
+            "whoami": "Display current user name",
+            "date": "Display current date and time",
+            "uptime": "Show how long the system has been running",
+            "df": "Display disk space usage",
+            "du": "Display file space usage",
+            "ps": "Display running processes",
+            "top": "Display and update sorted information about processes",
+            "kill": "Terminate a process",
+            "chmod": "Change file permissions",
+            "chown": "Change file owner and group",
+            "tar": "Create and manipulate tar archives",
+            "zip": "Package and compress files",
+            "unzip": "Extract compressed files",
+            "ssh": "Connect to a remote machine using SSH",
+            "scp": "Securely copy files between hosts",
+            "wget": "Download files from the web",
+            "curl": "Transfer data from or to a server",
+            "ping": "Send ICMP ECHO_REQUEST packets to network hosts",
+            "ipconfig": "Display IP configuration" if is_windows else "Show and manipulate routing and network devices",
+            "ifconfig": "Configure network interfaces",
+            "netstat": "Display network connections",
+            "sudo": "Execute a command as another user",
+            "su": "Switch user",
+            "passwd": "Change user password",
+            "reboot": "Restart the system",
+            "shutdown": "Shutdown or restart the system",
+            "mount": "Mount a filesystem",
+            "umount": "Unmount a filesystem",
+            "find": "Search for files in a directory hierarchy",
+            "locate": "Find files by name",
+            "which": "Locate a command",
+            "where": "Locate a command" if is_windows else "Locate a command",
         }
         
-        if command_lower in explanations:
-            return explanations[command_lower]
+        # Check for exact command matches
+        if command_lower in command_explanations:
+            return command_explanations[command_lower]
         
-        if command_lower.startswith("cd "):
-            return f"Change directory to: {command[3:]}"
-        elif command_lower.startswith("type ") or command_lower.startswith("cat "):
-            parts = command.split()
-            if len(parts) > 1:
-                return f"Display the contents of file: {parts[1]}"
-        elif command_lower.startswith("findstr ") or command_lower.startswith("grep "):
-            return f"Search for pattern in files: {command.split(None, 1)[1]}"
-        elif command_lower.startswith("mkdir "):
-            return f"Create directory: {command[6:]}"
-        elif command_lower.startswith("del ") or command_lower.startswith("rm "):
-            return f"Delete file: {command.split(None, 1)[1]}"
-        elif command_lower.startswith("copy ") or command_lower.startswith("cp "):
-            return f"Copy files: {command.split(None, 1)[1]}"
-        elif command_lower.startswith("move ") or command_lower.startswith("mv "):
-            return f"Move files: {command.split(None, 1)[1]}"
-        elif command_lower.startswith("echo "):
-            return "Display a message or redirect output to a file"
-        elif command_lower.startswith("git "):
-            return "Execute Git version control command"
-        elif command_lower.startswith("python "):
-            return "Execute Python script or command"
-        elif command_lower.startswith("pip "):
-            return "Manage Python packages"
-        elif command_lower.startswith("npm "):
-            return "Manage Node.js packages"
-        elif command_lower.startswith("docker "):
-            return "Manage Docker containers and images"
-        elif command_lower.startswith("kubectl "):
-            return "Manage Kubernetes clusters"
-        elif command_lower.startswith("terraform "):
-            return "Manage infrastructure as code with Terraform"
-        elif command_lower.startswith("aws "):
-            return "Execute AWS CLI command"
-        elif command_lower.startswith("gcloud "):
-            return "Execute Google Cloud CLI command"
-        elif command_lower.startswith("az "):
-            return "Execute Azure CLI command"
+        # Command prefix patterns and their explanations
+        command_patterns = [
+            # File operations
+            ("cd ", lambda cmd: f"Change directory to: {cmd[3:]}"),
+            ("type ", lambda cmd: f"Display the contents of file: {cmd.split(None, 1)[1] if len(cmd.split()) > 1 else ''}"),
+            ("cat ", lambda cmd: f"Display the contents of file: {cmd.split(None, 1)[1] if len(cmd.split()) > 1 else ''}"),
+            ("touch ", lambda cmd: f"Create empty file or update timestamp: {cmd.split(None, 1)[1] if len(cmd.split()) > 1 else ''}"),
+            ("mkdir ", lambda cmd: f"Create directory: {cmd.split(None, 1)[1] if len(cmd.split()) > 1 else ''}"),
+            ("rmdir ", lambda cmd: f"Remove empty directory: {cmd.split(None, 1)[1] if len(cmd.split()) > 1 else ''}"),
+            ("del ", lambda cmd: f"Delete file: {cmd.split(None, 1)[1] if len(cmd.split()) > 1 else ''}"),
+            ("rm ", lambda cmd: f"Remove file or directory: {cmd.split(None, 1)[1] if len(cmd.split()) > 1 else ''}"),
+            ("copy ", lambda cmd: f"Copy files: {cmd.split(None, 1)[1] if len(cmd.split()) > 1 else ''}"),
+            ("cp ", lambda cmd: f"Copy files: {cmd.split(None, 1)[1] if len(cmd.split()) > 1 else ''}"),
+            ("move ", lambda cmd: f"Move files: {cmd.split(None, 1)[1] if len(cmd.split()) > 1 else ''}"),
+            ("mv ", lambda cmd: f"Move or rename files: {cmd.split(None, 1)[1] if len(cmd.split()) > 1 else ''}"),
+            ("rename ", lambda cmd: f"Rename file: {cmd.split(None, 1)[1] if len(cmd.split()) > 1 else ''}"),
+            
+            # Text processing
+            ("echo ", lambda cmd: "Display a message or redirect output to a file"),
+            ("print ", lambda cmd: "Display a message"),
+            ("findstr ", lambda cmd: f"Search for pattern in files: {cmd.split(None, 1)[1] if len(cmd.split()) > 1 else ''}"),
+            ("grep ", lambda cmd: f"Search for pattern in files: {cmd.split(None, 1)[1] if len(cmd.split()) > 1 else ''}"),
+            ("sed ", lambda cmd: f"Stream editor for filtering and transforming text: {cmd.split(None, 1)[1] if len(cmd.split()) > 1 else ''}"),
+            ("awk ", lambda cmd: f"Pattern scanning and processing language: {cmd.split(None, 1)[1] if len(cmd.split()) > 1 else ''}"),
+            ("sort ", lambda cmd: "Sort lines of text files"),
+            ("uniq ", lambda cmd: "Remove duplicate lines from a sorted file"),
+            ("wc ", lambda cmd: "Count lines, words, and characters in a file"),
+            ("head ", lambda cmd: "Output the first part of files"),
+            ("tail ", lambda cmd: "Output the last part of files"),
+            ("cut ", lambda cmd: "Remove sections from each line of files"),
+            ("paste ", lambda cmd: "Merge lines of files"),
+            
+            # Version control
+            ("git ", lambda cmd: "Execute Git version control command"),
+            ("svn ", lambda cmd: "Execute Subversion version control command"),
+            ("hg ", lambda cmd: "Execute Mercurial version control command"),
+            
+            # Package managers
+            ("pip ", lambda cmd: "Manage Python packages"),
+            ("conda ", lambda cmd: "Manage Conda packages and environments"),
+            ("npm ", lambda cmd: "Manage Node.js packages"),
+            ("yarn ", lambda cmd: "Manage Node.js packages"),
+            ("apt-get ", lambda cmd: "Manage Debian/Ubuntu packages"),
+            ("apt ", lambda cmd: "Manage Debian/Ubuntu packages"),
+            ("yum ", lambda cmd: "Manage RPM packages"),
+            ("dnf ", lambda cmd: "Manage RPM packages"),
+            ("brew ", lambda cmd: "Manage macOS packages"),
+            ("choco ", lambda cmd: "Manage Windows packages"),
+            
+            # Programming languages
+            ("python ", lambda cmd: "Execute Python script or command"),
+            ("python3 ", lambda cmd: "Execute Python 3 script or command"),
+            ("node ", lambda cmd: "Execute Node.js script"),
+            ("java ", lambda cmd: "Execute Java program"),
+            ("javac ", lambda cmd: "Compile Java source code"),
+            ("gcc ", lambda cmd: "Compile C source code"),
+            ("g++ ", lambda cmd: "Compile C++ source code"),
+            ("go ", lambda cmd: "Execute Go program"),
+            ("ruby ", lambda cmd: "Execute Ruby script"),
+            ("perl ", lambda cmd: "Execute Perl script"),
+            ("php ", lambda cmd: "Execute PHP script"),
+            ("rustc ", lambda cmd: "Compile Rust source code"),
+            ("cargo ", lambda cmd: "Manage Rust projects"),
+            
+            # Containerization and orchestration
+            ("docker ", lambda cmd: "Manage Docker containers and images"),
+            ("docker-compose ", lambda cmd: "Define and run multi-container Docker applications"),
+            ("kubectl ", lambda cmd: "Manage Kubernetes clusters"),
+            ("helm ", lambda cmd: "Manage Kubernetes applications"),
+            
+            # Infrastructure as code
+            ("terraform ", lambda cmd: "Manage infrastructure as code with Terraform"),
+            ("ansible ", lambda cmd: "Automate configuration management"),
+            ("puppet ", lambda cmd: "Manage configuration"),
+            ("chef ", lambda cmd: "Manage configuration"),
+            
+            # Cloud providers
+            ("aws ", lambda cmd: "Execute AWS CLI command"),
+            ("gcloud ", lambda cmd: "Execute Google Cloud CLI command"),
+            ("az ", lambda cmd: "Execute Azure CLI command"),
+            ("oci ", lambda cmd: "Execute Oracle Cloud CLI command"),
+            ("ibmcloud ", lambda cmd: "Execute IBM Cloud CLI command"),
+            
+            # Database
+            ("mysql ", lambda cmd: "Execute MySQL command"),
+            ("psql ", lambda cmd: "Execute PostgreSQL command"),
+            ("mongo ", lambda cmd: "Execute MongoDB command"),
+            ("redis-cli ", lambda cmd: "Execute Redis command"),
+            ("sqlite3 ", lambda cmd: "Execute SQLite command"),
+            
+            # Network
+            ("telnet ", lambda cmd: "Communicate with another host using TELNET protocol"),
+            ("ftp ", lambda cmd: "File Transfer Protocol client"),
+            ("sftp ", lambda cmd: "Secure File Transfer Protocol client"),
+            ("rsync ", lambda cmd: "Remote file synchronization"),
+            ("nslookup ", lambda cmd: "Query Internet name servers interactively"),
+            ("dig ", lambda cmd: "DNS lookup utility"),
+            ("traceroute ", lambda cmd: "Print the route packets trace to network host"),
+            ("route ", lambda cmd: "Show and manipulate IP routing table"),
+            
+            # System monitoring
+            ("iostat ", lambda cmd: "Report CPU and I/O statistics"),
+            ("vmstat ", lambda cmd: "Report virtual memory statistics"),
+            ("netstat ", lambda cmd: "Display network connections"),
+            ("lsof ", lambda cmd: "List open files"),
+            ("free ", lambda cmd: "Display amount of free and used memory in the system"),
+            
+            # Compression and archiving
+            ("gzip ", lambda cmd: "Compress or expand files"),
+            ("gunzip ", lambda cmd: "Compress or expand files"),
+            ("bzip2 ", lambda cmd: "Compress or expand files"),
+            ("bunzip2 ", lambda cmd: "Compress or expand files"),
+            ("xz ", lambda cmd: "Compress or expand files"),
+            ("unxz ", lambda cmd: "Compress or expand files"),
+            ("zip ", lambda cmd: "Package and compress files"),
+            ("unzip ", lambda cmd: "Extract compressed files"),
+            ("tar ", lambda cmd: "Create and manipulate tar archives"),
+            ("7z ", lambda cmd: "Compress or extract files with 7-Zip"),
+            
+            # Editors
+            ("vi ", lambda cmd: "Open file in Vi editor"),
+            ("vim ", lambda cmd: "Open file in Vim editor"),
+            ("nano ", lambda cmd: "Open file in Nano editor"),
+            ("emacs ", lambda cmd: "Open file in Emacs editor"),
+            ("code ", lambda cmd: "Open file in Visual Studio Code"),
+            ("notepad ", lambda cmd: "Open file in Notepad"),
+        ]
         
+        # Check for command pattern matches
+        for prefix, explanation_func in command_patterns:
+            if command_lower.startswith(prefix):
+                return explanation_func(command)
+        
+        # If no match found, return a generic explanation
         return f"Execute command: {command}"
 

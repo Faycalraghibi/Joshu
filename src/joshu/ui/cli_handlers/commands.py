@@ -327,35 +327,19 @@ def handle_explain(command: str, context_provider: Optional[ContextProvider] = N
             console.print(f"[bold]Explanation of '{command}':[/bold]\n{explanation}")
             return
     
-    explanations = {
-        "tar": "The tar command is used to create and manipulate tar archives. Common usage:\n"
-               "  tar -czf archive.tar.gz directory/    # Create compressed archive\n"
-               "  tar -xzf archive.tar.gz               # Extract compressed archive\n"
-               "  tar -tf archive.tar.gz                # List contents of archive",
-        "git": "Git is a distributed version control system. Common commands:\n"
-               "  git status          # Show working directory status\n"
-               "  git add .           # Stage all changes\n"
-               "  git commit -m \"message\"  # Commit staged changes\n"
-               "  git push            # Push commits to remote repository\n"
-               "  git pull            # Pull changes from remote repository",
-        "docker": "Docker is a containerization platform. Common commands:\n"
-                  "  docker run image    # Run a container from an image\n"
-                  "  docker ps           # List running containers\n"
-                  "  docker build .      # Build an image from Dockerfile\n"
-                  "  docker stop id      # Stop a running container",
-        "ls": "The ls command lists directory contents. Common usage:\n"
-             "  ls -la              # List all files with details\n"
-             "  ls *.py             # List only Python files\n"
-             "  ls -R               # List files recursively",
-        "grep": "The grep command searches for patterns in files. Common usage:\n"
-                "  grep pattern file   # Search for pattern in file\n"
-                "  grep -r pattern .   # Search recursively in current directory\n"
-                "  grep -i pattern file # Case-insensitive search",
-    }
+    # Fallback: Try to get explanation from EchoProvider if available
+    try:
+        from joshu.models.providers import EchoProvider
+        echo_provider = EchoProvider()
+        explanation = echo_provider._generate_explanation_for_command(command)
+        if explanation and explanation != f"Execute command: {command}":
+            console.print(f"[bold]Explanation of '{command}':[/bold]\n{explanation}")
+            return
+    except Exception:
+        pass  # Fall through to generic message
     
-    if command.lower() in explanations:
-        console.print(f"[bold]Explanation of '{command}':[/bold]\n{explanations[command.lower()]}")
-    else:
-        console.print(f"[yellow]No specific explanation available for '{command}'.[/yellow]")
-        console.print("Try asking about common commands like: tar, git, docker, ls, grep")
+    # Final fallback: Generic message
+    console.print(f"[bold]Explanation of '{command}':[/bold]")
+    console.print(f"[yellow]No detailed explanation available for '{command}'.[/yellow]")
+    console.print("Try asking about common commands like: tar, git, docker, ls, grep, mkdir, cd, etc.")
 
