@@ -46,15 +46,17 @@ class ModeHandler:
             if response:
                 return response
         
-        # Fallback to local model
-        from joshu.models.inference import get_model
-        model = get_model(self.model)
-        if model:
+        # Fallback to local model via pool
+        from joshu.models.pool import get_model_pool
+        pool = get_model_pool()
+        available_providers = pool.get_available_providers()
+        if available_providers:
+            model_provider = available_providers[0]  # Use first available (prioritized)
             context_str = ""
             if context_messages:
                 context_str = "\n".join([f"{msg['role']}: {msg['content'][:200]}" for msg in context_messages[-5:]])
             full_prompt = f"{system_prompt}\n\n{context_str}\n\n{user_prompt}" if context_str else f"{system_prompt}\n\n{user_prompt}"
-            return model.generate(full_prompt)
+            return model_provider.generate(full_prompt, temperature=temperature, max_tokens=max_tokens)
         
         return None
     

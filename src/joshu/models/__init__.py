@@ -7,7 +7,7 @@ from .base import LLM, ModelProvider
 # Maintain backward compatibility - export old API
 from .inference import get_model, establish_model_connection, StreamingLLM
 from .openrouter import get_openrouter_client, chat_completion, establish_openrouter_connection
-from .providers import EchoProvider
+from .providers import EchoProvider, LocalModelProvider
 
 # Backward compatibility aliases
 EchoModel = EchoProvider
@@ -24,6 +24,7 @@ __all__ = [
     "StreamingLLM",
     "EchoModel",  # Alias for EchoProvider
     "EchoProvider",
+    "LocalModelProvider",  # Local model API provider
     "get_openrouter_client",
     "chat_completion",
     "establish_openrouter_connection",

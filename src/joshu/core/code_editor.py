@@ -17,7 +17,7 @@ from dataclasses import dataclass
 logger = logging.getLogger(__name__)
 
 
-def _clean_code_block_markdown(text: str) -> str:
+def _clean_code_block_markdown(text: Optional[str]) -> str:
     """
     Remove markdown code block formatting from LLM responses.
     
@@ -28,6 +28,10 @@ def _clean_code_block_markdown(text: str) -> str:
         Text with code blocks extracted and markdown removed
     """
     import re
+    
+    # Handle None or empty input
+    if not text or not isinstance(text, str):
+        return ""
     
     # Remove markdown code blocks (```language\n...``` or ```\n...```)
     pattern = r'```(?:[a-zA-Z]+)?\n?(.*?)```'
@@ -492,7 +496,8 @@ class CodeEditorCore:
             has_model_key = any(os.getenv(key) for key in model_specific_keys)
             
             # Check if cloud is enabled (default to true if we have an API key)
-            use_cloud_env = os.getenv("JOSHU_USE_CLOUD", "").lower()
+            use_cloud_env_raw = os.getenv("JOSHU_USE_CLOUD") or ""
+            use_cloud_env = use_cloud_env_raw.lower() if isinstance(use_cloud_env_raw, str) else ""
             # If JOSHU_USE_CLOUD is not set but we have an API key, assume cloud should be used
             if use_cloud_env == "" and (openrouter_key or has_model_key):
                 use_cloud = True
@@ -562,39 +567,44 @@ Return only the code:"""
                 except Exception as e:
                     logger.debug(f"OpenRouter code generation failed: {e}, falling back to local model")
             
-            # Fallback to local model via get_model, but check if it's EchoModel first
-            from joshu.models.inference import get_model
-            from joshu.models import EchoModel
+            # Fallback to local model via pool, but check if it's EchoModel first
+            from joshu.models.pool import get_model_pool
+            from joshu.models.providers import EchoProvider
+            pool = get_model_pool()
             
-            # Get the model and check its type
-            model = get_model("default")
-            if not model:
-                raise ValueError("Failed to get model instance")
+            # Get available providers
+            available_providers = pool.get_available_providers()
+            if not available_providers:
+                raise ValueError("No model providers are available")
             
-            # Check if we're using EchoModel (which always returns JSON for code generation)
-            is_echo_model = isinstance(model, EchoModel) or (
-                hasattr(model, '__class__') and 'Echo' in model.__class__.__name__
-            )
+            # Check if we're using EchoProvider (which always returns JSON for code generation)
+            model_provider = available_providers[0]
+            is_echo_model = isinstance(model_provider, EchoProvider)
             
-            # If using EchoModel, skip attempts and show helpful message immediately
+            # If using EchoProvider, skip attempts and show helpful message immediately
             if is_echo_model:
-                logger.info("EchoModel detected - skipping code generation attempts")
-                return f"""# Code Generation Requires Cloud Model API Key
+                logger.info("EchoProvider detected - skipping code generation attempts")
+                return f"""# Code Generation Requires Model Configuration
 
 # Your request: {prompt}
 
-# The current setup is using EchoModel which cannot generate code.
-# To enable code generation, please configure a cloud model API key:
+# The current setup is using EchoProvider which cannot generate code.
+# To enable code generation, please configure one of the following:
 
-# Option 1: OpenRouter (recommended)
+# Option 1: OpenRouter (recommended for cloud)
 #   export OPENROUTER_API_KEY=your_api_key_here
 #   export OPENROUTER_MODEL=openai/gpt-4o-mini  # or another model
 
-# Option 2: Model-specific API keys
+# Option 2: Local Model API (recommended for local models)
+#   export LOCAL_MODEL_URL=http://localhost:1234
+#   export LOCAL_MODEL_IDENTIFIER=your-model-name
+#   (The /v1/chat/completions endpoint path will be appended automatically)
+
+# Option 3: Model-specific API keys
 #   export DEEPSEEK_API_KEY=your_key  # for DeepSeek models
 #   export JOSHU_USE_CLOUD=true
 
-# After setting the API key, run the command again.
+# After setting the configuration, run the command again.
 """
             
             # For real models, try code generation
@@ -623,13 +633,16 @@ Now generate the {language} code (code only, no JSON, no explanations):"""
             # Try multiple times if we get JSON responses
             max_retries = 3
             for attempt in range(max_retries):
-                generated_code = model.generate(system_prompt)
+                generated_code = model_provider.generate(system_prompt, temperature=0.7, max_tokens=2048)
                 
-                if not generated_code:
-                    raise ValueError("Empty response from model")
+                if not generated_code or not isinstance(generated_code, str):
+                    raise ValueError(f"Empty or invalid response from model: {type(generated_code)}")
                 
                 # Clean markdown code blocks from response
                 cleaned_code = _clean_code_block_markdown(generated_code).strip()
+                
+                if not cleaned_code:
+                    raise ValueError("Empty code after cleaning markdown")
                 
                 # Check if it's JSON (command translation format)
                 is_json = False
@@ -764,8 +777,6 @@ Write the {language} code NOW (code only):"""
             logger.info(f"Created backup: {backup_path}")
             
             # Use LLM to generate the modified content
-            from joshu.models.inference import get_model
-            
             system_prompt = f"""You are an expert code editor. Modify the following {language} code according to the user's instruction.
 
 Requirements:
@@ -784,15 +795,19 @@ User instruction: {instruction}
 
 Modified code (complete file content):"""
             
-            # Get the model and generate modified content
-            model = get_model("default")
-            if not model:
-                raise ValueError("Failed to get model instance")
+            # Get model from pool
+            from joshu.models.pool import get_model_pool
+            pool = get_model_pool()
+            available_providers = pool.get_available_providers()
+            if not available_providers:
+                raise ValueError("No model providers are available")
             
-            modified_response = model.generate(system_prompt)
+            model_provider = available_providers[0]
             
-            if not modified_response:
-                raise ValueError("Empty response from model")
+            modified_response = model_provider.generate(system_prompt, temperature=0.7, max_tokens=2048)
+            
+            if not modified_response or not isinstance(modified_response, str):
+                raise ValueError(f"Empty or invalid response from model: {type(modified_response)}")
             
             # Clean markdown code blocks from response
             modified_content = _clean_code_block_markdown(modified_response)
@@ -801,8 +816,9 @@ Modified code (complete file content):"""
             if modified_content.strip() == original_content.strip():
                 # Retry with more explicit instruction
                 retry_prompt = f"Modify this {language} code: {instruction}. Apply actual changes and return the complete modified file:\n\n{original_content}"
-                modified_response = model.generate(retry_prompt)
-                modified_content = _clean_code_block_markdown(modified_response)
+                modified_response = model_provider.generate(retry_prompt, temperature=0.7, max_tokens=2048)
+                if modified_response and isinstance(modified_response, str):
+                    modified_content = _clean_code_block_markdown(modified_response)
             
             # Write the modified content
             if self.write_file(filepath, modified_content, backup=False):
@@ -845,8 +861,6 @@ Modified code (complete file content):"""
             Refactored code
         """
         try:
-            from joshu.models.inference import get_model
-            
             # Determine language from code or options
             language = options.get("language", "python")
             
@@ -874,15 +888,19 @@ Refactoring goal: {refactoring_goal}
 
 Refactored code:"""
             
-            # Get the model and refactor code
-            model = get_model("default")
-            if not model:
-                raise ValueError("Failed to get model instance")
+            # Get model from pool
+            from joshu.models.pool import get_model_pool
+            pool = get_model_pool()
+            available_providers = pool.get_available_providers()
+            if not available_providers:
+                raise ValueError("No model providers are available")
             
-            refactored_code = model.generate(system_prompt)
+            model_provider = available_providers[0]
             
-            if not refactored_code:
-                raise ValueError("Empty response from model")
+            refactored_code = model_provider.generate(system_prompt, temperature=0.7, max_tokens=2048)
+            
+            if not refactored_code or not isinstance(refactored_code, str):
+                raise ValueError(f"Empty or invalid response from model: {type(refactored_code)}")
             
             # Clean markdown code blocks from response
             cleaned_code = _clean_code_block_markdown(refactored_code)
@@ -890,8 +908,9 @@ Refactored code:"""
             # If we only got the original code back, try a different approach
             if cleaned_code.strip() == code.strip():
                 retry_prompt = f"Refactor this {language} code to {refactoring_goal}. Make actual improvements:\n\n{code}\n\nReturn only the refactored code."
-                refactored_code = model.generate(retry_prompt)
-                cleaned_code = _clean_code_block_markdown(refactored_code)
+                refactored_code = model_provider.generate(retry_prompt, temperature=0.7, max_tokens=2048)
+                if refactored_code and isinstance(refactored_code, str):
+                    cleaned_code = _clean_code_block_markdown(refactored_code)
             
             return cleaned_code
             
@@ -913,8 +932,6 @@ Refactored code:"""
             Explanation of the code
         """
         try:
-            from joshu.models.inference import get_model
-            
             # Determine language from code (simple heuristic)
             language = "python"  # Default
             if any(keyword in code for keyword in ["function", "const ", "let ", "var ", "=>"]):
@@ -948,15 +965,19 @@ Code to explain:
 
 Explanation:"""
             
-            # Get the model and generate explanation
-            model = get_model("default")
-            if not model:
-                raise ValueError("Failed to get model instance")
+            # Get model from pool
+            from joshu.models.pool import get_model_pool
+            pool = get_model_pool()
+            available_providers = pool.get_available_providers()
+            if not available_providers:
+                raise ValueError("No model providers are available")
             
-            explanation = model.generate(system_prompt)
+            model_provider = available_providers[0]
             
-            if not explanation:
-                raise ValueError("Empty response from model")
+            explanation = model_provider.generate(system_prompt, temperature=0.7, max_tokens=1024)
+            
+            if not explanation or not isinstance(explanation, str):
+                raise ValueError(f"Empty or invalid response from model: {type(explanation)}")
             
             # Remove markdown code blocks if present (explanations might include them)
             cleaned_explanation = _clean_code_block_markdown(explanation)
@@ -964,8 +985,9 @@ Explanation:"""
             # If the cleaned explanation is the same as the code, it's likely just code returned
             if cleaned_explanation.strip() == code.strip():
                 retry_prompt = f"Explain what this {language} code does in plain English. Do not return the code itself, only the explanation:\n\n{code}"
-                explanation = model.generate(retry_prompt)
-                cleaned_explanation = explanation.strip()
+                explanation = model_provider.generate(retry_prompt, temperature=0.7, max_tokens=1024)
+                if explanation and isinstance(explanation, str):
+                    cleaned_explanation = _clean_code_block_markdown(explanation).strip()
             
             return cleaned_explanation
             
@@ -1129,8 +1151,6 @@ Explanation:"""
             DebuggingReport object
         """
         try:
-            from joshu.models.inference import get_model
-            
             # Determine language from code
             language = "python"  # Default
             if any(keyword in code for keyword in ["function", "const ", "let ", "var "]):
@@ -1156,15 +1176,19 @@ Code to debug:
 
 Provide a detailed debugging analysis:"""
             
-            # Get the model and generate debugging report
-            model = get_model("default")
-            if not model:
-                raise ValueError("Failed to get model instance")
+            # Get model from pool
+            from joshu.models.pool import get_model_pool
+            pool = get_model_pool()
+            available_providers = pool.get_available_providers()
+            if not available_providers:
+                raise ValueError("No model providers are available")
             
-            debug_response = model.generate(system_prompt)
+            model_provider = available_providers[0]
             
-            if not debug_response:
-                raise ValueError("Empty response from model")
+            debug_response = model_provider.generate(system_prompt, temperature=0.7, max_tokens=1024)
+            
+            if not debug_response or not isinstance(debug_response, str):
+                raise ValueError(f"Empty or invalid response from model: {type(debug_response)}")
             
             # Parse the response to extract information
             # The LLM response should contain error type, analysis, and suggestions

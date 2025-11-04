@@ -3,18 +3,20 @@
 from .echo import EchoProvider
 from .llama_cpp import LlamaCppProvider, LlamaCppWrapper, maybe_load_llama_from_env
 from .openrouter import OpenRouterProvider
-from .vllm import VLLMProvider
+from .local import LocalModelProvider
 
-# Alias for backward compatibility
-LocalModelProvider = LlamaCppProvider
+# Backward compatibility: Old LocalModelProvider was LlamaCppProvider
+# Now LocalModelProvider is the local model API provider
+# Keep the old name for deprecated llama.cpp direct loading
+OldLocalModelProvider = LlamaCppProvider
 
 __all__ = [
     "EchoProvider",
     "LlamaCppProvider",
     "LlamaCppWrapper",
     "maybe_load_llama_from_env",
-    "LocalModelProvider",  # Backward compatibility
+    "LocalModelProvider",  # Local model API provider
+    "OldLocalModelProvider",  # Deprecated: LlamaCppProvider
     "OpenRouterProvider",
-    "VLLMProvider",
 ]
 

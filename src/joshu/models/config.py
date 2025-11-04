@@ -25,7 +25,8 @@ class ModelConfig:
     # Cloud model identifiers
     CLOUD_MODELS: Set[str] = {"deepseek", "tongyi", "qwen", "kimi", "agentica", "glm"}
     
-    # Supported local models and their environment variable mappings
+    # Supported local models and their environment variable mappings (DEPRECATED: Use local model API instead)
+    # Kept for backward compatibility only
     SUPPORTED_LOCAL_MODELS: Dict[str, str] = {
         "llama-3-8b": "LLAMA_CPP_MODEL_LLAMA3_8B",
         "llama-3-70b": "LLAMA_CPP_MODEL_LLAMA3_70B",
@@ -151,7 +152,9 @@ class ModelConfig:
     @classmethod
     def get_local_model_path(cls, model_name: str) -> Optional[str]:
         """
-        Get the file path for a local model.
+        Get the file path for a local model (DEPRECATED: Use local model API instead).
+        
+        This method is deprecated. Please use local model API by setting LOCAL_MODEL_URL and LOCAL_MODEL_IDENTIFIER.
         
         Args:
             model_name: Local model name
@@ -159,7 +162,7 @@ class ModelConfig:
         Returns:
             File path string or None if not found
         """
-        # Check supported local models
+        # Check supported local models (DEPRECATED)
         if model_name in cls.SUPPORTED_LOCAL_MODELS:
             env_var = cls.SUPPORTED_LOCAL_MODELS[model_name]
             model_path = os.getenv(env_var)
@@ -182,7 +185,9 @@ class ModelConfig:
     @classmethod
     def get_llama_config(cls) -> Dict[str, Any]:
         """
-        Get llama.cpp configuration from environment variables.
+        Get llama.cpp configuration from environment variables (DEPRECATED: Use local model API instead).
+        
+        This method is deprecated. Please use local model API by setting LOCAL_MODEL_URL and LOCAL_MODEL_IDENTIFIER.
         
         Returns:
             Dictionary with llama.cpp configuration
@@ -208,23 +213,24 @@ class ModelConfig:
         }
     
     @classmethod
-    def get_vllm_url(cls) -> Optional[str]:
+    def get_local_model_api_url(cls) -> Optional[str]:
         """
-        Get vLLM/LM Studio API URL from environment.
+        Get local model API URL from environment.
         
         Returns:
             API URL string or None if not found
         """
-        return os.getenv("VLLM_URL") or os.getenv("LM_STUDIO_URL")
+        return os.getenv("LOCAL_MODEL_URL")
     
     @classmethod
-    def get_vllm_model_identifier(cls) -> Optional[str]:
+    def get_local_model_api_identifier(cls) -> Optional[str]:
         """
-        Get vLLM/LM Studio model identifier from environment.
+        Get local model identifier from environment.
         
         Returns:
             Model identifier string or None if not found
         """
-        return os.getenv("VLLM_MODEL_IDENTIFIER") or os.getenv("LM_STUDIO_MODEL_IDENTIFIER") or os.getenv("VLLM_MODEL")
+        return os.getenv("LOCAL_MODEL_IDENTIFIER")
+    
 
 

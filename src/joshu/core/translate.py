@@ -41,12 +41,14 @@ def establish_connection(model_name: str = "default") -> bool:
                 logger.info("Connection to OpenRouter established successfully")
                 return True
         
-        # For local models, just try to load the model
-        model = get_model(model_name)
-        if model:
+        # For local models, try to get model from pool
+        from joshu.models.pool import get_model_pool
+        pool = get_model_pool()
+        available_providers = pool.get_available_providers()
+        if available_providers:
             _connection_established = True
             _connection_error = None
-            logger.info("Local model loaded successfully")
+            logger.info("Local model connection established successfully")
             return True
             
     except Exception as e:
@@ -175,13 +177,16 @@ Keep responses concise and friendly."""
                 )
         
         # Fallback to local model for conversational responses
-        from joshu.models.inference import get_model
-        model = get_model(model_name)
-        if model:
+        from joshu.models.pool import get_model_pool
+        pool = get_model_pool()
+        available_providers = pool.get_available_providers()
+        if available_providers:
+            # Use first available provider (prioritized by pool: OpenRouter > local model > llama.cpp > Echo)
+            model_provider = available_providers[0]
             conversational_prompt = f"""You are Joshu, a friendly AI assistant. The user said: "{text}"
 Provide a helpful, direct response. Keep it concise and friendly. Do not generate commands."""
             
-            response = model.generate(conversational_prompt)
+            response = model_provider.generate(conversational_prompt, temperature=0.7, max_tokens=256)
             if response:
                 # Clean any JSON or command formatting from response
                 cleaned_response = response.strip()
@@ -244,9 +249,12 @@ Please provide a natural, conversational summary of what we've discussed and wha
             )
         
         # Fallback to local model
-        model = get_model("default")
-        if model:
-            response = model.generate(summary_prompt)
+        from joshu.models.pool import get_model_pool
+        pool = get_model_pool()
+        available_providers = pool.get_available_providers()
+        if available_providers:
+            model_provider = available_providers[0]
+            response = model_provider.generate(summary_prompt, temperature=0.3, max_tokens=500)
             if response:
                 # Handle echo model response
                 if response.startswith("Echo:"):
@@ -543,8 +551,18 @@ Provide a helpful, direct conversational response. Keep it concise and friendly.
                         )
             except Exception:
                 pass  # Fall through to local model
-            
-        # Fallback to local model
+        
+        # Fallback to local model API (which falls back to deprecated direct llama.cpp loading)
+        translation = translate_with_local_model_api(prompt, context_provider, model_name)
+        if translation:
+            command = translation.command
+            # Adapt command for Windows if needed
+            command = adapt_command_for_windows(command)
+            # Preserve the needs_execution flag from the translation
+            needs_execution = getattr(translation, 'needs_execution', True)
+            return Translation(command=command, explanation=translation.explanation, needs_execution=needs_execution)
+        
+        # Final fallback to deprecated local model (for backward compatibility)
         translation = translate_with_local_model(prompt, context_provider, model_name)
         if translation:
             command = translation.command
@@ -731,9 +749,164 @@ User request:"""
     return None
 
 
+def translate_with_local_model_api(prompt: str, context_provider: Optional[ContextProvider] = None, 
+                                   model_name: Optional[str] = None) -> Optional[Translation]:
+    """
+    Translate using local model API provider.
+    """
+    from joshu.models.pool import get_model_pool
+    from joshu.models.providers import LocalModelProvider
+    system_info = get_system_info()
+    
+    # Build context-aware prompt
+    if context_provider:
+        context_messages = context_provider.get_relevant_context(prompt)
+        context_str = "\nConversation History:\n"
+        for msg in context_messages:
+            # Skip system messages that contain system information to avoid duplication
+            if msg["role"] != "system" or "System Information:" not in msg["content"]:
+                context_str += f"{msg['role']}: {msg['content']}\n"
+        
+        memory_entries = context_provider.memory_store.kv
+        if memory_entries:
+            context_str += "\nUser Preferences:\n"
+            for key, value in memory_entries.items():
+                context_str += f"- {key}: {value}\n"
+        
+        system_prompt = f"""You are a CLI assistant that translates natural language to shell commands.
+The user is on a {system_info} system. Generate appropriate commands for this platform.
+Use the following context to provide better responses:
+
+{context_str}
+
+IMPORTANT: Only generate commands when the user explicitly requests an action (like "list files", "show disk usage", "run a script").
+For conversational queries (greetings, general questions, comments), provide a helpful conversational response instead of a command.
+
+When a command IS needed, respond with a JSON object containing "command" and "explanation" fields.
+Example response:
+{{"command": "dir", "explanation": "List all files and directories in the current directory"}}
+
+For conversational queries, provide a natural response (not JSON).
+
+User request:"""
+    else:
+        system_prompt = f"""You are a CLI assistant that translates natural language to shell commands.
+The user is on a {system_info} system. Generate appropriate commands for this platform.
+
+IMPORTANT: Only generate commands when the user explicitly requests an action (like "list files", "show disk usage", "run a script").
+For conversational queries (greetings, general questions, comments), provide a helpful conversational response instead of a command.
+
+When a command IS needed, respond with a JSON object containing "command" and "explanation" fields.
+Example response:
+{{"command": "dir", "explanation": "List all files and directories in the current directory"}}
+
+For conversational queries, provide a natural response (not JSON).
+
+User request:"""
+    
+    full_prompt = f"{system_prompt}\n{prompt}"
+    
+    try:
+        pool = get_model_pool()
+        # Try to get local model provider
+        local_provider = pool.get_provider(name="local")
+        if not local_provider or not local_provider.is_available():
+            logger.debug("Local model provider not available")
+            return None
+        
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": prompt}
+        ]
+        
+        response = local_provider.chat_completion(messages, temperature=0.1, max_tokens=512)
+        
+        if not response:
+            return None
+            
+        logger.debug(f"Local model API response: {response}")
+            
+        # Try to parse JSON response
+        # Handle case where response might have extra text around JSON
+        response = response.strip()
+        if response.startswith("```json"):
+            response = response[7:]  # Remove ```json
+        if response.startswith("```"):
+            response = response[3:]  # Remove ```
+        if response.endswith("```"):
+            response = response[:-3]  # Remove ```
+        
+        # Strip any leading/trailing whitespace that might remain
+        response = response.strip()
+        
+        logger.debug(f"Cleaned response: {response}")
+        
+        # Check if response is JSON (command translation) or conversational text
+        try:
+            data = json.loads(response)
+            # It's JSON - check if it has command/explanation structure
+            if isinstance(data, dict) and ("command" in data or "explanation" in data):
+                command = data.get("command", "").strip()
+                explanation = data.get("explanation", "").strip()
+                
+                if command and explanation:
+                    return Translation(command=command, explanation=explanation)
+            # If JSON but not command format, might be conversational response
+            # Fall through to handle as conversational
+        except (json.JSONDecodeError, ValueError):
+            # Not JSON - this is likely a conversational response
+            # Check if it looks like a command request that should have been JSON
+            if any(word in response.lower() for word in ["command", "run", "execute", "list", "show", "find"]):
+                # Might be a description of a command - try to extract
+                logger.debug("Response appears to describe a command but isn't JSON format")
+            else:
+                # This is a conversational response - return it as an echo command
+                logger.debug("Response appears to be conversational, returning as echo command")
+                return Translation(
+                    command=f'echo """{response}"""',
+                    explanation="Conversational response - providing direct answer to user's question",
+                    needs_execution=False  # Conversational response, no execution needed
+                )
+        
+        # If we got here, the response wasn't in expected format
+        # For conversational responses that don't match patterns, return them as-is
+        if not response.startswith('{') and '"command"' not in response:
+            return Translation(
+                command=f'echo """{response}"""',
+                explanation="Direct response to user's query",
+                needs_execution=False  # Conversational response, no execution needed
+            )
+        
+        # If we still have the response but it's not handled, return None
+        return None
+    except Exception as e:
+        logger.warning(f"Local model translation failed: {e}")
+    
+    return None
+
+
 def translate_with_local_model(prompt: str, context_provider: Optional[ContextProvider] = None, 
                               model_name: str = "default") -> Optional[Translation]:
-    """Translate using local model."""
+    """
+    Translate using local model (DEPRECATED: Use translate_with_local_model_api instead).
+    
+    This function is kept for backward compatibility but will be removed in a future version.
+    Please migrate to local model API by setting LOCAL_MODEL_URL and LOCAL_MODEL_IDENTIFIER environment variables.
+    """
+    import warnings
+    warnings.warn(
+        "translate_with_local_model is deprecated. Use translate_with_local_model_api instead. "
+        "Set LOCAL_MODEL_URL and LOCAL_MODEL_IDENTIFIER environment variables.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    
+    # Try local model API first, then fall back to old direct llama.cpp loading logic
+    local_result = translate_with_local_model_api(prompt, context_provider, model_name)
+    if local_result:
+        return local_result
+    
+    # Fallback to old local model implementation
     from joshu.models.inference import get_model
     system_info = get_system_info()
     

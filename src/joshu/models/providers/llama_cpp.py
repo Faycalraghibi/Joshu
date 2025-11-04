@@ -111,16 +111,30 @@ def maybe_load_llama_from_env() -> Optional[LlamaCppWrapper]:
 
 
 class LlamaCppProvider(ModelProvider):
-    """Provider for llama.cpp models."""
+    """
+    Provider for llama.cpp models (DEPRECATED).
+    
+    This provider is deprecated. Please use LocalModelProvider (local model API) instead.
+    Set LOCAL_MODEL_URL and LOCAL_MODEL_IDENTIFIER environment variables.
+    
+    This class is kept for backward compatibility only and will be removed in a future version.
+    """
     
     def __init__(self, model_name: str, config: Optional[Dict[str, Any]] = None) -> None:
         """
-        Initialize llama.cpp provider.
+        Initialize llama.cpp provider (DEPRECATED).
         
         Args:
             model_name: Name of the local model to load
             config: Optional configuration dictionary
         """
+        import warnings
+        warnings.warn(
+            "LlamaCppProvider is deprecated. Use LocalModelProvider (local model API) instead. "
+            "Set LOCAL_MODEL_URL and LOCAL_MODEL_IDENTIFIER environment variables.",
+            DeprecationWarning,
+            stacklevel=2
+        )
         config = config or {}
         super().__init__(name=f"llama-cpp-{model_name}", config=config)
         self.model_name = model_name

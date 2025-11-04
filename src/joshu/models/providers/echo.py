@@ -72,7 +72,7 @@ class EchoProvider(LLM, ModelProvider):
             api_status = self._check_api_configuration()
             if api_status != "ok":
                 return json.dumps({
-                    "command": f'echo "API configuration issue: {api_status}. Please check your .env file or use local models."',
+                    "command": f'echo "API configuration issue: {api_status}. Please check your .env file or configure local model API."',
                     "explanation": "API access is required for complex requests but not properly configured."
                 })
             else:
@@ -100,7 +100,7 @@ class EchoProvider(LLM, ModelProvider):
             api_status = self._check_api_configuration()
             if api_status != "ok":
                 return json.dumps({
-                    "command": f'echo "API configuration issue: {api_status}. Please check your .env file or use local models."',
+                    "command": f'echo "API configuration issue: {api_status}. Please check your .env file or configure local model API."',
                     "explanation": "API access is required for complex requests but not properly configured."
                 })
             else:

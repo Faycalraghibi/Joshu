@@ -7,7 +7,7 @@ class TestCLISafety(unittest.TestCase):
     def setUp(self):
         self.runner = CliRunner()
     
-    @patch('joshu.core.translate.translate_to_command')
+    @patch('joshu.ui.cli.translate_to_command')
     @patch('joshu.core.safety.assess_command_safety')
     def test_dangerous_command_blocked(self, mock_assess_safety, mock_translate):
         """Test that dangerous commands are blocked."""
@@ -38,7 +38,7 @@ class TestCLISafety(unittest.TestCase):
         assert "DANGER: This command could cause serious damage" in result.stdout or "danger" in result.stdout.lower()
         assert "This command will delete your entire system" in result.stdout or "delete" in result.stdout.lower()
     
-    @patch('joshu.core.translate.translate_to_command')
+    @patch('joshu.ui.cli.translate_to_command')
     @patch('joshu.core.safety.assess_command_safety')
     def test_sandbox_mode_blocks_destructive_commands(self, mock_assess_safety, mock_translate):
         """Test that sandbox mode blocks destructive commands."""

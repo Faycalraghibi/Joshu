@@ -15,9 +15,8 @@ core:
   - sentencepiece==0.1.99
   - torch==2.1.2
   - huggingface_hub==0.23.0
-  - llama-cpp-python==0.2.55           # For Llama/Mistral local inference
-  - openai==1.22.0                     # For GPT4All or OpenAI models
-  - vllm==0.2.2                        # Efficient GPU inference (optional)
+  - llama-cpp-python==0.2.55           # For Llama/Mistral local inference (deprecated, use local model API instead)
+  - openai==1.22.0                     # For OpenRouter API or OpenAI models
 
 cli:
   - typer==0.9.0                       # Modern CLI interface
@@ -36,15 +35,13 @@ utils:
 ## Model Compatibility Boundaries
 
 - **Supported Models**
-  - Llama 2/3 (7B, 13B, 70B)
-  - Mistral (7B, Mixtral 8x7B)
-  - GPT4All (latest)
-  - CodeLlama (7B/34B)
-  - Gemma 2B/9B
+  - Any model available through OpenRouter API
+  - Any model served via local model API (OpenAI-compatible endpoints)
+  - Deprecated: Direct llama.cpp models (use local model API instead)
 - **Inference Engine Constraints**:
-  - llama.cpp for local CPU/GPU inference (<16GB RAM for 7B models, ≥32GB for 13B+, ≥64GB for 70B)
-  - vLLM for efficient multi-GPU scheduling (when scaling up)
-  - Ollama for minimal effort local serving
+  - OpenRouter API for cloud-based inference
+  - Local model API (OpenAI-compatible) for local inference - supports any local model server
+  - Deprecated: Direct llama.cpp inference (<16GB RAM for 7B models, ≥32GB for 13B+, ≥64GB for 70B)
 
 ## OS \& Platform Requirements
 
@@ -52,7 +49,7 @@ utils:
 - **Minimum Hardware**:
   - RAM: 8GB for mid-size models, 4GB for small models
   - Disk Space: >20GB free, SSD recommended
-  - GPU: Optional, CUDA 11.8+ for optimal performance with PyTorch/vLLM
+  - GPU: Optional, CUDA 11.8+ for optimal performance with local model servers
 
 ## Dependency Management \& Environment Setup
 
@@ -90,13 +87,23 @@ utils:
 
 ```env
 PYTHON_VERSION="3.10"
-MODEL_TYPE="llama-3-8b"
-DEFAULT_DEVICE="cpu"          # "cuda" if available
 LOG_LEVEL="INFO"
 MAX_TOKENS="4096"
 MEMORY_ENABLED="true"
 SANDBOX_EXECUTION="true"
-CLOUD_INFERENCE="false"
+
+# OpenRouter API Configuration (for cloud inference)
+OPENROUTER_API_KEY="your-api-key"
+OPENROUTER_MODEL="openai/gpt-4o-mini"
+JOSHU_USE_CLOUD="true"
+
+# Local Model API Configuration (for local inference)
+# Configure your local model server (must provide OpenAI-compatible /v1/chat/completions endpoint)
+LOCAL_MODEL_URL="http://localhost:1234"           # Base URL (endpoint path will be appended automatically)
+LOCAL_MODEL_IDENTIFIER="your-model-name"          # Model identifier/name
+
+# Deprecated: Direct llama.cpp model loading (use local model API instead)
+# LLAMA_CPP_MODEL_LLAMA3_8B="/path/to/model.gguf"
 ```
 
 ---

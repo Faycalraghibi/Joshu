@@ -8,7 +8,7 @@ from typing import Any, Dict, Generator, List, Optional
 
 from .base import LLM, ModelProvider
 from .config import ModelConfig
-from .providers import EchoProvider, LlamaCppProvider, OpenRouterProvider, VLLMProvider
+from .providers import EchoProvider, LlamaCppProvider, OpenRouterProvider, LocalModelProvider
 
 logger = logging.getLogger(__name__)
 
@@ -65,37 +65,51 @@ class ModelPool:
             except Exception as e:
                 logger.debug(f"Failed to auto-discover OpenRouter: {e}")
         
-        # Try vLLM/LM Studio if configured
+        # Try local model API if configured
         try:
-            vllm_url = ModelConfig.get_vllm_url()
-            vllm_model = ModelConfig.get_vllm_model_identifier()
-            if vllm_url and vllm_model:
-                vllm_provider = VLLMProvider()
-                if vllm_provider.initialize():
-                    self.add_provider(vllm_provider)
-                    logger.debug("Auto-discovered vLLM provider")
-        except Exception as e:
-            logger.debug(f"Failed to auto-discover vLLM: {e}")
-        
-        # Try to discover local models
-        for model_name in ModelConfig.SUPPORTED_LOCAL_MODELS.keys():
-            try:
-                local_provider = LlamaCppProvider(model_name)
+            local_url = ModelConfig.get_local_model_api_url()
+            local_model = ModelConfig.get_local_model_api_identifier()
+            if local_url and local_model:
+                local_provider = LocalModelProvider()
                 if local_provider.initialize():
                     self.add_provider(local_provider)
-                    logger.debug(f"Auto-discovered llama.cpp model provider: {model_name}")
+                    logger.debug("Auto-discovered local model provider")
+        except Exception as e:
+            logger.debug(f"Failed to auto-discover local model provider: {e}")
+        
+        # Try to discover direct llama.cpp models (DEPRECATED: Use local model API instead)
+        # Kept for backward compatibility
+        import warnings
+        for model_name in ModelConfig.SUPPORTED_LOCAL_MODELS.keys():
+            try:
+                llama_provider = LlamaCppProvider(model_name)
+                if llama_provider.initialize():
+                    warnings.warn(
+                        f"Llama.cpp provider '{model_name}' is deprecated. "
+                        "Please use local model API instead. Set LOCAL_MODEL_URL and LOCAL_MODEL_IDENTIFIER environment variables.",
+                        DeprecationWarning,
+                        stacklevel=2
+                    )
+                    self.add_provider(llama_provider)
+                    logger.debug(f"Auto-discovered llama.cpp model provider: {model_name} (deprecated)")
             except Exception as e:
                 logger.debug(f"Failed to auto-discover llama.cpp model {model_name}: {e}")
         
-        # Try generic llama model from env
+        # Try generic llama model from env (DEPRECATED)
         try:
             model_path = ModelConfig.get_local_model_path("default")
             if model_path:
                 # Use the model name from path or a default name
-                local_provider = LlamaCppProvider("default")
-                if local_provider.initialize():
-                    self.add_provider(local_provider)
-                    logger.debug("Auto-discovered default llama.cpp model provider")
+                llama_provider = LlamaCppProvider("default")
+                if llama_provider.initialize():
+                    warnings.warn(
+                        "Llama.cpp provider is deprecated. "
+                        "Please use local model API instead. Set LOCAL_MODEL_URL and LOCAL_MODEL_IDENTIFIER environment variables.",
+                        DeprecationWarning,
+                        stacklevel=2
+                    )
+                    self.add_provider(llama_provider)
+                    logger.debug("Auto-discovered default llama.cpp model provider (deprecated)")
         except Exception as e:
             logger.debug(f"Failed to auto-discover default llama.cpp model: {e}")
         
@@ -154,7 +168,7 @@ class ModelPool:
                 if cached.is_available():
                     return cached
             
-            # Search providers
+            # Search providers - prefer local model API over llama.cpp
             for provider in self.providers:
                 if name and provider.name == name:
                     if provider.is_available():
@@ -165,6 +179,10 @@ class ModelPool:
                     if isinstance(provider, OpenRouterProvider) and ModelConfig.is_cloud_model(model_name):
                         if provider.is_available():
                             provider.model_name = ModelConfig.get_openrouter_model(model_name)
+                            self._provider_cache[cache_key] = provider
+                            return provider
+                    elif isinstance(provider, LocalModelProvider) and (not model_name or model_name == "default" or provider.model_name == model_name):
+                        if provider.is_available():
                             self._provider_cache[cache_key] = provider
                             return provider
                     elif isinstance(provider, LlamaCppProvider) and provider.model_name == model_name:
@@ -183,15 +201,17 @@ class ModelPool:
         """
         with self._lock:
             available = [p for p in self.providers if p.is_available()]
-            # Sort by priority: OpenRouter first, then llama.cpp models, then echo
+            # Sort by priority: OpenRouter first, then local model API, then llama.cpp (deprecated), then echo
             def priority(p: ModelProvider) -> int:
                 if isinstance(p, OpenRouterProvider):
                     return 0
-                elif isinstance(p, LlamaCppProvider):
+                elif isinstance(p, LocalModelProvider):
                     return 1
+                elif isinstance(p, LlamaCppProvider):
+                    return 2  # Deprecated - kept for backward compatibility
                 elif isinstance(p, EchoProvider):
-                    return 2
-                return 3
+                    return 3
+                return 4
             available.sort(key=priority)
             return available
     
