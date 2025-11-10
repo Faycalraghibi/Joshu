@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional
 from openai import OpenAI
 
 from .config import ModelConfig
-from .utils import parse_json_response
+from joshu.tools.parsing_utils import parse_json_response
 from joshu.tools.system_info import get_system_info
 
 logger = logging.getLogger(__name__)

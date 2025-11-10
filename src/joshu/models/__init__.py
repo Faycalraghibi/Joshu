@@ -9,6 +9,13 @@ from .inference import get_model, establish_model_connection, StreamingLLM
 from .openrouter import get_openrouter_client, chat_completion, establish_openrouter_connection
 from .providers import EchoProvider, LocalModelProvider
 
+# Try to export vLLM server provider (optional)
+try:
+    from .providers import VLLMServerProvider, VLLM_SERVER_AVAILABLE
+except ImportError:
+    VLLMServerProvider = None  # type: ignore
+    VLLM_SERVER_AVAILABLE = False
+
 # Backward compatibility aliases
 EchoModel = EchoProvider
 
@@ -28,4 +35,7 @@ __all__ = [
     "get_openrouter_client",
     "chat_completion",
     "establish_openrouter_connection",
+    # vLLM server provider (optional)
+    "VLLMServerProvider",
+    "VLLM_SERVER_AVAILABLE",
 ]

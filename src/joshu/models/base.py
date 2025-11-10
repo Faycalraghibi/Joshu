@@ -8,6 +8,15 @@ from typing import Any, Dict, Generator, List, Optional
 
 logger = logging.getLogger(__name__)
 
+# Import utilities for use in default implementations
+try:
+    from joshu.tools.response_utils import format_messages_as_prompt, chunk_response
+except ImportError:
+    # Fallback if tools not available
+    format_messages_as_prompt = None
+    chunk_response = None
+
+
 
 class LLM(ABC):
     """
@@ -119,10 +128,14 @@ class ModelProvider(ABC):
         full_response = self.generate(
             prompt, temperature=temperature, max_tokens=max_tokens, **kwargs
         )
-        # Yield in chunks for streaming effect
-        chunk_size = 50
-        for i in range(0, len(full_response), chunk_size):
-            yield full_response[i:i + chunk_size]
+        # Use utility function for chunking if available, otherwise fallback
+        if chunk_response:
+            yield from chunk_response(full_response)
+        else:
+            # Fallback implementation
+            chunk_size = 50
+            for i in range(0, len(full_response), chunk_size):
+                yield full_response[i:i + chunk_size]
     
     def chat_completion(
         self,
@@ -147,19 +160,22 @@ class ModelProvider(ABC):
         Returns:
             Generated text response, or None if generation failed
         """
-        # Convert messages to prompt format
-        prompt_parts = []
-        for msg in messages:
-            role = msg.get("role", "user")
-            content = msg.get("content", "")
-            if role == "system":
-                prompt_parts.append(f"System: {content}\n")
-            elif role == "user":
-                prompt_parts.append(f"User: {content}\n")
-            elif role == "assistant":
-                prompt_parts.append(f"Assistant: {content}\n")
-        
-        prompt = "".join(prompt_parts) + "\nAssistant:"
+        # Use utility function for formatting if available, otherwise fallback
+        if format_messages_as_prompt:
+            prompt = format_messages_as_prompt(messages)
+        else:
+            # Fallback implementation
+            prompt_parts = []
+            for msg in messages:
+                role = msg.get("role", "user")
+                content = msg.get("content", "")
+                if role == "system":
+                    prompt_parts.append(f"System: {content}\n")
+                elif role == "user":
+                    prompt_parts.append(f"User: {content}\n")
+                elif role == "assistant":
+                    prompt_parts.append(f"Assistant: {content}\n")
+            prompt = "".join(prompt_parts) + "\nAssistant:"
         
         try:
             return self.generate(

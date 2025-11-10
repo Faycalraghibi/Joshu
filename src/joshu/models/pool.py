@@ -8,7 +8,20 @@ from typing import Any, Dict, Generator, List, Optional
 
 from .base import LLM, ModelProvider
 from .config import ModelConfig
-from .providers import EchoProvider, LlamaCppProvider, OpenRouterProvider, LocalModelProvider
+from .providers import (
+    EchoProvider,
+    LlamaCppProvider,
+    OpenRouterProvider,
+    LocalModelProvider,
+)
+
+# Try to import vLLM server provider (optional)
+try:
+    from .providers import VLLMServerProvider, VLLM_SERVER_AVAILABLE
+except ImportError:
+    VLLMServerProvider = None  # type: ignore
+    VLLM_SERVER_AVAILABLE = False
+
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +77,22 @@ class ModelPool:
                     logger.debug("Auto-discovered OpenRouter provider")
             except Exception as e:
                 logger.debug(f"Failed to auto-discover OpenRouter: {e}")
+        
+        # Try vLLM server if configured (high priority - high throughput)
+        if VLLM_SERVER_AVAILABLE and VLLMServerProvider:
+            try:
+                vllm_model = ModelConfig.get_vllm_model()
+                vllm_url = ModelConfig.get_vllm_server_url()
+                if vllm_model or vllm_url:
+                    vllm_provider = VLLMServerProvider(
+                        model_name=vllm_model,
+                        server_url=vllm_url
+                    )
+                    if vllm_provider.initialize():
+                        self.add_provider(vllm_provider)
+                        logger.debug("Auto-discovered vLLM server provider")
+            except Exception as e:
+                logger.debug(f"Failed to auto-discover vLLM server provider: {e}")
         
         # Try local model API if configured
         try:
@@ -201,17 +230,19 @@ class ModelPool:
         """
         with self._lock:
             available = [p for p in self.providers if p.is_available()]
-            # Sort by priority: OpenRouter first, then local model API, then llama.cpp (deprecated), then echo
+            # Sort by priority: vLLM server (high throughput), OpenRouter, local model API, llama.cpp (deprecated), echo
             def priority(p: ModelProvider) -> int:
-                if isinstance(p, OpenRouterProvider):
-                    return 0
-                elif isinstance(p, LocalModelProvider):
+                if VLLMServerProvider and isinstance(p, VLLMServerProvider):
+                    return 0  # Highest priority - high throughput
+                elif isinstance(p, OpenRouterProvider):
                     return 1
+                elif isinstance(p, LocalModelProvider):
+                    return 2
                 elif isinstance(p, LlamaCppProvider):
-                    return 2  # Deprecated - kept for backward compatibility
+                    return 3  # Deprecated - kept for backward compatibility
                 elif isinstance(p, EchoProvider):
-                    return 3
-                return 4
+                    return 4
+                return 5
             available.sort(key=priority)
             return available
     

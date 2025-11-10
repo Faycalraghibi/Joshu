@@ -11,6 +11,7 @@ from joshu.models.openrouter import translate_command_with_openrouter
 from joshu.models.inference import get_model
 from joshu.core.context_provider import ContextProvider
 from joshu.tools.system_info import get_system_info
+from joshu.tools.parsing_utils import extract_command_and_explanation, parse_json_response
 
 logger = logging.getLogger(__name__)
 # Reduce logging verbosity - only show warnings and errors
@@ -631,39 +632,11 @@ User request:"""
         response = chat_completion(messages, model=model_name_env, temperature=0.1, max_tokens=256)
         if response:
             # Try to extract command and explanation from the response
-            command, explanation = _extract_command_and_explanation(response)
+            command, explanation = extract_command_and_explanation(response)
             if command and explanation:
                 return {"command": command, "explanation": explanation}
     
     return result
-
-def _extract_command_and_explanation(response: str) -> Tuple[Optional[str], Optional[str]]:
-    """Extract command and explanation from a raw response."""
-    # Try to find JSON-like content in the response
-    import re
-    import json
-    
-    # Look for JSON object in the response
-    json_match = re.search(r'\{[^}]+\}', response)
-    if json_match:
-        try:
-            data = json.loads(json_match.group())
-            command = data.get("command", "").strip()
-            explanation = data.get("explanation", "").strip()
-            if command and explanation:
-                return command, explanation
-        except json.JSONDecodeError:
-            pass
-    
-    # If no JSON found, try to extract command and explanation manually
-    # Look for patterns like "command: ..." and "explanation: ..."
-    command_match = re.search(r'[Cc]ommand["\']?\s*[:：]?\s*["\']?([^"\n\r]+)', response)
-    explanation_match = re.search(r'[Ee]xplanation["\']?\s*[:：]?\s*["\']?([^"\n\r]+)', response)
-    
-    command = command_match.group(1).strip() if command_match else None
-    explanation = explanation_match.group(1).strip() if explanation_match else None
-    
-    return command, explanation
 
 def translate_command_with_openrouter_context_aware(messages: List[Dict[str, str]], system_info: Optional[str] = None, model_name: str = "default") -> Optional[Dict[str, str]]:
     """Translate using OpenRouter API with context awareness."""
@@ -704,44 +677,30 @@ User request:"""
         return None
         
     try:
-        # Clean up the response to handle markdown code blocks
-        cleaned_response = response.strip()
-        if cleaned_response.startswith("``json"):
-            cleaned_response = cleaned_response[7:]  # Remove ```json
-        if cleaned_response.startswith("```"):
-            cleaned_response = cleaned_response[3:]  # Remove ```
-        if cleaned_response.endswith("```"):
-            cleaned_response = cleaned_response[:-3]  # Remove ```
-        
-        # Strip any leading/trailing whitespace that might remain
-        cleaned_response = cleaned_response.strip()
-        
-        # Check if response is JSON (command) or conversational text
-        try:
-            # Try to parse as JSON
-            data = json.loads(cleaned_response)
-            if isinstance(data, dict) and ("command" in data or "explanation" in data):
-                command = data.get("command", "").strip()
-                explanation = data.get("explanation", "").strip()
-                
-                if command and explanation:
-                    return {"command": command, "explanation": explanation}
+        # Use utility function to parse JSON response
+        data = parse_json_response(response)
+        if data and isinstance(data, dict) and ("command" in data or "explanation" in data):
+            command = data.get("command", "").strip()
+            explanation = data.get("explanation", "").strip()
+            
+            if command and explanation:
+                return {"command": command, "explanation": explanation}
             
             # If JSON but not command format, might be conversational
             logger.debug("Response is JSON but not command format - treating as conversational")
             # Return it as a conversational response dict
             return {
-                "command": f'echo """{cleaned_response}"""',
+                "command": f'echo """{response}"""',
                 "explanation": "Conversational response - direct answer to user's question"
             }
-        except json.JSONDecodeError:
-            # Not JSON - this is likely a conversational response
-            # Return it as a conversational response dict
-            logger.debug(f"OpenRouter returned conversational response (not JSON): {response[:100]}...")
-            return {
-                "command": f'echo """{cleaned_response}"""',
-                "explanation": "Conversational response - direct answer to user's question"
-            }
+        
+        # Not JSON - this is likely a conversational response
+        # Return it as a conversational response dict
+        logger.debug(f"OpenRouter returned conversational response (not JSON): {response[:100]}...")
+        return {
+            "command": f'echo """{response}"""',
+            "explanation": "Conversational response - direct answer to user's question"
+        }
     except Exception as e:
         logger.debug(f"Error processing OpenRouter response: {e}")
         return None

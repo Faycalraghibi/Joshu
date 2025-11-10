@@ -3,9 +3,11 @@
 import pytest
 import json
 
-from joshu.models.utils import (
+from joshu.tools.parsing_utils import (
     parse_json_response,
     extract_command_and_explanation,
+)
+from joshu.tools.response_utils import (
     is_conversational_response,
     format_messages_as_prompt,
     chunk_response,

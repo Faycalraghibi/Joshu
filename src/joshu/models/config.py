@@ -232,5 +232,25 @@ class ModelConfig:
         """
         return os.getenv("LOCAL_MODEL_IDENTIFIER")
     
+    @classmethod
+    def get_vllm_model(cls) -> Optional[str]:
+        """
+        Get vLLM model name from environment.
+        
+        Returns:
+            Model name string or None if not found
+        """
+        return os.getenv("VLLM_MODEL")
+    
+    @classmethod
+    def get_vllm_server_url(cls) -> Optional[str]:
+        """
+        Get vLLM server URL from environment.
+        
+        Returns:
+            Server URL string or None if not found
+        """
+        return os.getenv("VLLM_SERVER_URL")
+    
 
 
