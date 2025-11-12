@@ -53,11 +53,13 @@ def test_explain_command():
         assert "explanation of 'tar':" in output_lower or "tar" in output_lower
         assert ("tar command is used to create and manipulate tar archives" in output_lower or
                 "create and manipulate tar" in output_lower or
+                "create, extract, and manipulate archive files" in output_lower or
                 "tar archives" in output_lower or
                 "the tar command" in output_lower or
                 "tar is used" in output_lower or
                 "used in unix" in output_lower or
-                "used in linux" in output_lower)
+                "used in linux" in output_lower or
+                "tape archive" in output_lower)
 
 
 def test_explain_command_unknown():

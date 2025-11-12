@@ -83,3 +83,5 @@ def chunk_response(response: str, chunk_size: int = 50) -> Generator[str, None, 
     for i in range(0, len(response), chunk_size):
         yield response[i:i + chunk_size]
 
+
+
