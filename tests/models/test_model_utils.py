@@ -151,9 +151,3 @@ class TestChunkResponse:
         response = ""
         chunks = list(chunk_response(response))
         assert len(chunks) == 0
-
-
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
-
-

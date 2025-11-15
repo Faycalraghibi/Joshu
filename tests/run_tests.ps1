@@ -7,8 +7,6 @@ $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Split-Path -Parent $scriptDir
 Set-Location $repoRoot
 
-# Try activating common venvs
-$venv = Join-Path $repoRoot ".venv\Scripts\Activate.ps1"
 $venv2 = Join-Path $repoRoot ".joshuvenv\Scripts\Activate.ps1"
 if (Test-Path $venv) { . $venv }
 elseif (Test-Path $venv2) { . $venv2 }

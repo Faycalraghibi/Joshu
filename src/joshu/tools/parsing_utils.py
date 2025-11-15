@@ -85,4 +85,3 @@ def extract_command_and_explanation(response: str) -> Tuple[Optional[str], Optio
     return command, explanation
 
 
-
