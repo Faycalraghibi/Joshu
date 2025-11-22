@@ -8,19 +8,6 @@ import os
 class ModelTestBase:
     """Base class for model provider tests."""
     
-    @pytest.fixture(autouse=True)
-    def setup_method(self):
-        """Reset environment before each test."""
-        # Clear model-related environment variables
-        model_vars = [
-            "LOCAL_MODEL_URL", "LOCAL_MODEL_IDENTIFIER", "OPENROUTER_API_KEY",
-            "VLLM_MODEL", "VLLM_SERVER_URL"
-        ]
-        
-        for var in model_vars:
-            if var in os.environ:
-                del os.environ[var]
-    
     def assert_provider_initialization(self, provider, expected_name, expected_model=None):
         """Assert that a provider is properly initialized."""
         assert provider.name == expected_name

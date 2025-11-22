@@ -7,9 +7,8 @@ $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Split-Path -Parent $scriptDir
 Set-Location $repoRoot
 
-$venv2 = Join-Path $repoRoot ".joshuvenv\Scripts\Activate.ps1"
+$venv = Join-Path $repoRoot ".joshuvenv\Scripts\Activate.ps1"
 if (Test-Path $venv) { . $venv }
-elseif (Test-Path $venv2) { . $venv2 }
 
 $env:PYTHONUNBUFFERED = "1"
 $env:PYTHONDONTWRITEBYTECODE = "1"

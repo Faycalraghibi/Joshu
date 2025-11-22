@@ -9,14 +9,7 @@ from joshu.models.providers.vllm_server import VLLMServerProvider, VLLM_AVAILABL
 
 class TestVLLMServerProvider:
     """Test vLLM server provider."""
-    
-    def setup_method(self):
-        """Reset environment before each test."""
-        # Clear vLLM-related env vars
-        for key in ["VLLM_MODEL", "VLLM_SERVER_URL"]:
-            if key in os.environ:
-                del os.environ[key]
-    
+
     def test_provider_initialization_with_server_url(self):
         """Test provider initialization with server URL."""
         provider = VLLMServerProvider(

@@ -9,6 +9,7 @@ from joshu.core.storage import JsonFileStorage
 
 def test_context_provider_initialization():
     """Test that ContextProvider initializes correctly."""
+    # NOTE: Storage-related tests have been moved to tests/storage/
     # Use temporary storage to avoid interference from existing data
     with tempfile.TemporaryDirectory() as tmpdir:
         storage = JsonFileStorage(Path(tmpdir) / 'test_data.json')
@@ -55,6 +56,7 @@ def test_context_provider_update_context_from_response():
 
 def test_context_provider_clear_context():
     """Test clearing all context."""
+    # NOTE: Storage-related tests have been moved to tests/storage/
     # Use temporary storage to avoid interference from existing data
     with tempfile.TemporaryDirectory() as tmpdir:
         storage = JsonFileStorage(Path(tmpdir) / 'test_data.json')
@@ -94,6 +96,7 @@ def test_context_provider_get_relevant_context():
 
 def test_context_provider_get_context_summary():
     """Test getting context summary."""
+    # NOTE: Storage-related tests have been moved to tests/storage/
     # Use temporary storage to avoid interference from existing data
     with tempfile.TemporaryDirectory() as tmpdir:
         storage = JsonFileStorage(Path(tmpdir) / 'test_data.json')
