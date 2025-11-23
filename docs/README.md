@@ -1,86 +1,51 @@
-# Model Tests Refactoring
+# Joshu Documentation
 
-This directory contains refactored tests for the model-related functionality in the Joshu project. The refactoring was done to reduce redundancy and duplication while maintaining comprehensive test coverage.
+Complete documentation for Joshu AI-powered command-line assistant.
 
-## Refactored Test Structure
+## Getting Started
 
-### Before Refactoring
-The model-related tests were scattered across multiple files with significant redundancy:
-- `test_model_config.py` - Model configuration tests
-- `test_model_utils.py` - Utility function tests
-- `test_model_switching.py` - Model switching functionality tests
-- `test_model_pool.py` - Model pool architecture tests
-- `test_local_model_provider.py` - Local model provider tests
-- `test_vllm_server_provider.py` - vLLM server provider tests
-- `test_openrouter_integration.py` - OpenRouter integration tests
+- **[Installation Guide](installation.md)** — Installation methods and requirements
+- **[Quick Start Guide](quick-start.md)** — Get up and running in minutes
+- **[Configuration](configuration.md)** — Configure Joshu for your needs
 
-### After Refactoring
-The tests have been reorganized into a more logical structure:
+## Usage
 
-```
-tests/
-└── test_models/
-    ├── __init__.py
-    ├── conftest.py                 # Shared fixtures and configuration
-    ├── test_model_base.py          # Base test classes and utilities
-    ├── test_model_config.py        # Model configuration tests
-    ├── test_model_pool.py          # Model pool functionality tests
-    ├── test_model_switching.py     # Model switching functionality tests
-    ├── test_model_utils.py         # Utility function tests
-    ├── test_openrouter.py          # OpenRouter integration tests
-    ├── test_provider_local.py      # Local model provider tests
-    └── test_provider_vllm.py       # vLLM server provider tests
-```
+- **[Interactive Mode](interactive-mode.md)** — Using the interactive shell
+- **[Commands Reference](commands.md)** — All available commands
+- **[Session Management](sessions.md)** — Managing conversation sessions
+- **[Semantic Memory](semantic-memory.md)** — Using the semantic memory system
 
-## Key Improvements
+## Features
 
-### 1. Reduced Redundancy
-- Created a shared `test_model_base.py` with common test utilities and base classes
-- Consolidated common fixtures in `conftest.py`
-- Eliminated duplicate test patterns across multiple files
+- **[Three Modes](modes.md)** — Agent, Ask, and Plan modes
+- **[Code Generation](code-generation.md)** — Generate and edit code
+- **[Safety Features](safety.md)** — Command validation and safety
 
-### 2. Better Organization
-- Grouped all model-related tests under a single `test_models` directory
-- Separated provider-specific tests into their own files
-- Organized tests by functionality rather than by original file structure
+## Models
 
-### 3. Improved Test Utilities
-- Created reusable assertion methods in the base test class
-- Standardized mock response creation
-- Added common setup and teardown patterns
+- **[Model Support](models.md)** — Local and cloud models
+- **[VLLM Server Integration](VLLM_SERVER_INTEGRATION.md)** — Local server setup
+- **[OpenRouter Setup](openrouter.md)** — Cloud model configuration
 
-### 4. Enhanced Maintainability
-- Clearer test naming conventions
-- Better separation of concerns
-- Easier to add new provider tests following the established pattern
+## Development
 
-## Test Coverage
+- **[Architecture](architecture.md)** — System architecture overview
+- **[Rules & Guidelines](Rules.md)** — Development standards
+- **[Contributing](contributing.md)** — How to contribute
+- **[Todo & Roadmap](Todo.md)** — Planned features
 
-The refactored tests maintain full coverage of the original functionality:
+## Reference
 
-- **Model Configuration**: Environment variable handling, API key management, cloud model detection
-- **Model Pool**: Provider registration, availability checking, generation fallbacks
-- **Model Switching**: Model caching, loading, and unloading
-- **Utilities**: JSON parsing, response formatting, message chunking
-- **Providers**: Local model provider, vLLM server provider, OpenRouter integration
+- **[API Reference](api-reference.md)** — Python API documentation
+- **[Keyboard Shortcuts](keyboard-shortcuts.md)** — All keyboard bindings
+- **[Environment Variables](environment-variables.md)** — Configuration via environment
 
-## Benefits
+## Project Information
 
-1. **Easier Maintenance**: Changes to common test patterns only need to be made in one place
-2. **Better Readability**: Tests are organized logically making it easier to find specific functionality
-3. **Reduced Duplication**: Common setup and utility code is shared across test modules
-4. **Scalability**: Adding new provider tests follows a consistent pattern
-5. **Consistency**: All tests follow the same structure and conventions
+- **[Compatibility Reports](COMPATIBILITY_SUMMARY.md)** — Version compatibility
+- **[Implementation Summary](MERGED_IMPLEMENTATION_SUMMARY.md)** — Recent implementations
+- **[PR Description](PR_DESCRIPTION.md)** — Latest changes
 
-## Running the Tests
+---
 
-```bash
-# Run all model tests
-python -m pytest tests/test_models/
-
-# Run specific test module
-python -m pytest tests/test_models/test_model_config.py
-
-# Run with verbose output
-python -m pytest tests/test_models/ -v
-```
+**Questions?** Check existing documentation or open an issue on GitHub.
