@@ -133,13 +133,166 @@ class CommandHandler:
             self.interactive_mode._show_message("💡 Type '/session help' for detailed information")
             return True
     
+    def handle_memory_command(self, command: str) -> bool:
+        """Handle semantic memory commands."""
+        if not self.context_provider:
+            self.interactive_mode._show_message("❌ Context provider not available.")
+            return True
+        
+        if not hasattr(self.context_provider, 'semantic_memory'):
+            self.interactive_mode._show_message("❌ Semantic memory not available.")
+            return True
+        
+        semantic_memory = self.context_provider.semantic_memory
+        
+        parts = command.split(maxsplit=2)  # Split into at most 3 parts: /memory, subcommand, args
+        
+        if len(parts) == 1:  # Just /memory
+            self.interactive_mode._show_message("📚 Semantic Memory Commands:")
+            self.interactive_mode._show_message("")
+            self.interactive_mode._show_message("  /memory status          - Show memory statistics")
+            self.interactive_mode._show_message("  /memory search <query>  - Search for similar past conversations")
+            self.interactive_mode._show_message("  /memory clear           - Clear all semantic memories")
+            self.interactive_mode._show_message("")
+            self.interactive_mode._show_message("💡 Semantic memory allows Joshu to recall relevant past conversations")
+            self.interactive_mode._show_message("   based on meaning, not just recency.")
+            return True
+        
+        subcommand = parts[1].lower()
+        
+        if subcommand == 'status':
+            if not semantic_memory.enabled:
+                self.interactive_mode._show_message("⚠️  Semantic memory is disabled (missing dependencies)")
+                self.interactive_mode._show_message("💡 Install with: pip install -e .[semantic]")
+                return True
+            
+            count = semantic_memory.count()
+            self.interactive_mode._show_message("📊 Semantic Memory Status:")
+            self.interactive_mode._show_message("")
+            self.interactive_mode._show_message(f"  Status: ✅ Enabled")
+            self.interactive_mode._show_message(f"  Total memories: {count}")
+            self.interactive_mode._show_message(f"  Embedding model: all-MiniLM-L6-v2")
+            self.interactive_mode._show_message(f"  Storage: ChromaDB (persistent)")
+            self.interactive_mode._show_message("")
+            
+            # Get config values if available
+            if hasattr(self.config_manager, 'config'):
+                config = self.config_manager.config
+                threshold = getattr(config, 'semantic_memory_similarity_threshold', 0.3)
+                max_results = getattr(config, 'semantic_memory_max_results', 5)
+                min_length = getattr(config, 'semantic_memory_min_content_length', 10)
+                
+                self.interactive_mode._show_message("  Configuration:")
+                self.interactive_mode._show_message(f"    - Similarity threshold: {threshold}")
+                self.interactive_mode._show_message(f"    - Max results: {max_results}")
+                self.interactive_mode._show_message(f"    - Min content length: {min_length}")
+            
+            return True
+        
+        elif subcommand == 'search':
+            if not semantic_memory.enabled:
+                self.interactive_mode._show_message("⚠️  Semantic memory is disabled (missing dependencies)")
+                return True
+            
+            if len(parts) < 3:
+                self.interactive_mode._show_message("❌ Usage: /memory search <query>")
+                self.interactive_mode._show_message("💡 Example: /memory search python machine learning")
+                return True
+            
+            query = parts[2]
+            
+            # Get config values
+            max_results = 5
+            min_score = 0.3
+            if hasattr(self.config_manager, 'config'):
+                config = self.config_manager.config
+                max_results = getattr(config, 'semantic_memory_max_results', 5)
+                min_score = getattr(config, 'semantic_memory_similarity_threshold', 0.3)
+            
+            # Search semantic memory
+            results = semantic_memory.search(
+                query=query,
+                limit=max_results,
+                min_score=min_score
+            )
+            
+            if not results:
+                self.interactive_mode._show_message(f"🔍 No relevant memories found for: '{query}'")
+                self.interactive_mode._show_message("💡 Try a different query or lower the similarity threshold")
+                return True
+            
+            self.interactive_mode._show_message(f"🔍 Found {len(results)} relevant memories for: '{query}'")
+            self.interactive_mode._show_message("")
+            
+            for i, entry in enumerate(results, 1):
+                # Format timestamp
+                from datetime import datetime
+                timestamp_str = "Unknown"
+                if entry.timestamp:
+                    try:
+                        dt = datetime.fromtimestamp(entry.timestamp)
+                        timestamp_str = dt.strftime("%Y-%m-%d %H:%M:%S")
+                    except:
+                        pass
+                
+                # Get session info
+                session_info = ""
+                if entry.session_id:
+                    session_info = f" [Session: {entry.session_id[:8]}...]"
+                
+                self.interactive_mode._show_message(f"{i}. [{entry.role.upper()}]{session_info} @ {timestamp_str}")
+                
+                # Truncate content if too long
+                content = entry.content
+                if len(content) > 200:
+                    content = content[:197] + "..."
+                
+                self.interactive_mode._show_message(f"   {content}")
+                self.interactive_mode._show_message("")
+            
+            return True
+        
+        elif subcommand == 'clear':
+            if not semantic_memory.enabled:
+                self.interactive_mode._show_message("⚠️  Semantic memory is disabled (missing dependencies)")
+                return True
+            
+            count = semantic_memory.count()
+            
+            if count == 0:
+                self.interactive_mode._show_message("ℹ️  No memories to clear.")
+                return True
+            
+            # Clear all memories
+            success = semantic_memory.clear()
+            
+            if success:
+                self.interactive_mode._show_message(f"✅ Cleared {count} semantic memories.")
+                self.interactive_mode._show_message("💡 New conversations will continue to be stored automatically.")
+            else:
+                self.interactive_mode._show_message("❌ Failed to clear semantic memories.")
+            
+            return True
+        
+        else:
+            self.interactive_mode._show_message(f"❌ Unknown memory command: {subcommand}")
+            self.interactive_mode._show_message("💡 Available commands: status, search, clear")
+            self.interactive_mode._show_message("💡 Type '/memory' for detailed information")
+            return True
+    
+
     def handle_slash_command(self, command: str) -> bool:
         """Handle slash commands."""
         # Handle session commands first
         if command.startswith('/session'):
             return self.handle_session_command(command)
         
+        # Handle memory commands
+        if command.startswith('/memory'):
+            return self.handle_memory_command(command)
+        
         if command == '/clear':
+
             # Clear prompt history from storage
             from joshu.core.storage import QueryFilter, EntryType
             filter = QueryFilter(entry_type=EntryType.PROMPT_HISTORY)
@@ -238,6 +391,10 @@ Special Commands:
   /session end - End current session and start a new one
   /session switch <id> - Switch to a session
   /session delete <id> - Delete a session
+  /memory      - Show memory commands help
+  /memory status - Show semantic memory statistics
+  /memory search <query> - Search for similar conversations
+  /memory clear - Clear all semantic memories
   /history     - Show command history
   /help        - Show this help
   /config   - Show/set configuration

@@ -31,6 +31,11 @@ DEFAULT_CONFIG = {
     "vim_mode": False,
     "persistent_history": True,
     "history_limit": 1000,
+    # Semantic memory settings
+    "semantic_memory_enabled": True,
+    "semantic_memory_similarity_threshold": 0.3,
+    "semantic_memory_max_results": 5,
+    "semantic_memory_min_content_length": 10,
 }
 
 
@@ -52,6 +57,11 @@ class JoshuConfig:
     vim_mode: bool = False
     persistent_history: bool = True
     history_limit: int = 1000
+    # Semantic memory settings
+    semantic_memory_enabled: bool = True
+    semantic_memory_similarity_threshold: float = 0.3
+    semantic_memory_max_results: int = 5
+    semantic_memory_min_content_length: int = 10
 
     @classmethod
     def from_dict(cls, config_dict: Dict[str, Any]) -> "JoshuConfig":
@@ -71,6 +81,17 @@ class JoshuConfig:
             log_level=config_dict.get("log_level", DEFAULT_CONFIG["log_level"]),
             memory_enabled=config_dict.get("memory_enabled", DEFAULT_CONFIG["memory_enabled"]),
             sandbox_enabled=config_dict.get("sandbox_enabled", DEFAULT_CONFIG["sandbox_enabled"]),
+            # Enhanced interactive mode settings
+            enhanced_interactive=config_dict.get("enhanced_interactive", DEFAULT_CONFIG["enhanced_interactive"]),
+            multiline_input=config_dict.get("multiline_input", DEFAULT_CONFIG["multiline_input"]),
+            vim_mode=config_dict.get("vim_mode", DEFAULT_CONFIG["vim_mode"]),
+            persistent_history=config_dict.get("persistent_history", DEFAULT_CONFIG["persistent_history"]),
+            history_limit=config_dict.get("history_limit", DEFAULT_CONFIG["history_limit"]),
+            # Semantic memory settings
+            semantic_memory_enabled=config_dict.get("semantic_memory_enabled", DEFAULT_CONFIG["semantic_memory_enabled"]),
+            semantic_memory_similarity_threshold=config_dict.get("semantic_memory_similarity_threshold", DEFAULT_CONFIG["semantic_memory_similarity_threshold"]),
+            semantic_memory_max_results=config_dict.get("semantic_memory_max_results", DEFAULT_CONFIG["semantic_memory_max_results"]),
+            semantic_memory_min_content_length=config_dict.get("semantic_memory_min_content_length", DEFAULT_CONFIG["semantic_memory_min_content_length"]),
         )
 
     def to_dict(self) -> Dict[str, Any]:
