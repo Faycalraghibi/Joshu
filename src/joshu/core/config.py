@@ -41,6 +41,11 @@ DEFAULT_CONFIG = {
     "cache_similarity_threshold": 0.85,
     "cache_max_entries": 1000,
     "cache_dir": "~/.joshu/cache",
+    # Attention mechanism settings
+    "attention_enabled": True,
+    "attention_similarity_weight": 0.8,
+    "attention_recency_weight": 0.2,
+    "max_context_turns": 10,
 }
 
 
@@ -72,6 +77,11 @@ class JoshuConfig:
     cache_similarity_threshold: float = 0.85
     cache_max_entries: int = 1000
     cache_dir: str = "~/.joshu/cache"
+    # Attention mechanism settings
+    attention_enabled: bool = True
+    attention_similarity_weight: float = 0.8
+    attention_recency_weight: float = 0.2
+    max_context_turns: int = 10
 
     @classmethod
     def from_dict(cls, config_dict: Dict[str, Any]) -> "JoshuConfig":
@@ -107,6 +117,11 @@ class JoshuConfig:
             cache_similarity_threshold=config_dict.get("cache_similarity_threshold", DEFAULT_CONFIG["cache_similarity_threshold"]),
             cache_max_entries=config_dict.get("cache_max_entries", DEFAULT_CONFIG["cache_max_entries"]),
             cache_dir=config_dict.get("cache_dir", DEFAULT_CONFIG["cache_dir"]),
+            # Attention mechanism settings
+            attention_enabled=config_dict.get("attention_enabled", DEFAULT_CONFIG["attention_enabled"]),
+            attention_similarity_weight=config_dict.get("attention_similarity_weight", DEFAULT_CONFIG["attention_similarity_weight"]),
+            attention_recency_weight=config_dict.get("attention_recency_weight", DEFAULT_CONFIG["attention_recency_weight"]),
+            max_context_turns=config_dict.get("max_context_turns", DEFAULT_CONFIG["max_context_turns"]),
         )
 
     def to_dict(self) -> Dict[str, Any]:

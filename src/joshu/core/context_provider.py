@@ -16,6 +16,17 @@ from .storage import StorageBackend, StorageEntry, EntryType, QueryFilter, JsonF
 from .storage.semantic_memory import SemanticMemory
 from ..models.openrouter import chat_completion
 
+# Try to import dependencies for attention mechanism (optional)
+try:
+    import numpy as np
+    from sentence_transformers import SentenceTransformer
+    from sklearn.metrics.pairwise import cosine_similarity
+    ATTENTION_AVAILABLE = True
+except ImportError:
+    ATTENTION_AVAILABLE = False
+    logger.debug("Attention mechanism dependencies not available. Install with: pip install -e .[semantic]")
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -36,7 +47,8 @@ class ContextProvider:
     
     def __init__(self, max_history: int = 100, max_memory_entries: int = 1000, 
                  conversation_log_file: Optional[Path] = None,
-                 storage_backend: Optional[StorageBackend] = None) -> None:
+                 storage_backend: Optional[StorageBackend] = None,
+                 config: Optional[Dict[str, Any]] = None) -> None:
         """
         Initialize the context provider.
         
@@ -71,6 +83,28 @@ class ContextProvider:
         self.max_history = max_history
         self.max_memory_entries = max_memory_entries
         self.system_info: Optional[str] = None
+        
+        # Initialize attention mechanism configuration
+        self.config = config or {}
+        self.attention_enabled = self.config.get("attention_enabled", True)
+        self.attention_similarity_weight = self.config.get("attention_similarity_weight", 0.8)
+        self.attention_recency_weight = self.config.get("attention_recency_weight", 0.2)
+        self.max_context_turns = self.config.get("max_context_turns", 10)
+        
+        # Initialize embedding model for attention mechanism if enabled
+        self.embedding_model = None
+        if self.attention_enabled and ATTENTION_AVAILABLE:
+            try:
+                # Use a lightweight model for efficiency (same as translation cache)
+                self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+                logger.debug("Attention mechanism initialized with sentence-transformers")
+            except Exception as e:
+                logger.warning(f"Failed to load sentence transformer for attention: {e}")
+                self.attention_enabled = False
+        elif self.attention_enabled and not ATTENTION_AVAILABLE:
+            logger.info("Attention mechanism requested but dependencies not available. Install with: pip install -e .[semantic]")
+            self.attention_enabled = False
+
         
         # Session ID for grouping related conversations
         # Always create a NEW session when interactive mode starts (don't resume old sessions)
@@ -401,6 +435,41 @@ class ContextProvider:
         """
         return self.memory_store.get(key)
     
+    def _calculate_attention_score(self, turn_text: str, current_query: str, 
+                                   turn_index: int, total_turns: int) -> float:
+        """
+        Calculates a relevance score for a single conversation turn based on its
+        semantic similarity to the current query and its recency.
+        
+        Args:
+            turn_text: Text content of the conversation turn
+            current_query: Current user query
+            turn_index: Index of this turn in the conversation history (0-indexed)
+           total_turns: Total number of turns in history
+            
+        Returns:
+            Relevance score between 0.0 and 1.0
+        """
+        if not self.embedding_model:
+            return 0.0
+
+        # 1. Semantic Similarity Score
+        try:
+            embeddings = self.embedding_model.encode([turn_text, current_query])
+            similarity_score = cosine_similarity([embeddings[0]], [embeddings[1]])[0][0]
+        except Exception as e:
+            logger.debug(f"Failed to calculate similarity score: {e}")
+            similarity_score = 0.0
+
+        # 2. Recency Score (newer is better, normalized to 0-1)
+        # A simple linear decay: the oldest turn gets 0, the newest gets 1
+        recency_score = (turn_index + 1) / total_turns if total_turns > 0 else 0.0
+
+        # Combine the scores using configured weights
+        final_score = (self.attention_similarity_weight * similarity_score) +                      (self.attention_recency_weight * recency_score)
+        
+        return final_score
+    
     def get_relevant_context(self, query: str, max_tokens: int = 3000) -> List[Dict[str, str]]:
         """
         Get relevant context for a query, including conversation history and memory.
@@ -427,13 +496,38 @@ class ContextProvider:
                 "content": f"System Information: {self.system_info}"
             })
         
-        # Add recent conversation history (limit by max_tokens for memory efficiency)
+        # Add recent conversation history with intelligent selection
         history_messages = self.conversation_context.as_list()
-        # Add the most recent messages in chronological order
-        # Limit to recent messages to stay within token budget and maintain efficiency
-        # Use more messages if max_tokens allows (default 2000, increase to 20 messages for better context)
-        max_history_messages = min(20, len(history_messages))
-        recent_messages = history_messages[-max_history_messages:] if len(history_messages) > max_history_messages else history_messages
+        
+        # Use attention mechanism if enabled and history exceeds limit
+        if self.attention_enabled and self.embedding_model and len(history_messages) > self.max_context_turns:
+            # Score each turn based on relevance to current query
+            scored_turns = []
+            for i, turn in enumerate(history_messages):
+                # Combine user and assistant text for a complete turn representation
+                turn_text = f"{turn.get('role', '')}: {turn.get('content', '')}"
+                score = self._calculate_attention_score(turn_text, query, i, len(history_messages))
+                scored_turns.append({'turn': turn, 'score': score, 'index': i})
+            
+            # Sort turns by score in descending order
+            scored_turns.sort(key=lambda x: x['score'], reverse=True)
+            
+            # Select the top N most relevant turns
+            top_turns = [item['turn'] for item in scored_turns[:self.max_context_turns]]
+            
+            # Re-sort selected turns chronologically to maintain conversation flow
+            # We need to preserve the original order using the index
+            selected_with_index = [(item['turn'], item['index']) for item in scored_turns[:self.max_context_turns]]
+            selected_with_index.sort(key=lambda x: x[1])
+            recent_messages = [turn for turn, _ in selected_with_index]
+            
+            logger.debug(f"Attention mechanism selected {len(recent_messages)} most relevant turns from {len(history_messages)} total")
+        else:
+            # Fallback to simple truncation if attention is disabled or history is within limit
+            max_history_messages = min(self.max_context_turns if hasattr(self, 'max_context_turns') else 20, len(history_messages))
+            recent_messages = history_messages[-max_history_messages:] if len(history_messages) > max_history_messages else history_messages
+            logger.debug(f"Using simple truncation: {len(recent_messages)} recent messages")
+        
         
         # Add session context information
         current_session_id = getattr(self, 'session_id', None)
