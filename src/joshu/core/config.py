@@ -31,6 +31,21 @@ DEFAULT_CONFIG = {
     "vim_mode": False,
     "persistent_history": True,
     "history_limit": 1000,
+    # Semantic memory settings
+    "semantic_memory_enabled": True,
+    "semantic_memory_similarity_threshold": 0.3,
+    "semantic_memory_max_results": 5,
+    "semantic_memory_min_content_length": 10,
+    # Translation cache settings
+    "cache_enabled": True,
+    "cache_similarity_threshold": 0.85,
+    "cache_max_entries": 1000,
+    "cache_dir": "~/.joshu/cache",
+    # Attention mechanism settings
+    "attention_enabled": True,
+    "attention_similarity_weight": 0.8,
+    "attention_recency_weight": 0.2,
+    "max_context_turns": 10,
 }
 
 
@@ -52,6 +67,21 @@ class JoshuConfig:
     vim_mode: bool = False
     persistent_history: bool = True
     history_limit: int = 1000
+    # Semantic memory settings
+    semantic_memory_enabled: bool = True
+    semantic_memory_similarity_threshold: float = 0.3
+    semantic_memory_max_results: int = 5
+    semantic_memory_min_content_length: int = 10
+    # Translation cache settings
+    cache_enabled: bool = True
+    cache_similarity_threshold: float = 0.85
+    cache_max_entries: int = 1000
+    cache_dir: str = "~/.joshu/cache"
+    # Attention mechanism settings
+    attention_enabled: bool = True
+    attention_similarity_weight: float = 0.8
+    attention_recency_weight: float = 0.2
+    max_context_turns: int = 10
 
     @classmethod
     def from_dict(cls, config_dict: Dict[str, Any]) -> "JoshuConfig":
@@ -71,6 +101,27 @@ class JoshuConfig:
             log_level=config_dict.get("log_level", DEFAULT_CONFIG["log_level"]),
             memory_enabled=config_dict.get("memory_enabled", DEFAULT_CONFIG["memory_enabled"]),
             sandbox_enabled=config_dict.get("sandbox_enabled", DEFAULT_CONFIG["sandbox_enabled"]),
+            # Enhanced interactive mode settings
+            enhanced_interactive=config_dict.get("enhanced_interactive", DEFAULT_CONFIG["enhanced_interactive"]),
+            multiline_input=config_dict.get("multiline_input", DEFAULT_CONFIG["multiline_input"]),
+            vim_mode=config_dict.get("vim_mode", DEFAULT_CONFIG["vim_mode"]),
+            persistent_history=config_dict.get("persistent_history", DEFAULT_CONFIG["persistent_history"]),
+            history_limit=config_dict.get("history_limit", DEFAULT_CONFIG["history_limit"]),
+            # Semantic memory settings
+            semantic_memory_enabled=config_dict.get("semantic_memory_enabled", DEFAULT_CONFIG["semantic_memory_enabled"]),
+            semantic_memory_similarity_threshold=config_dict.get("semantic_memory_similarity_threshold", DEFAULT_CONFIG["semantic_memory_similarity_threshold"]),
+            semantic_memory_max_results=config_dict.get("semantic_memory_max_results", DEFAULT_CONFIG["semantic_memory_max_results"]),
+            semantic_memory_min_content_length=config_dict.get("semantic_memory_min_content_length", DEFAULT_CONFIG["semantic_memory_min_content_length"]),
+            # Translation cache settings
+            cache_enabled=config_dict.get("cache_enabled", DEFAULT_CONFIG["cache_enabled"]),
+            cache_similarity_threshold=config_dict.get("cache_similarity_threshold", DEFAULT_CONFIG["cache_similarity_threshold"]),
+            cache_max_entries=config_dict.get("cache_max_entries", DEFAULT_CONFIG["cache_max_entries"]),
+            cache_dir=config_dict.get("cache_dir", DEFAULT_CONFIG["cache_dir"]),
+            # Attention mechanism settings
+            attention_enabled=config_dict.get("attention_enabled", DEFAULT_CONFIG["attention_enabled"]),
+            attention_similarity_weight=config_dict.get("attention_similarity_weight", DEFAULT_CONFIG["attention_similarity_weight"]),
+            attention_recency_weight=config_dict.get("attention_recency_weight", DEFAULT_CONFIG["attention_recency_weight"]),
+            max_context_turns=config_dict.get("max_context_turns", DEFAULT_CONFIG["max_context_turns"]),
         )
 
     def to_dict(self) -> Dict[str, Any]:

@@ -250,13 +250,79 @@ def code(
     handle_code_command(prompt, file, language, dry_run)
 
 
+@app.command()
+def cache_stats() -> None:
+    """Show translation cache statistics."""
+    from joshu.core.translation_cache import TranslationCache
+    from joshu.core.config import get_config_manager
+    
+    try:
+        config_manager = get_config_manager()
+        
+        if not config_manager.get("cache_enabled", True):
+            console.print("[yellow]Translation cache is disabled in configuration.[/yellow]")
+            console.print("Enable it with: [cyan]joshu config --set cache_enabled=true[/cyan]")
+            return
+        
+        cache_dir = config_manager.get("cache_dir", "~/.joshu/cache")
+        similarity_threshold = config_manager.get("cache_similarity_threshold", 0.85)
+        max_entries = config_manager.get("cache_max_entries", 1000)
+        
+        cache = TranslationCache(
+            cache_dir=cache_dir,
+            similarity_threshold=similarity_threshold,
+            max_entries=max_entries
+        )
+        
+        stats = cache.get_stats()
+        
+        console.print("\n[bold cyan]Translation Cache Statistics:[/bold cyan]")
+        console.print(f"  Total entries: [green]{stats['total_entries']}[/green] / {max_entries}")
+        console.print(f"  Total cache hits: [green]{stats['total_hits']}[/green]")
+        console.print(f"  Cache file size: [green]{stats['cache_file_size']:,}[/green] bytes")
+        console.print(f"  Similarity threshold: [green]{similarity_threshold}[/green]")
+        console.print(f"  Cache location: [cyan]{cache.cache_file}[/cyan]")
+        
+        if stats['total_entries'] > 0:
+            hit_rate = (stats['total_hits'] / stats['total_entries']) * 100 if stats['total_entries'] > 0 else 0
+            console.print(f"  Average hits per entry: [green]{hit_rate:.1f}%[/green]")
+        console.print()
+        
+    except Exception as e:
+        console.print(f"[red]Error getting cache statistics: {e}[/red]")
+
+
+@app.command()
+def cache_clear() -> None:
+    """Clear the translation cache."""
+    from joshu.core.translation_cache import TranslationCache
+    from joshu.core.config import get_config_manager
+    
+    try:
+        config_manager = get_config_manager()
+        cache_dir = config_manager.get("cache_dir", "~/.joshu/cache")
+        similarity_threshold = config_manager.get("cache_similarity_threshold", 0.85)
+        max_entries = config_manager.get("cache_max_entries", 1000)
+        
+        cache = TranslationCache(
+            cache_dir=cache_dir,
+            similarity_threshold=similarity_threshold,
+            max_entries=max_entries
+        )
+        
+        cache.clear()
+        console.print("[green]✓[/green] Translation cache cleared successfully.")
+        
+    except Exception as e:
+        console.print(f"[red]Error clearing cache: {e}[/red]")
+
 
 
 def main() -> None:
     """Main entry point."""
     if len(sys.argv) > 1:
         first_arg = sys.argv[1]
-        known_commands = ["config", "run", "history", "repeat-last", "explain-last", "examples", "commands", "explain", "code", "--help", "-h", "--version", "-v"]
+        known_commands = ["config", "run", "history", "repeat-last", "explain-last", "examples", "commands", "explain", "code", "cache-stats", "cache-clear", "--help", "-h", "--version", "-v"]
         
         if first_arg not in known_commands and not first_arg.startswith("-"):
             prompt = " ".join(sys.argv[1:])

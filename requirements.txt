@@ -4,9 +4,10 @@
 # Optional dependencies are defined in pyproject.toml:
 #   - Development tools: pip install -e .[dev]
 #   - LLM dependencies: pip install -e .[llm]
-#   - Both: pip install -e .[dev,llm]
+#   - Semantic memory: pip install -e .[semantic]
+#   - All: pip install -e .[dev,llm,semantic]
 #
-# For a complete setup, use: pip install -e .[dev,llm]
+# For a complete setup, use: pip install -e .[dev,llm,semantic]
 
 # API and networking
 openai==1.22.0
