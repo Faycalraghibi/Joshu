@@ -46,6 +46,10 @@ DEFAULT_CONFIG = {
     "attention_similarity_weight": 0.8,
     "attention_recency_weight": 0.2,
     "max_context_turns": 10,
+    # Auto-fix settings
+    "auto_fix_enabled": True,
+    "auto_fix_max_attempts": 2,
+    "auto_fix_require_approval": None,  # If None, inherits from auto_execute
 }
 
 
@@ -82,6 +86,10 @@ class JoshuConfig:
     attention_similarity_weight: float = 0.8
     attention_recency_weight: float = 0.2
     max_context_turns: int = 10
+    # Auto-fix settings
+    auto_fix_enabled: bool = True
+    auto_fix_max_attempts: int = 2
+    auto_fix_require_approval: Optional[bool] = None
 
     @classmethod
     def from_dict(cls, config_dict: Dict[str, Any]) -> "JoshuConfig":
@@ -122,6 +130,10 @@ class JoshuConfig:
             attention_similarity_weight=config_dict.get("attention_similarity_weight", DEFAULT_CONFIG["attention_similarity_weight"]),
             attention_recency_weight=config_dict.get("attention_recency_weight", DEFAULT_CONFIG["attention_recency_weight"]),
             max_context_turns=config_dict.get("max_context_turns", DEFAULT_CONFIG["max_context_turns"]),
+            # Auto-fix settings
+            auto_fix_enabled=config_dict.get("auto_fix_enabled", DEFAULT_CONFIG["auto_fix_enabled"]),
+            auto_fix_max_attempts=config_dict.get("auto_fix_max_attempts", DEFAULT_CONFIG["auto_fix_max_attempts"]),
+            auto_fix_require_approval=config_dict.get("auto_fix_require_approval", DEFAULT_CONFIG["auto_fix_require_approval"]),
         )
 
     def to_dict(self) -> Dict[str, Any]:

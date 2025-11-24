@@ -6,7 +6,7 @@ import typer
 
 from joshu.core.translate import Translation
 from joshu.core.safety import SafetyReport
-from joshu.tools.shell import run_command
+from joshu.tools.shell import run_command, run_command_with_auto_fix
 from joshu.core.context_provider import ContextProvider
 
 console = Console()
@@ -18,7 +18,7 @@ def check_conversational_response(translation: Translation) -> bool:
     
     # Check explanation and command format directly as backup
     explanation_lower = translation.explanation.lower()
-    command_normalized = translation.command.replace('\\"', '"').replace("\\'", "'")
+    command_normalized = translation.command.replace('\\\"', '"').replace("\\'", "'")
     
     conversational_keywords = [
         "conversational response", "direct response", "direct answer",
@@ -31,6 +31,7 @@ def check_conversational_response(translation: Translation) -> bool:
         '"""' in command_normalized or
         (command_normalized.startswith('echo "') and len(translation.command) > 100)
     )
+
     
     # Override needs_execution if we detect conversational response
     if is_conversational_explanation or is_conversational_command:
@@ -65,15 +66,17 @@ def handle_translation_execution(
     sandbox: bool,
     auto_execute: bool,
     context_provider: Optional[ContextProvider] = None,
-    skip_safety_check: bool = False
+    skip_safety_check: bool = False,
+    model: str = "meta-llama/llama-3.1-8b-instruct:free"
 ) -> int:
     """
-    Handle translation execution with safety checks and confirmation.
+    Handle translation execution with safety checks, confirmation, and auto-fix retry.
     
     Returns:
         Exit code (0 for success, non-zero for failure/cancellation)
     """
     from joshu.core.safety import assess_command_safety
+    from joshu.core.config import get_config_manager
     
     # Safety check FIRST - never bypass safety even for conversational responses
     if not skip_safety_check:
@@ -108,7 +111,7 @@ def handle_translation_execution(
     else:
         proceed = typer.confirm("Execute this command?", default=False)
         if not proceed:
-            console.print("[dim]Cancelled.[/dim]\n")
+            console.print("[dim]Cancelled.[/dim]\\n")
             if context_provider:
                 context_provider.update_context_from_response(
                     user_input,
@@ -116,27 +119,44 @@ def handle_translation_execution(
                 )
             return 0
     
-    # Execute command
-    code, out, err = run_command(translation.command)
+    # Get config for auto-fix
+    config_manager = get_config_manager()
+    config_dict = config_manager.config.to_dict()
+    
+    # Execute command with auto-fix support
+    code, out, err, fixed_cmd = run_command_with_auto_fix(
+        translation.command,
+        config_dict,
+        context_provider,
+        timeout=60,
+        model=model
+    )
+    
+    # Display fix notification if auto-fix was applied
+    if fixed_cmd:
+        console.print(f"[yellow]✨ Original command failed. Auto-fixed to:[/yellow]")
+        console.print(f"[cyan]{fixed_cmd}[/cyan]")
+    
+    # Handle results
     if code == 0:
         if out:
             console.print(out)
         console.print("[green]Done.[/green]")
         
         if context_provider:
-            context_provider.update_context_from_response(
-                user_input,
-                f"Executed: {translation.command}\nOutput: {out[:100]}..."
-            )
+            result_msg = f"Executed: {fixed_cmd if fixed_cmd else translation.command}\\nOutput: {out[:100]}..."
+            if fixed_cmd:
+                result_msg = f"Auto-fixed and executed: {translation.command} → {fixed_cmd}\\nOutput: {out[:100]}..."
+            context_provider.update_context_from_response(user_input, result_msg)
         return 0
     else:
         if err:
             console.print(f"[red]{err}[/red]")
         
         if context_provider:
-            context_provider.update_context_from_response(
-                user_input,
-                f"Failed to execute: {translation.command}\nError: {err[:100]}..."
-            )
+            fail_msg = f"Failed to execute: {translation.command}\\nError: {err[:100]}..."
+            if fixed_cmd:
+                fail_msg = f"Auto-fix attempted but still failed: {translation.command} → {fixed_cmd}\\nError: {err[:100]}..."
+            context_provider.update_context_from_response(user_input, fail_msg)
         return code
 
