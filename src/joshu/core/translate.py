@@ -10,6 +10,7 @@ from typing import List, Optional, Tuple, Dict
 from joshu.models.openrouter import translate_command_with_openrouter
 from joshu.models.inference import get_model
 from joshu.core.context_provider import ContextProvider
+from joshu.core.translation_cache import TranslationCache
 from joshu.tools.system_info import get_system_info
 from joshu.tools.parsing_utils import extract_command_and_explanation, parse_json_response
 
@@ -20,6 +21,9 @@ logger.setLevel(logging.WARNING)
 # Global variable to store the connection status
 _connection_established = False
 _connection_error = None
+
+# Global cache instance (initialized lazily)
+_translation_cache: Optional[TranslationCache] = None
 
 def establish_connection(model_name: str = "default") -> bool:
     """Establish connection to the model service when assistant is launched."""
@@ -314,11 +318,45 @@ def _is_conversational_query(text: str) -> bool:
 
 
 def translate_to_command(prompt: str, context_provider: Optional[ContextProvider] = None, 
-                        model_name: str = "default") -> Optional[Translation]:
+                        model_name: str = "default", use_cache: bool = True) -> Optional[Translation]:
     text = prompt.strip()
     
     # Only log the prompt for debugging if needed
     logger.debug(f"Translating prompt: {text}")
+    
+    # Initialize cache if needed and cache is enabled
+    global _translation_cache
+    if use_cache and _translation_cache is None:
+        try:
+            from joshu.core.config import get_config_manager
+            config_manager = get_config_manager()
+            
+            # Only initialize if cache is enabled in config
+            if config_manager.get("cache_enabled", True):
+                cache_dir = config_manager.get("cache_dir", "~/.joshu/cache")
+                similarity_threshold = config_manager.get("cache_similarity_threshold", 0.85)
+                max_entries = config_manager.get("cache_max_entries", 1000)
+                
+                _translation_cache = TranslationCache(
+                    cache_dir=cache_dir,
+                    similarity_threshold=similarity_threshold,
+                    max_entries=max_entries
+                )
+                logger.debug("Translation cache initialized")
+        except Exception as e:
+            logger.warning(f"Failed to initialize translation cache: {e}")
+            _translation_cache = None
+    
+    # Check cache first if enabled
+    if use_cache and _translation_cache is not None:
+        try:
+            cached_result = _translation_cache.get(text)
+            if cached_result:
+                command, explanation = cached_result
+                logger.debug(f"Using cached translation for: {text}")
+                return Translation(command=command, explanation=explanation)
+        except Exception as e:
+            logger.warning(f"Cache lookup failed: {e}")
     
     # Check if this is a conversational query first
     if _is_conversational_query(text):
@@ -444,11 +482,18 @@ def translate_to_command(prompt: str, context_provider: Optional[ContextProvider
         
         # Adapt command for Windows if needed
         command = adapt_command_for_windows(command)
+        
+        # Store in cache if enabled
+        if use_cache and _translation_cache is not None:
+            try:
+                _translation_cache.put(text, command, explanation)
+            except Exception as e:
+                logger.warning(f"Failed to cache translation: {e}")
             
         return Translation(command=command, explanation=explanation)
     
     # If pattern matching fails, try LLM-based translation
-    return translate_with_llm(prompt, context_provider, model_name)
+    return translate_with_llm(prompt, context_provider, model_name, use_cache)
 
 
 def adapt_command_for_windows(command: str, system_info: Optional[str] = None) -> str:
@@ -484,7 +529,7 @@ def adapt_command_for_windows(command: str, system_info: Optional[str] = None) -
 
 
 def translate_with_llm(prompt: str, context_provider: Optional[ContextProvider] = None, 
-                      model_name: str = "default") -> Optional[Translation]:
+                      model_name: str = "default", use_cache: bool = True) -> Optional[Translation]:
     """Translate natural language to command using LLM."""
     try:
         # Try OpenRouter first
@@ -526,6 +571,14 @@ def translate_with_llm(prompt: str, context_provider: Optional[ContextProvider] 
             
             # Force needs_execution to False if conversational
             needs_execution = not is_conversational
+            
+            # Store in cache if it's an actual command (not conversational)
+            if use_cache and not is_conversational and _translation_cache is not None:
+                try:
+                    _translation_cache.put(prompt, command, explanation)
+                except Exception as e:
+                    logger.warning(f"Failed to cache translation: {e}")
+            
             return Translation(command=command, explanation=explanation, needs_execution=needs_execution)
         
         # If OpenRouter returned None, it might be a conversational response

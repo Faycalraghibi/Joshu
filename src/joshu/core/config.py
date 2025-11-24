@@ -36,6 +36,11 @@ DEFAULT_CONFIG = {
     "semantic_memory_similarity_threshold": 0.3,
     "semantic_memory_max_results": 5,
     "semantic_memory_min_content_length": 10,
+    # Translation cache settings
+    "cache_enabled": True,
+    "cache_similarity_threshold": 0.85,
+    "cache_max_entries": 1000,
+    "cache_dir": "~/.joshu/cache",
 }
 
 
@@ -62,6 +67,11 @@ class JoshuConfig:
     semantic_memory_similarity_threshold: float = 0.3
     semantic_memory_max_results: int = 5
     semantic_memory_min_content_length: int = 10
+    # Translation cache settings
+    cache_enabled: bool = True
+    cache_similarity_threshold: float = 0.85
+    cache_max_entries: int = 1000
+    cache_dir: str = "~/.joshu/cache"
 
     @classmethod
     def from_dict(cls, config_dict: Dict[str, Any]) -> "JoshuConfig":
@@ -92,6 +102,11 @@ class JoshuConfig:
             semantic_memory_similarity_threshold=config_dict.get("semantic_memory_similarity_threshold", DEFAULT_CONFIG["semantic_memory_similarity_threshold"]),
             semantic_memory_max_results=config_dict.get("semantic_memory_max_results", DEFAULT_CONFIG["semantic_memory_max_results"]),
             semantic_memory_min_content_length=config_dict.get("semantic_memory_min_content_length", DEFAULT_CONFIG["semantic_memory_min_content_length"]),
+            # Translation cache settings
+            cache_enabled=config_dict.get("cache_enabled", DEFAULT_CONFIG["cache_enabled"]),
+            cache_similarity_threshold=config_dict.get("cache_similarity_threshold", DEFAULT_CONFIG["cache_similarity_threshold"]),
+            cache_max_entries=config_dict.get("cache_max_entries", DEFAULT_CONFIG["cache_max_entries"]),
+            cache_dir=config_dict.get("cache_dir", DEFAULT_CONFIG["cache_dir"]),
         )
 
     def to_dict(self) -> Dict[str, Any]:
