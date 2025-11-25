@@ -15,6 +15,7 @@ from joshu.core.translate import translate_to_command
 
 # Import modular handlers
 from .cli_handlers.code_handlers import handle_code_command
+from .cli_handlers.search_handler import handle_search_command
 from .cli_handlers.commands import (
     handle_config,
     handle_history,
@@ -251,6 +252,15 @@ def code(
 
 
 @app.command()
+def search(
+    query: str = typer.Argument(..., help="Search query"),
+    max_results: int = typer.Option(None, "--max-results", "-n", help="Maximum number of results to show"),
+) -> None:
+    """Search the web for information."""
+    handle_search_command(query, max_results)
+
+
+@app.command()
 def cache_stats() -> None:
     """Show translation cache statistics."""
     from joshu.core.translation_cache import TranslationCache
@@ -322,7 +332,7 @@ def main() -> None:
     """Main entry point."""
     if len(sys.argv) > 1:
         first_arg = sys.argv[1]
-        known_commands = ["config", "run", "history", "repeat-last", "explain-last", "examples", "commands", "explain", "code", "cache-stats", "cache-clear", "--help", "-h", "--version", "-v"]
+        known_commands = ["config", "run", "history", "repeat-last", "explain-last", "examples", "commands", "explain", "code", "search", "cache-stats", "cache-clear", "interactive", "--help", "-h", "--version", "-v"]
         
         if first_arg not in known_commands and not first_arg.startswith("-"):
             prompt = " ".join(sys.argv[1:])

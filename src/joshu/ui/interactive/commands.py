@@ -318,6 +318,21 @@ class CommandHandler:
             self.handle_config_command(command)
             return True
         
+        elif command.startswith('/search'):
+            # Handle web search command
+            parts = command.split(maxsplit=1)
+            if len(parts) < 2:
+                self.interactive_mode._show_message("❌ Usage: /search <query>")
+                self.interactive_mode._show_message("💡 Example: /search Python best practices 2024")
+                return True
+            
+            query = parts[1]
+            
+            # Import and use the search handler
+            from joshu.ui.cli_handlers.search_handler import handle_search_command
+            handle_search_command(query, max_results=None)
+            return True
+        
         elif command.startswith('/model'):
             self.handle_model_command(command)
             return True
@@ -384,6 +399,7 @@ Special Commands:
   @@file    - Inject and execute file content
   @file:n-m - Inject lines n to m from file
   /clear       - Clear command history
+  /search \u003cquery\u003e - Search the web for information
   /session     - Show current session
   /session help - Show session management help
   /session list - List all sessions

@@ -24,6 +24,7 @@ pip install -e .[dev]       # Development tools
 ```bash
 joshu interactive              # Start interactive mode
 joshu "your command here"      # One-shot execution
+joshu search "query"           # Search the web for information
 ```
 
 ## Documentation
@@ -31,6 +32,7 @@ joshu "your command here"      # One-shot execution
 See [`docs/`](docs/) for complete documentation:
 
 - **[Enhanced Interactive Mode](docs/enhanced_interactive_mode.md)** — Features and commands
+- **[Web Search](docs/web-search.md)** — Search the web from your terminal
 - **[VLLM Server Integration](docs/VLLM_SERVER_INTEGRATION.md)** — Local model setup
 - **[Rules & Guidelines](docs/Rules.md)** — Development standards
 - **[Todo](docs/Todo.md)** — Roadmap and planned features
