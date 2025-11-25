@@ -209,13 +209,16 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
-
+# Cursor
 .cursor/
 ./Files.txt
 .joshu_data.json
 .joshu_sessions.json
 .joshu_chromadb/
 *.chromadb/
-./MERGED_IMPLEMENTATION_SUMMARY.md
-./tests/TEST_ALIGNMENT_FIXES.md
-./tests/TEST_FIXES_SUMMARY.md
+
+
+# Qoder
+./qoder/
+./qoder/rules/
+.qoder/rules/test.md
