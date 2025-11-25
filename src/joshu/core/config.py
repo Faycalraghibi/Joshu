@@ -50,6 +50,10 @@ DEFAULT_CONFIG = {
     "auto_fix_enabled": True,
     "auto_fix_max_attempts": 2,
     "auto_fix_require_approval": None,  # If None, inherits from auto_execute
+    # Web search settings
+    "web_search_enabled": True,
+    "web_search_max_results": 5,
+    "web_search_timeout": 10,
 }
 
 
@@ -90,6 +94,10 @@ class JoshuConfig:
     auto_fix_enabled: bool = True
     auto_fix_max_attempts: int = 2
     auto_fix_require_approval: Optional[bool] = None
+    # Web search settings
+    web_search_enabled: bool = True
+    web_search_max_results: int = 5
+    web_search_timeout: int = 10
 
     @classmethod
     def from_dict(cls, config_dict: Dict[str, Any]) -> "JoshuConfig":
@@ -134,6 +142,10 @@ class JoshuConfig:
             auto_fix_enabled=config_dict.get("auto_fix_enabled", DEFAULT_CONFIG["auto_fix_enabled"]),
             auto_fix_max_attempts=config_dict.get("auto_fix_max_attempts", DEFAULT_CONFIG["auto_fix_max_attempts"]),
             auto_fix_require_approval=config_dict.get("auto_fix_require_approval", DEFAULT_CONFIG["auto_fix_require_approval"]),
+            # Web search settings
+            web_search_enabled=config_dict.get("web_search_enabled", DEFAULT_CONFIG["web_search_enabled"]),
+            web_search_max_results=config_dict.get("web_search_max_results", DEFAULT_CONFIG["web_search_max_results"]),
+            web_search_timeout=config_dict.get("web_search_timeout", DEFAULT_CONFIG["web_search_timeout"]),
         )
 
     def to_dict(self) -> Dict[str, Any]:

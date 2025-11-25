@@ -24,6 +24,7 @@ prompt_toolkit==3.0.52
 requests==2.32.5
 tqdm==4.67.1
 PyYAML==6.0.3
+duckduckgo-search>=6.0.0
 
 # Transitive dependencies (automatically installed, listed for reference)
 # annotated-types==0.7.0
