@@ -2,6 +2,34 @@
 
 All notable changes to the Joshu project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- **Automated Development Setup**: Enhanced `clean_install.ps1` and `clean_install.sh` scripts
+  - Automatic pre-commit hooks installation
+  - Config directory and cache setup
+  - Default user configuration creation
+  - Cache file clearing on fresh install
+  - Improved user guidance with clear next steps
+
+### Changed
+
+- **Simplified Dependency Groups**: Reorganized optional dependencies from multiple groups to just two:
+  - `[dev]`: All development tools (pytest, black, ruff, mypy, isort, pre-commit, type stubs)
+  - `[use]`: All end-user features (semantic memory, local LLMs)
+  - Removed separate `[llm]` and `[semantic]` groups for simplicity
+  - Added missing dependencies like `pre-commit`, `pytest-mock`, `isort`, and `types-requests`
+
+- **Pre-commit Configuration**: Added automatic cache clearing hook
+  - Clears `~/.joshu/cache/translation_cache.json`, `.joshu_data.json`, `.joshu_sessions.json`
+  - Runs before every commit to prevent stale session data
+  - Properly formatted to avoid conflicts with `end-of-file-fixer`
+
+- **Gitignore**: Added `fix_joshu_glm.ps1` to ignore personal utility scripts
+
+---
+
 ### Added
 
 - **Web Search Feature**: Complete web search integration powered by DuckDuckGo

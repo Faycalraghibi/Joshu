@@ -22,7 +22,7 @@ def test_interactive_mode_can_be_imported():
 
 
 def test_interactive_mode_can_be_instantiated():
-    """Test that the enhanced interactive mode can be instantiated."""
+    """Test that the interactive mode can be instantiated."""
     with patch("joshu.core.config.get_config_manager") as mock_config_manager:
         # Mock config manager
         mock_config = MagicMock()

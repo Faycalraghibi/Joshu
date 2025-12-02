@@ -6,8 +6,8 @@ import pytest
 pytest.importorskip("prompt_toolkit")
 
 
-def test_enhanced_interactive_mode_import():
-    """Test that the enhanced interactive mode can be imported."""
+def test_interactive_mode_import():
+    """Test that the interactive mode can be imported."""
     from joshu.ui.cli import PROMPT_TOOLKIT_AVAILABLE
     from joshu.ui.interactive import InteractiveMode
 
@@ -15,8 +15,8 @@ def test_enhanced_interactive_mode_import():
     assert PROMPT_TOOLKIT_AVAILABLE is True
 
 
-def test_enhanced_interactive_mode_initialization():
-    """Test that the enhanced interactive mode can be initialized."""
+def test_interactive_mode_initialization():
+    """Test that the interactive mode can be initialized."""
     with patch("joshu.core.config.get_config_manager") as mock_config_manager:
         # Mock config manager
         mock_config = MagicMock()
@@ -31,8 +31,8 @@ def test_enhanced_interactive_mode_initialization():
         assert mode.model == "test-model"
 
 
-def test_enhanced_interactive_mode_history():
-    """Test that the enhanced interactive mode handles history correctly."""
+def test_interactive_mode_history():
+    """Test that the interactive mode handles history correctly."""
     with patch("joshu.core.config.get_config_manager") as mock_config_manager:
         # Mock config manager
         mock_config = MagicMock()
@@ -53,8 +53,8 @@ def test_enhanced_interactive_mode_history():
         assert len(mode.command_history) >= 2
 
 
-def test_enhanced_interactive_mode_file_injection():
-    """Test that the enhanced interactive mode handles file injection."""
+def test_interactive_mode_file_injection():
+    """Test that the interactive mode handles file injection."""
     with patch("joshu.core.config.get_config_manager") as mock_config_manager, patch(
         "joshu.ui.interactive.utils.execute_file_content"
     ):
@@ -75,8 +75,8 @@ def test_enhanced_interactive_mode_file_injection():
             pass
 
 
-def test_enhanced_interactive_mode_bash_command():
-    """Test that the enhanced interactive mode handles bash commands."""
+def test_interactive_mode_bash_command():
+    """Test that the interactive mode handles bash commands."""
     with patch("joshu.core.config.get_config_manager") as mock_config_manager, patch(
         "joshu.ui.interactive.interactive_mode.run_command"
     ) as mock_run_command:
@@ -103,8 +103,8 @@ def test_enhanced_interactive_mode_bash_command():
         assert call_args[0] == "ls"  # Direct check of first argument
 
 
-def test_enhanced_interactive_mode_slash_commands():
-    """Test that the enhanced interactive mode handles slash commands."""
+def test_interactive_mode_slash_commands():
+    """Test that the interactive mode handles slash commands."""
     with patch("joshu.core.config.get_config_manager") as mock_config_manager:
         # Mock config manager
         mock_config = MagicMock()
@@ -131,8 +131,8 @@ def test_enhanced_interactive_mode_slash_commands():
         assert result is True
 
 
-def test_enhanced_interactive_mode_config_commands():
-    """Test that the enhanced interactive mode handles config commands."""
+def test_interactive_mode_config_commands():
+    """Test that the interactive mode handles config commands."""
     with patch("joshu.core.config.get_config_manager") as mock_config_manager, patch(
         "joshu.ui.interactive.interactive_mode.ContextProvider"
     ), patch("joshu.core.translate.establish_connection") as mock_conn:
@@ -183,8 +183,8 @@ def test_enhanced_interactive_mode_config_commands():
         assert mock_config.save_config.called
 
 
-def test_enhanced_interactive_mode_model_commands():
-    """Test that the enhanced interactive mode handles model commands."""
+def test_interactive_mode_model_commands():
+    """Test that the interactive mode handles model commands."""
     with patch("joshu.core.config.get_config_manager") as mock_config_manager, patch(
         "joshu.ui.interactive.interactive_mode.ContextProvider"
     ), patch("joshu.core.translate.establish_connection") as mock_conn:

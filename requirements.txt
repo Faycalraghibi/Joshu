@@ -2,12 +2,11 @@
 #
 # This file contains only the core runtime dependencies.
 # Optional dependencies are defined in pyproject.toml:
-#   - Development tools: pip install -e .[dev]
-#   - LLM dependencies: pip install -e .[llm]
-#   - Semantic memory: pip install -e .[semantic]
-#   - All: pip install -e .[dev,llm,semantic]
+#   - Development: pip install -e .[dev]
+#   - End users (all features): pip install -e .[use]
+#   - Both: pip install -e .[dev,use]
 #
-# For a complete setup, use: pip install -e .[dev,llm,semantic]
+# For development setup, use the clean_install script instead.
 
 # API and networking
 openai==1.22.0

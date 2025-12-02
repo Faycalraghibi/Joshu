@@ -427,7 +427,7 @@ class CommandHandler:
     def show_help(self):
         """Display help information."""
         base_help = """
-Enhanced Interactive Mode Help:
+interactive Mode Help:
 
 Keyboard Shortcuts:
   Ctrl+R    - Reverse search

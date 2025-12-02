@@ -49,23 +49,35 @@ python -m pip install -U pip setuptools wheel
 Write-Host "[info] Installing package with dev dependencies"
 pip install -e .[dev]
 
-# Optionally install LLM dependencies (uncomment if needed)
-# Write-Host "[info] Installing optional LLM dependencies"
-# pip install -e .[llm]
-# Or install both dev and llm: pip install -e .[dev,llm]
+# Install pre-commit hooks
+Write-Host "`n[info] Installing pre-commit hooks"
+pre-commit install
 
-Write-Host "`n[done] Development environment ready.`n"
+# Setup Joshu config directory
+Write-Host "[info] Setting up Joshu config directory"
+$joshuConfigDir = "$env:USERPROFILE\.joshu"
+if (-not (Test-Path $joshuConfigDir)) {
+    New-Item -ItemType Directory -Path $joshuConfigDir -Force | Out-Null
+    Write-Host "  Created: $joshuConfigDir"
+}
+
+
+
+Write-Host "`n[done] Development environment ready!`n" -ForegroundColor Green
 Write-Host "Next steps:"
-Write-Host "  1) Optionally set OpenRouter env vars (use your own values):"
-Write-Host "     `$env:OPENROUTER_API_KEY = `"sk-...`""
-Write-Host "     `$env:OPENROUTER_MODEL = `"openai/gpt-4o`""
-Write-Host "     `$env:OPENROUTER_SITE_URL = `"https://your-site`""
-Write-Host "     `$env:OPENROUTER_SITE_TITLE = `"Your Site`""
-Write-Host "  2) Install optional LLM dependencies (if needed for local models):"
-Write-Host "     pip install -e .[llm]"
-Write-Host "     # Or install both dev and llm: pip install -e .[dev,llm]"
-Write-Host "     # Note: LLM dependencies may require compilation and can be large"
-Write-Host "  3) Run tests:"
+Write-Host "  1) Set OpenRouter API key (required):"
+Write-Host "     `$env:OPENROUTER_API_KEY = `"sk-or-v1-...`""
+Write-Host "     # Or add to .env file: OPENROUTER_API_KEY=sk-or-v1-..."
+Write-Host ""
+Write-Host "  2) Optional: Configure model (default: z-ai/glm-4.5-air:free):"
+Write-Host "     .\setup_config.ps1"
+Write-Host ""
+Write-Host "  3) Optional: Install all features (semantic memory, local LLMs):"
+Write-Host "     pip install -e .[use]"
+Write-Host ""
+Write-Host "  4) Run tests to verify installation:"
 Write-Host "     pytest -q"
-Write-Host "  4) Use the CLI:"
-Write-Host "     joshu run `"show disk usage of current directory`" -y"
+Write-Host ""
+Write-Host "  5) Start using Joshu:"
+Write-Host "     joshu interactive"
+Write-Host "     joshu `"show disk usage`" -y"

@@ -26,30 +26,35 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Development tools (testing, linting, formatting)
+# Development dependencies (testing, linting, formatting, pre-commit)
 dev = [
+    # Testing
     "pytest==8.4.2",
+    "pytest-mock>=3.12.0",
+    # Code quality
     "black==24.4.0",
     "flake8==7.0.0",
     "mypy==1.8.0",
     "ruff==0.2.0",
-    "types-PyYAML==6.0.12.12"
+    "isort==5.13.2",
+    # Pre-commit
+    "pre-commit>=3.5.0",
+    # Type stubs
+    "types-PyYAML==6.0.12.12",
+    "types-requests>=2.31.0",
 ]
-# LLM dependencies for local model support (optional, may require compilation)
-# Note: These dependencies are large and may take time to install
-# On Windows, sentencepiece may need: pip install --only-binary=sentencepiece sentencepiece
-llm = [
+
+# End-user dependencies (all optional features for production use)
+use = [
+    # Semantic memory (vector database and embeddings)
+    "chromadb>=0.4.0",
+    "sentence-transformers>=2.2.0",
+    # Local LLM support (may require compilation on some systems)
     "transformers==4.36.2",
     "torch==2.9.0",
     "huggingface_hub==0.23.0",
     "llama-cpp-python==0.2.55",
-    "sentencepiece==0.1.99"
-]
-# Semantic memory dependencies (vector database and embeddings)
-# Requires: chromadb for local vector storage, sentence-transformers for embeddings
-semantic = [
-    "chromadb>=0.4.0",
-    "sentence-transformers>=2.2.0"
+    "sentencepiece==0.1.99",
 ]
 
 [project.scripts]

@@ -1,6 +1,6 @@
-# Enhanced Interactive Mode
+# interactive Mode
 
-Joshu now includes an enhanced interactive mode with advanced terminal features powered by `prompt_toolkit`.
+Joshu now includes an interactive mode with advanced terminal features powered by `prompt_toolkit`.
 
 ## Features
 
@@ -18,7 +18,7 @@ Joshu now includes an enhanced interactive mode with advanced terminal features 
 
 ## Usage
 
-To start the enhanced interactive mode, use one of these commands:
+To start the interactive mode, use one of these commands:
 
 ```bash
 joshu interactive
@@ -32,4 +32,4 @@ Commands are saved to a `.joshu_history` file in the current directory, providin
 
 ## Requirements
 
-The enhanced interactive mode requires the `prompt_toolkit` library. If this library is not available, Joshu will fall back to the basic interactive mode.
+The interactive mode requires the `prompt_toolkit` library. If this library is not available, Joshu will fall back to the basic interactive mode.

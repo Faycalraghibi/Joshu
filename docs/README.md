@@ -4,47 +4,38 @@ Complete documentation for Joshu AI-powered command-line assistant.
 
 ## Getting Started
 
-- **[Installation Guide](installation.md)** — Installation methods and requirements
-- **[Quick Start Guide](quick-start.md)** — Get up and running in minutes
-- **[Configuration](configuration.md)** — Configure Joshu for your needs
-
-## Usage
-
-- **[Interactive Mode](interactive-mode.md)** — Using the interactive shell
-- **[Commands Reference](commands.md)** — All available commands
-- **[Session Management](sessions.md)** — Managing conversation sessions
-- **[Semantic Memory](semantic-memory.md)** — Using the semantic memory system
+- **[Quick Start](quick-start.md)** - Get up and running with Joshu
+- **[Installation](installation.md)** - Detailed installation instructions
+- **[Configuration](configuration.md)** - Configure Joshu to your needs
 
 ## Features
 
-- **[Three Modes](modes.md)** — Agent, Ask, and Plan modes
-- **[Code Generation](code-generation.md)** — Generate and edit code
-- **[Safety Features](safety.md)** — Command validation and safety
+- **[Interactive Mode](interactive-mode.md)** - Complete guide to interactive features
+- **[Advanced Interactive Mode](interactive-mode-advanced.md)** - Advanced interactive features
+- **[Web Search](web-search.md)** - Search the web from your terminal
+- **[Semantic Memory](semantic-memory.md)** - Persistent memory and context
 
-## Models
+## Core Systems
 
-- **[Model Support](models.md)** — Local and cloud models
-- **[VLLM Server Integration](VLLM_SERVER_INTEGRATION.md)** — Local server setup
-- **[OpenRouter Setup](openrouter.md)** — Cloud model configuration
+- **[Models & Providers](models-and-providers.md)** - Configure LLM providers and model pool
+- **[Context System](context-system.md)** - Conversation state and memory management
+- **[Safety Features](safety.md)** - Command safety validation and protection
+- **[Auto-Fix](auto-fix.md)** - Automatic command error fixing
 
-## Development
+## Advanced
 
-- **[Architecture](architecture.md)** — System architecture overview
-- **[Rules & Guidelines](Rules.md)** — Development standards
-- **[Contributing](contributing.md)** — How to contribute
-- **[Todo & Roadmap](Todo.md)** — Planned features
-
-## Reference
-
-- **[API Reference](api-reference.md)** — Python API documentation
-- **[Keyboard Shortcuts](keyboard-shortcuts.md)** — All keyboard bindings
-- **[Environment Variables](environment-variables.md)** — Configuration via environment
+- **[vLLM Server Integration](VLLM_SERVER_INTEGRATION.md)** - Local model deployment
+- **[Testing Guide](testing-guide.md)** - Running and writing tests
+- **[CLI Reference](cli-reference.md)** - All CLI commands and discovery features
+- **[File Operations](file-operations.md)** - Filesystem utilities reference
+- **[Rules & Guidelines](Rules.md)** - Development standards
+- **[Todo](Todo.md)** - Roadmap and planned features
 
 ## Project Information
 
-- **[Compatibility Reports](COMPATIBILITY_SUMMARY.md)** — Version compatibility
-- **[Implementation Summary](MERGED_IMPLEMENTATION_SUMMARY.md)** — Recent implementations
-- **[PR Description](PR_DESCRIPTION.md)** — Latest changes
+- **[Compatibility Reports](COMPATIBILITY_SUMMARY.md)** - Version compatibility
+- **[Implementation Summary](MERGED_IMPLEMENTATION_SUMMARY.md)** - Recent implementations
+- **[PR Description](PR_DESCRIPTION.md)** - Latest changes
 
 ---
 

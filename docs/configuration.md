@@ -40,7 +40,7 @@ semantic_memory_max_results: 5
 semantic_memory_min_content_length: 10
 
 # Interactive Mode Settings
-enhanced_interactive: true
+interactive: true
 multiline_input: true
 vim_mode: false
 persistent_history: true
@@ -193,7 +193,7 @@ While in interactive mode:
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `enhanced_interactive` | boolean | `true` | Enhanced interactive features |
+| `interactive` | boolean | `true` | interactive features |
 | `multiline_input` | boolean | `true` | Support multiline input |
 | `vim_mode` | boolean | `false` | Enable Vim keybindings |
 | `persistent_history` | boolean | `true` | Persist command history |

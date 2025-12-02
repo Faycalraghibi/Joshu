@@ -57,23 +57,60 @@ python -m pip install -U pip setuptools wheel
 echo "[info] Installing package with dev dependencies"
 pip install -e .[dev]
 
-# Optionally install LLM dependencies (uncomment if needed)
-# echo "[info] Installing optional LLM dependencies"
-# pip install -e .[llm]
-# Or install both dev and llm: pip install -e .[dev,llm]
+# Install pre-commit hooks
+echo -e "\n[info] Installing pre-commit hooks"
+pre-commit install
 
-echo -e "\n[done] Development environment ready.\n"
+# Setup Joshu config directory
+echo "[info] Setting up Joshu config directory"
+JOSHU_CONFIG_DIR="$HOME/.joshu"
+if [ ! -d "$JOSHU_CONFIG_DIR" ]; then
+    mkdir -p "$JOSHU_CONFIG_DIR"
+    echo "  Created: $JOSHU_CONFIG_DIR"
+fi
+
+JOSHU_CACHE_DIR="$JOSHU_CONFIG_DIR/cache"
+if [ ! -d "$JOSHU_CACHE_DIR" ]; then
+    mkdir -p "$JOSHU_CACHE_DIR"
+    echo "  Created: $JOSHU_CACHE_DIR"
+fi
+
+# Create default user config if it doesn't exist
+USER_CONFIG_PATH="$JOSHU_CONFIG_DIR/config.yaml"
+if [ ! -f "$USER_CONFIG_PATH" ]; then
+    echo "model: z-ai/glm-4.5-air:free" > "$USER_CONFIG_PATH"
+    echo "  Created: $USER_CONFIG_PATH"
+fi
+
+# Clear cache and session files
+echo "[info] Clearing cache and session files"
+CACHE_FILES=(
+    "$HOME/.joshu/cache/translation_cache.json"
+    ".joshu_data.json"
+    ".joshu_sessions.json"
+)
+for file in "${CACHE_FILES[@]}"; do
+    if [ -f "$file" ]; then
+        echo "{}" > "$file"
+        echo "  Cleared: $file"
+    fi
+done
+
+echo -e "\n[done] Development environment ready!\n"
 echo "Next steps:"
-echo "  1) Optionally set OpenRouter env vars (use your own values):"
-echo "     export OPENROUTER_API_KEY=\"sk-...\""
-echo "     export OPENROUTER_MODEL=\"openai/gpt-4o\""
-echo "     export OPENROUTER_SITE_URL=\"https://your-site\""
-echo "     export OPENROUTER_SITE_TITLE=\"Your Site\""
-echo "  2) Install optional LLM dependencies (if needed for local models):"
-echo "     pip install -e .[llm]"
-echo "     # Or install both dev and llm: pip install -e .[dev,llm]"
-echo "     # Note: LLM dependencies may require compilation and can be large"
-echo "  3) Run tests:"
+echo "  1) Set OpenRouter API key (required):"
+echo "     export OPENROUTER_API_KEY=\"sk-or-v1-...\""
+echo "     # Or add to .env file: OPENROUTER_API_KEY=sk-or-v1-..."
+echo ""
+echo "  2) Optional: Configure model (default: z-ai/glm-4.5-air:free):"
+echo "     Edit $USER_CONFIG_PATH"
+echo ""
+echo "  3) Optional: Install all features (semantic memory, local LLMs):"
+echo "     pip install -e .[use]"
+echo ""
+echo "  4) Run tests to verify installation:"
 echo "     pytest -q"
-echo "  4) Use the CLI:"
-echo "     joshu run \"show disk usage of current directory\" -y"
+echo ""
+echo "  5) Start using Joshu:"
+echo "     joshu interactive"
+echo "     joshu \"show disk usage\" -y"

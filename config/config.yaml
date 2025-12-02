@@ -1,4 +1,4 @@
-model: z-ai/glm-4.5-air:free
+model: llama-3-8b
 safety_mode: false
 auto_execute: false
 max_tokens: 0.8
@@ -7,7 +7,7 @@ history_size: 100
 log_level: INFO
 memory_enabled: true
 sandbox_enabled: true
-enhanced_interactive: true
+interactive: true
 multiline_input: true
 vim_mode: false
 persistent_history: true

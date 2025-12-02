@@ -25,8 +25,8 @@ DEFAULT_CONFIG = {
     "log_level": "INFO",
     "memory_enabled": True,
     "sandbox_enabled": True,
-    # Enhanced interactive mode settings
-    "enhanced_interactive": True,
+    # interactive mode settings
+    "interactive": True,
     "multiline_input": True,
     "vim_mode": False,
     "persistent_history": True,
@@ -70,8 +70,8 @@ class JoshuConfig:
     log_level: str = "INFO"
     memory_enabled: bool = True
     sandbox_enabled: bool = True
-    # Enhanced interactive mode settings
-    enhanced_interactive: bool = True
+    # interactive mode settings
+    interactive: bool = True
     multiline_input: bool = True
     vim_mode: bool = False
     persistent_history: bool = True
@@ -118,10 +118,8 @@ class JoshuConfig:
             log_level=config_dict.get("log_level", DEFAULT_CONFIG["log_level"]),
             memory_enabled=config_dict.get("memory_enabled", DEFAULT_CONFIG["memory_enabled"]),
             sandbox_enabled=config_dict.get("sandbox_enabled", DEFAULT_CONFIG["sandbox_enabled"]),
-            # Enhanced interactive mode settings
-            enhanced_interactive=config_dict.get(
-                "enhanced_interactive", DEFAULT_CONFIG["enhanced_interactive"]
-            ),
+            # interactive mode settings
+            interactive=config_dict.get("interactive", DEFAULT_CONFIG["interactive"]),
             multiline_input=config_dict.get("multiline_input", DEFAULT_CONFIG["multiline_input"]),
             vim_mode=config_dict.get("vim_mode", DEFAULT_CONFIG["vim_mode"]),
             persistent_history=config_dict.get(
