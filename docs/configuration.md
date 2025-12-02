@@ -199,6 +199,30 @@ While in interactive mode:
 | `persistent_history` | boolean | `true` | Persist command history |
 | `history_limit` | integer | `1000` | Max history entries |
 
+### Tool Calling Settings
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `tool_calling_enabled` | boolean | `true` | Enable automatic tool calling |
+| `tool_calling_max_iterations` | integer | `3` | Max tool call iterations per query |
+| `web_search_tool_enabled` | boolean | `true` | Enable web search tool |
+
+### Web Search Settings
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `web_search_enabled` | boolean | `true` | Enable web search functionality |
+| `web_search_max_results` | integer | `5` | Default max search results |
+| `web_search_timeout` | integer | `10` | Search timeout in seconds |
+
+### Web Fetch Settings
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `web_fetch_enabled` | boolean | `true` | Enable web fetch functionality |
+| `web_fetch_timeout` | integer | `15` | Fetch timeout in seconds |
+| `web_fetch_max_content_length` | integer | `50000` | Max characters to return |
+
 ## Examples
 
 ### Configure for Maximum Safety

@@ -116,9 +116,18 @@ class InteractiveMode:
         if OPENAI_AVAILABLE:
             api_key = os.getenv("DEEPSEEK_API_KEY")
             if api_key and OpenAI is not None:
-                self.deepseek_client = OpenAI(
-                    api_key=api_key, base_url="https://openrouter.ai/api/v1"
-                )
+                try:
+                    self.deepseek_client = OpenAI(
+                        api_key=api_key,
+                        base_url="https://openrouter.ai/api/v1",
+                        timeout=60.0,  # Add explicit timeout
+                        max_retries=2,  # Add explicit retries
+                    )
+                except Exception as e:
+                    # Silently fail if OpenAI client can't be initialized
+                    self.deepseek_client = None
+                    if self.verbose_mode:
+                        print(f"Could not initialize DeepSeek client: {e}")
 
     def _init_prompt_toolkit(self):
         """Initialize prompt_toolkit components."""

@@ -12,6 +12,7 @@ Complete documentation for Joshu AI-powered command-line assistant.
 
 - **[Interactive Mode](interactive-mode.md)** - Complete guide to interactive features
 - **[Advanced Interactive Mode](interactive-mode-advanced.md)** - Advanced interactive features
+- **[Tool Calling](tool-calling.md)** - Automatic tool invocation for enhanced responses
 - **[Web Search](web-search.md)** - Search the web from your terminal
 - **[Semantic Memory](semantic-memory.md)** - Persistent memory and context
 

@@ -54,6 +54,10 @@ DEFAULT_CONFIG = {
     "web_search_enabled": True,
     "web_search_max_results": 5,
     "web_search_timeout": 10,
+    # Tool calling settings
+    "tool_calling_enabled": True,
+    "tool_calling_max_iterations": 3,
+    "web_search_tool_enabled": True,
 }
 
 
@@ -99,6 +103,10 @@ class JoshuConfig:
     web_search_enabled: bool = True
     web_search_max_results: int = 5
     web_search_timeout: int = 10
+    # Tool calling settings
+    tool_calling_enabled: bool = True
+    tool_calling_max_iterations: int = 3
+    web_search_tool_enabled: bool = True
 
     @classmethod
     def from_dict(cls, config_dict: Dict[str, Any]) -> "JoshuConfig":
@@ -182,6 +190,16 @@ class JoshuConfig:
             ),
             web_search_timeout=config_dict.get(
                 "web_search_timeout", DEFAULT_CONFIG["web_search_timeout"]
+            ),
+            # Tool calling settings
+            tool_calling_enabled=config_dict.get(
+                "tool_calling_enabled", DEFAULT_CONFIG["tool_calling_enabled"]
+            ),
+            tool_calling_max_iterations=config_dict.get(
+                "tool_calling_max_iterations", DEFAULT_CONFIG["tool_calling_max_iterations"]
+            ),
+            web_search_tool_enabled=config_dict.get(
+                "web_search_tool_enabled", DEFAULT_CONFIG["web_search_tool_enabled"]
             ),
         )
 

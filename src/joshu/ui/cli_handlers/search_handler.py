@@ -40,7 +40,7 @@ def handle_search_command(query: str, max_results: Optional[int] = None) -> None
     # Check if library is available
     if not DDGS_AVAILABLE:
         console.print("[red]✗[/red] Web search library not installed.")
-        console.print("[dim]Install with:[/dim] [cyan]pip install duckduckgo-search[/cyan]")
+        console.print("[dim]Install with:[/dim] [cyan]pip install ddgs[/cyan]")
         console.print(
             "[dim]Or:[/dim] [cyan]pip install -e .[/cyan] [dim]to install all dependencies[/dim]"
         )

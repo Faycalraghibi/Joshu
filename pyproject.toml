@@ -12,8 +12,7 @@ authors = [{ name = "Joshu Community" }]
 license = { file = "LICENSE" }
 keywords = ["cli", "ai", "assistant", "llm"]
 dependencies = [
-    "openai==1.22.0",
-    "httpx==0.27.0",
+    "openai>=1.54.0",
     "typer==0.20.0",
     "rich==14.2.0",
     "pydantic==2.12.3",
@@ -22,7 +21,9 @@ dependencies = [
     "requests==2.32.5",
     "tqdm==4.67.1",
     "PyYAML==6.0.3",
-    "duckduckgo-search>=6.0.0"
+    "duckduckgo-search>=6.0.0",
+    "beautifulsoup4>=4.12.0",
+    "httpx>=0.27.0",
 ]
 
 [project.optional-dependencies]

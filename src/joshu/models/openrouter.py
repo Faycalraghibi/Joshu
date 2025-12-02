@@ -47,7 +47,14 @@ def get_openrouter_client(model_name: Optional[str] = None) -> Optional[OpenAI]:
     api_key = ModelConfig.get_openrouter_api_key(model_name)
     if not api_key:
         return None
-    return OpenAI(base_url="https://openrouter.ai/api/v1", api_key=api_key)
+
+    try:
+        return OpenAI(
+            base_url="https://openrouter.ai/api/v1", api_key=api_key, timeout=60.0, max_retries=2
+        )
+    except Exception as e:
+        logger.error(f"Failed to create OpenRouter client: {e}")
+        return None
 
 
 def chat_completion(

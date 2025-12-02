@@ -6,7 +6,7 @@ Joshu includes built-in filesystem utilities accessible through natural language
 
 ## Natural Language Usage
 
-Just ask Jos hu for what you need:
+Just ask Joshu for what you need:
 
 ```bash
 # Find files

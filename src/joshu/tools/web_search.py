@@ -10,15 +10,15 @@ from typing import Any, Dict
 
 logger = logging.getLogger(__name__)
 
-# Try to import duckduckgo_search
+# Try to import ddgs
 try:
-    from duckduckgo_search import DDGS
+    from ddgs import DDGS
 
     DDGS_AVAILABLE = True
 except ImportError:
     DDGS = None
     DDGS_AVAILABLE = False
-    logger.warning("duckduckgo_search not available. Install with: pip install duckduckgo-search")
+    logger.warning("ddgs not available. Install with: pip install ddgs")
 
 
 def search_web(query: str, max_results: int = 5, timeout: int = 10) -> Dict[str, Any]:
@@ -43,7 +43,7 @@ def search_web(query: str, max_results: int = 5, timeout: int = 10) -> Dict[str,
             "success": False,
             "query": query,
             "results": [],
-            "error": "duckduckgo_search library not installed. Install with: pip install duckduckgo-search",
+            "error": "ddgs library not installed. Install with: pip install ddgs",
         }
 
     if not query or not query.strip():
@@ -63,9 +63,8 @@ def search_web(query: str, max_results: int = 5, timeout: int = 10) -> Dict[str,
 
         # Perform the search
         raw_results = ddgs.text(
-            keywords=query,
+            query,
             max_results=max_results,
-            timelimit=None,  # No time limit on results
         )
 
         # Parse and format results

@@ -105,10 +105,3 @@ This is the first changelog entry. Previous changes were tracked in commit histo
 When adding new features, please update this changelog following the format above.
 
 ### Categories
-
-- **Added**: New features
-- **Changed**: Changes to existing functionality
-- **Deprecated**: Features that will be removed
-- **Removed**: Features that have been removed
-- **Fixed**: Bug fixes
-- **Security**: Security improvements
