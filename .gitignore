@@ -228,3 +228,6 @@ __marimo__/
 mypy_current.txt
 mypy_output_after_fixes.txt
 precommit.txt
+
+# Personal utility scripts
+fix_joshu_glm.ps1

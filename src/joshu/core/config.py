@@ -203,9 +203,10 @@ class ConfigManager:
             config_path: Path to config file. If None, uses default location.
         """
         if config_path is None:
-            # Default config location: ~/.joshu/config.yaml
-            home = Path.home()
-            self.config_path = home / ".joshu" / "config.yaml"
+            # Default config location: project's config/config.yaml
+            # Get the project root (4 levels up from this file)
+            project_root = Path(__file__).parent.parent.parent.parent
+            self.config_path = project_root / "config" / "config.yaml"
         else:
             self.config_path = Path(config_path)
 

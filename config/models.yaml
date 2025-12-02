@@ -1,8 +1,0 @@
-models:
-  default: "llama-3-8b"
-  available:
-    - llama-3-8b
-    - llama-3-70b
-    - mistral-7b
-    - codellama-34b
-    - gemma-2-9b

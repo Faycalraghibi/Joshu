@@ -1,5 +1,4 @@
-# PowerShell script to fix Joshu configuration to use GLM model
-$configPath = "$env:USERPROFILE\.joshu\config.yaml"
+$configPath = ".\config\config.yaml"
 
 if (Test-Path $configPath) {
     # Read the config file
