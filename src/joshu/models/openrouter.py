@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-import json
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from openai import OpenAI
 
-from .config import ModelConfig
 from joshu.tools.parsing_utils import parse_json_response
 from joshu.tools.system_info import get_system_info
+
+from .config import ModelConfig
 
 logger = logging.getLogger(__name__)
 # Reduce logging verbosity
@@ -18,13 +18,14 @@ logger.setLevel(logging.WARNING)
 _connection_established = False
 _connection_error = None
 
+
 def establish_openrouter_connection(model_name: Optional[str] = None) -> bool:
     """Establish connection to OpenRouter service."""
     global _connection_established, _connection_error
-    
+
     if _connection_established:
         return True
-    
+
     try:
         client = get_openrouter_client(model_name)
         if client:
@@ -37,7 +38,7 @@ def establish_openrouter_connection(model_name: Optional[str] = None) -> bool:
         _connection_error = str(e)
         logger.debug(f"Failed to establish OpenRouter connection: {e}")
         return False
-    
+
     return False
 
 
@@ -62,13 +63,13 @@ def chat_completion(
         model_name = ModelConfig.get_openrouter_model(model)
     else:
         model_name = model
-    
+
     # Check connection status
     global _connection_established, _connection_error
     if not _connection_established:
         logger.debug("Attempting to establish OpenRouter connection...")
         establish_openrouter_connection(model_name)
-    
+
     client = get_openrouter_client(model_name)
     if client is None:
         return None
@@ -101,25 +102,22 @@ Example response:
 {{"command": "dir", "explanation": "List all files and directories in the current directory"}}
 
 User request:"""
-    
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": prompt}
-    ]
-    
+
+    messages = [{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}]
+
     # Use centralized config
     model_name = ModelConfig.get_openrouter_model()
     response = chat_completion(messages, model=model_name, temperature=0.1, max_tokens=256)
     if not response:
         return None
-        
+
     # Use shared utility for JSON parsing
     data = parse_json_response(response)
     if data:
         command = data.get("command", "").strip()
         explanation = data.get("explanation", "").strip()
-        
+
         if command and explanation:
             return {"command": command, "explanation": explanation}
-    
+
     return None

@@ -43,4 +43,3 @@ run:
 # Clean build artifacts
 clean:
 	rm -rf .venv .joshuvenv dist build *.egg-info .pytest_cache
-

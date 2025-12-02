@@ -1,11 +1,12 @@
-import pytest
 import platform
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
+
+import pytest
 
 # Skip all interactive mode tests on Windows due to console issues
 pytestmark = pytest.mark.skipif(
     platform.system() == "Windows",
-    reason="Interactive mode tests require proper console environment (skip on Windows)"
+    reason="Interactive mode tests require proper console environment (skip on Windows)",
 )
 
 
@@ -15,8 +16,8 @@ def test_start_interactive_mode_exit():
         from joshu.ui.interactive import start_interactive_mode
     except ImportError:
         pytest.skip("Interactive mode not available")
-    
-    with patch('joshu.ui.interactive.interactive_mode.InteractiveMode.start') as mock_start:
+
+    with patch("joshu.ui.interactive.interactive_mode.InteractiveMode.start") as mock_start:
         mock_start.return_value = None
         try:
             start_interactive_mode("test-model", sandbox=False, verbose=False)
@@ -30,8 +31,8 @@ def test_start_interactive_mode_quit():
         from joshu.ui.interactive import start_interactive_mode
     except ImportError:
         pytest.skip("Interactive mode not available")
-    
-    with patch('joshu.ui.interactive.interactive_mode.InteractiveMode.start') as mock_start:
+
+    with patch("joshu.ui.interactive.interactive_mode.InteractiveMode.start") as mock_start:
         mock_start.return_value = None
         try:
             start_interactive_mode("test-model", sandbox=False, verbose=False)
@@ -45,8 +46,8 @@ def test_start_interactive_mode_empty_input():
         from joshu.ui.interactive import start_interactive_mode
     except ImportError:
         pytest.skip("Interactive mode not available")
-    
-    with patch('joshu.ui.interactive.interactive_mode.InteractiveMode.start') as mock_start:
+
+    with patch("joshu.ui.interactive.interactive_mode.InteractiveMode.start") as mock_start:
         mock_start.return_value = None
         try:
             start_interactive_mode("test-model", sandbox=False, verbose=False)
@@ -60,8 +61,8 @@ def test_start_interactive_mode_keyboard_interrupt():
         from joshu.ui.interactive import start_interactive_mode
     except ImportError:
         pytest.skip("Interactive mode not available")
-    
-    with patch('joshu.ui.interactive.interactive_mode.InteractiveMode.start') as mock_start:
+
+    with patch("joshu.ui.interactive.interactive_mode.InteractiveMode.start") as mock_start:
         mock_start.return_value = None
         try:
             start_interactive_mode("test-model", sandbox=False, verbose=False)

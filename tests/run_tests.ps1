@@ -25,4 +25,3 @@ catch {
 }
 
 pytest -q
-

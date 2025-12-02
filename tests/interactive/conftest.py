@@ -1,7 +1,8 @@
 """Shared fixtures and configuration for interactive mode tests."""
 
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
 
 
 @pytest.fixture

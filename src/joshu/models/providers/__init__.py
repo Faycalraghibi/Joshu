@@ -2,12 +2,13 @@
 
 from .echo import EchoProvider
 from .llama_cpp import LlamaCppProvider, LlamaCppWrapper, maybe_load_llama_from_env
-from .openrouter import OpenRouterProvider
 from .local import LocalModelProvider
+from .openrouter import OpenRouterProvider
 
 # Try to import vLLM server provider (optional dependency)
 try:
     from .vllm_server import VLLMServerProvider
+
     VLLM_SERVER_AVAILABLE = True
 except ImportError:
     VLLMServerProvider = None  # type: ignore
@@ -30,4 +31,3 @@ __all__ = [
     "VLLMServerProvider",
     "VLLM_SERVER_AVAILABLE",
 ]
-

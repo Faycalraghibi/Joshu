@@ -1,6 +1,6 @@
 import os
-import pytest
 
+import pytest
 from openai import OpenAI
 
 

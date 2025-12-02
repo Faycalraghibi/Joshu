@@ -1,0 +1,47 @@
+{
+  "b4ef9ed2cd7be22a4e1960e4b72482ed": {
+    "original_query": "show all python processes",
+    "translated_command": "ps aux | grep python",
+    "explanation": "List all running Python processes",
+    "timestamp": 1764539726.9359736,
+    "embedding": [],
+    "hit_count": 3,
+    "last_hit": 1764668409.0270827
+  },
+  "829a8c1de92d7d24e658b6d3bbbd981e": {
+    "original_query": "find all python files",
+    "translated_command": "dir /s *.py",
+    "explanation": "Find all Python files recursively from the current directory.",
+    "timestamp": 1764539726.941264,
+    "embedding": [],
+    "hit_count": 3,
+    "last_hit": 1764668409.032834
+  },
+  "182606d415d0ad5c585b778af03f4297": {
+    "original_query": "show disk usage",
+    "translated_command": "dir",
+    "explanation": "Summarize disk usage of the current directory in human-readable form.",
+    "timestamp": 1764539792.7087996,
+    "embedding": [],
+    "hit_count": 6,
+    "last_hit": 1764668733.5643306
+  },
+  "599fd3b6f789bfcea73808e57e44a285": {
+    "original_query": "show disk usage of current directory",
+    "translated_command": "dir",
+    "explanation": "Summarize disk usage of the current directory in human-readable form.",
+    "timestamp": 1764539808.023648,
+    "embedding": [],
+    "hit_count": 4,
+    "last_hit": 1764668682.7231007
+  },
+  "a0a313aff14d238c664e185a85a7fccf": {
+    "original_query": "list all python files",
+    "translated_command": "dir *.py",
+    "explanation": "List all files with .py extension in the current directory",
+    "timestamp": 1764593687.2987058,
+    "embedding": [],
+    "hit_count": 2,
+    "last_hit": 1764668733.565124
+  }
+}

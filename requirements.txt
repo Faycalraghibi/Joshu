@@ -1,5 +1,5 @@
 # Basic Joshu runtime dependencies (required)
-# 
+#
 # This file contains only the core runtime dependencies.
 # Optional dependencies are defined in pyproject.toml:
 #   - Development tools: pip install -e .[dev]

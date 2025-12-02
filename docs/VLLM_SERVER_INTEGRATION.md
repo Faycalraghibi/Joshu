@@ -192,5 +192,3 @@ The vLLM provider integrates seamlessly:
 - Server mode is recommended for production deployments
 - Direct API mode is useful for development/testing
 - Both modes support streaming responses
-
-

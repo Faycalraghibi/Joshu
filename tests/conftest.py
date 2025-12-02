@@ -1,16 +1,16 @@
 import logging
 import os
 import sys
-from pathlib import Path
-from typing import Any, Dict, Iterator
 from contextlib import contextmanager
+from pathlib import Path
+from typing import Any, Dict
 from unittest.mock import patch
 
 import pytest
 from dotenv import load_dotenv
 
 # Add src to path so we can import joshu modules
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 # Set up logging for tests
 if os.environ.get("DEBUG_LEVEL") == "info":
@@ -25,7 +25,7 @@ else:
 
 
 def pytest_sessionstart(session):
-    """Called after the Session object has been created and before performing collection 
+    """Called after the Session object has been created and before performing collection
     and entering the run test loop."""
     # Load .env from repository root (one directory up from tests/)
     repo_root = Path(__file__).resolve().parent.parent
@@ -64,14 +64,14 @@ def _env_defaults(monkeypatch):
     # Keep DeepSeek models optional during tests
     if "DEEPSEEK_URL" not in os.environ:
         monkeypatch.setenv("DEEPSEEK_URL", "deepseek/deepseek-chat-v3.1:free")
-    
+
     # Do not require an API key in unit tests; network calls are mocked
     if "DEEPSEEK_API_KEY" in os.environ and not os.environ["DEEPSEEK_API_KEY"]:
         monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
-    
+
     # Set default editor for config edit tests based on OS
     if "EDITOR" not in os.environ:
-        if os.name == 'nt':  # Windows
+        if os.name == "nt":  # Windows
             monkeypatch.setenv("EDITOR", "notepad")
         else:  # Unix-like systems
             monkeypatch.setenv("EDITOR", "nano")
@@ -169,7 +169,7 @@ LLM_MOCKED_METHODS = [
 def skip_llm_test_fixture():
     """
     This fixture is auto-used on all tests.
-    
+
     If a specific environment variable is present, it patches the `generate` methods of all LLMs so that
     if it is called, the test is skipped. This is used to be able to only run tests that do not require
     LLM generation (that are very fast and to reduce cost).
@@ -212,9 +212,10 @@ def cleanup_env():
 @contextmanager
 def patched_llm(llm: Any, response: str = "Mocked response"):
     """Context manager to patch an LLM's generate method."""
+
     def mock_generate(*args, **kwargs):
         return response
-    
+
     with patch.object(
         llm,
         "generate",
@@ -258,3 +259,38 @@ def sample_safety_report_data() -> Dict[str, Any]:
         "reasons": [],
         "suggested_alternative": None,
     }
+
+
+# Local model availability checking for tests
+def is_local_model_available() -> bool:
+    """
+    Check if a real local model is available for testing.
+
+    Returns True if there's a configured local model provider that is not the Echo fallback.
+    This allows tests requiring real local models to be skipped when unavailable.
+    """
+    try:
+        from joshu.models.pool import get_model_pool
+
+        pool = get_model_pool()
+        # Use the pool's built-in method to check for local model availability
+        return pool.has_local_model_available()
+    except Exception:
+        # If we can't check, assume not available
+        return False
+
+
+def pytest_configure(config):
+    """Configure pytest with custom markers."""
+    config.addinivalue_line(
+        "markers",
+        "requires_local_model: mark test as requiring a configured local model to run "
+        "(set LOCAL_MODEL_URL and LOCAL_MODEL_IDENTIFIER environment variables)",
+    )
+
+
+# Create the skip marker for tests requiring local models
+requires_local_model = pytest.mark.skipif(
+    not is_local_model_available(),
+    reason="Local model not available - set LOCAL_MODEL_URL and LOCAL_MODEL_IDENTIFIER",
+)

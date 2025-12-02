@@ -44,7 +44,7 @@ This report documents the compatibility check after moving `utils.py` from `mode
    - `generate_stream()` now uses `chunk_response()` from `response_utils.py` (with fallback)
 
 ### ⚠️ Optional Improvements (Not Critical)
-- `translate_with_local_model_api()` and `translate_with_local_model()` still use inline `json.loads()` 
+- `translate_with_local_model_api()` and `translate_with_local_model()` still use inline `json.loads()`
   - These could use `parse_json_response()` but have more complex error handling
   - Current implementation is acceptable
 
@@ -59,4 +59,3 @@ This report documents the compatibility check after moving `utils.py` from `mode
 - ✅ `test_model_utils.py` - Updated and should pass
 - ✅ All imports updated correctly
 - ✅ No breaking changes to public API
-

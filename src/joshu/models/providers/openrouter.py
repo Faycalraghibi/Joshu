@@ -15,11 +15,13 @@ logger = logging.getLogger(__name__)
 
 class OpenRouterProvider(ModelProvider):
     """Provider for OpenRouter API models."""
-    
-    def __init__(self, model_name: Optional[str] = None, config: Optional[Dict[str, Any]] = None) -> None:
+
+    def __init__(
+        self, model_name: Optional[str] = None, config: Optional[Dict[str, Any]] = None
+    ) -> None:
         """
         Initialize OpenRouter provider.
-        
+
         Args:
             model_name: Model name to use (if None, will use config default)
             config: Optional configuration dictionary
@@ -29,22 +31,19 @@ class OpenRouterProvider(ModelProvider):
         self.model_name = model_name or ModelConfig.get_openrouter_model(model_name)
         self._client: Optional[OpenAI] = None
         self._connection_established = False
-    
+
     def initialize(self) -> bool:
         """Initialize OpenRouter client."""
         if self._initialized:
             return True
-        
+
         try:
             api_key = ModelConfig.get_openrouter_api_key(self.model_name)
             if not api_key:
                 logger.debug("No API key available for OpenRouter")
                 return False
-            
-            self._client = OpenAI(
-                base_url="https://openrouter.ai/api/v1",
-                api_key=api_key
-            )
+
+            self._client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=api_key)
             self._initialized = True
             self._available = True
             self._connection_established = True
@@ -55,16 +54,16 @@ class OpenRouterProvider(ModelProvider):
             self._initialized = False
             self._available = False
             return False
-    
+
     def is_available(self) -> bool:
         """Check if OpenRouter is available."""
         if not self._initialized:
             return False
-        
+
         # Check if API key is still available
         api_key = ModelConfig.get_openrouter_api_key(self.model_name)
         return api_key is not None and self._client is not None
-    
+
     def generate(
         self,
         prompt: str,
@@ -77,11 +76,14 @@ class OpenRouterProvider(ModelProvider):
         if not self.is_available():
             if not self.initialize():
                 raise RuntimeError("OpenRouter provider is not available")
-        
+
         # Convert prompt to messages format
         messages = [{"role": "user", "content": prompt}]
-        return self.chat_completion(messages, temperature=temperature, max_tokens=max_tokens, **kwargs) or ""
-    
+        return (
+            self.chat_completion(messages, temperature=temperature, max_tokens=max_tokens, **kwargs)
+            or ""
+        )
+
     def chat_completion(
         self,
         messages: List[Dict[str, str]],
@@ -95,16 +97,16 @@ class OpenRouterProvider(ModelProvider):
             if not self.initialize():
                 logger.debug("OpenRouter provider not available for chat completion")
                 return None
-        
+
         if not self._client:
             return None
-        
+
         try:
             headers = ModelConfig.get_openrouter_headers()
             extra_headers = kwargs.get("extra_headers", {})
             if extra_headers:
                 headers.update({k: v for k, v in extra_headers.items() if v})
-            
+
             completion = self._client.chat.completions.create(
                 extra_headers=headers,
                 model=self.model_name,
@@ -116,14 +118,9 @@ class OpenRouterProvider(ModelProvider):
         except Exception as e:
             logger.debug(f"OpenRouter API call failed: {e}")
             return None
-    
+
     def cleanup(self) -> None:
         """Cleanup OpenRouter client."""
         super().cleanup()
         self._client = None
         self._connection_established = False
-
-
-
-
-

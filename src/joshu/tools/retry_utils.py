@@ -20,22 +20,23 @@ def retry_on_failure(
 ) -> Callable[[Callable[..., T]], Callable[..., T]]:
     """
     Decorator to retry a function on failure.
-    
+
     Args:
         max_retries: Maximum number of retry attempts
         delay: Initial delay between retries in seconds
         backoff: Multiplier for delay after each retry
         exceptions: Tuple of exception types to catch and retry
-    
+
     Returns:
         Decorated function with retry logic
     """
+
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> T:
             current_delay = delay
             last_exception = None
-            
+
             for attempt in range(max_retries):
                 try:
                     return func(*args, **kwargs)
@@ -52,12 +53,11 @@ def retry_on_failure(
                         logger.warning(
                             f"Max retries ({max_retries}) exceeded for {func.__name__}: {e}"
                         )
-            
+
             if last_exception:
                 raise last_exception
             raise RuntimeError(f"Function {func.__name__} failed after {max_retries} retries")
-        
+
         return wrapper
+
     return decorator
-
-

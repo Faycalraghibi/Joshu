@@ -5,7 +5,7 @@ function Get-EnvConfig {
     param(
         [string]$Path = ".env"
     )
-    
+
     # Check if .env file exists in current directory
     if (-not (Test-Path $Path)) {
         Write-Host "Warning: .env file not found at $Path" -ForegroundColor Yellow
@@ -23,7 +23,7 @@ function Get-EnvConfig {
         "LLAMA_CPP_MODEL_LLAMA3_8B=/path/to/llama-3-8b.gguf" | Out-File $Path -Encoding UTF8 -Append
         "LLAMA_CPP_MODEL_MISTRAL_7B=/path/to/mistral-7b.gguf" | Out-File $Path -Encoding UTF8 -Append
     }
-    
+
     $config = @{}
     $content = Get-Content $Path
     foreach ($line in $content) {
@@ -46,16 +46,16 @@ function Set-EnvConfig {
         [hashtable]$Config,
         [string]$Path = ".env"
     )
-    
+
     if (-not (Test-Path $Path)) {
         Write-Host "Error: .env file not found at $Path" -ForegroundColor Red
         return
     }
-    
+
     $content = Get-Content $Path
     $newContent = @()
     $processedKeys = @()
-    
+
     foreach ($line in $content) {
         if ($line -match '^\s*([^#][^=]*)\s*=\s*(.*)$') {
             $key = $matches[1].Trim()
@@ -74,7 +74,7 @@ function Set-EnvConfig {
         }
         $newContent += $line
     }
-    
+
     # Add any new keys that weren't in the original file
     foreach ($key in $Config.Keys) {
         if ($processedKeys -notcontains $key) {
@@ -88,7 +88,7 @@ function Set-EnvConfig {
             $newContent += "$key=$value"
         }
     }
-    
+
     $newContent | Set-Content $Path
     Write-Host "Configuration updated successfully!" -ForegroundColor Green
 }
@@ -98,19 +98,19 @@ function Set-UserConfig {
     param(
         [string]$ModelIdentifier
     )
-    
+
     $configPath = "$env:USERPROFILE\.joshu\config.yaml"
-    
+
     # Ensure the .joshu directory exists
     $joshuDir = "$env:USERPROFILE\.joshu"
     if (-not (Test-Path $joshuDir)) {
         New-Item -ItemType Directory -Path $joshuDir | Out-Null
     }
-    
+
     if (Test-Path $configPath) {
         # Read the config file
         $configContent = Get-Content $configPath -Raw
-        
+
         # Check if the file has content
         if ([string]::IsNullOrWhiteSpace($configContent)) {
             # Create default config content
@@ -118,12 +118,12 @@ function Set-UserConfig {
         } else {
             # Replace the model line with the new model
             $updatedContent = $configContent -replace "model: .*", "model: $ModelIdentifier"
-            
+
             # If no model line was found, add it
             if ($updatedContent -eq $configContent) {
                 $updatedContent += "`nmodel: $ModelIdentifier"
             }
-            
+
             # Write back to the file
             $updatedContent | Set-Content $configPath
         }
@@ -131,7 +131,7 @@ function Set-UserConfig {
         # Create the config file with the model
         "model: $ModelIdentifier" | Out-File $configPath -Encoding UTF8
     }
-    
+
     Write-Host "User config file updated successfully!" -ForegroundColor Green
 }
 
@@ -140,7 +140,7 @@ function Show-Menu {
     param(
         [hashtable]$Config
     )
-    
+
     Write-Host "`n=== Joshu Model Selection Menu ===" -ForegroundColor Cyan
     Write-Host "Select a model to set as current:" -ForegroundColor Yellow
     Write-Host "1. DEEPSEEK: $($Config['DEEPSEEK_Identifier'])" -ForegroundColor Gray
@@ -164,7 +164,7 @@ function Get-IdentifierKey {
     param(
         [int]$Option
     )
-    
+
     switch ($Option) {
         1 { return "DEEPSEEK_Identifier" }
         2 { return "TONGYI_Identifier" }
@@ -184,7 +184,7 @@ function Get-DisplayName {
     param(
         [int]$Option
     )
-    
+
     switch ($Option) {
         1 { return "DEEPSEEK" }
         2 { return "TONGYI" }
@@ -205,7 +205,7 @@ function Get-ModelIdentifier {
         [int]$Option,
         [hashtable]$Config
     )
-    
+
     $identifierKey = Get-IdentifierKey -Option $Option
     if ($identifierKey -and $Config.ContainsKey($identifierKey)) {
         return $Config[$identifierKey]
@@ -216,10 +216,10 @@ function Get-ModelIdentifier {
 # Main script
 try {
     Write-Host "Loading Joshu configuration..." -ForegroundColor Cyan
-    
+
     # Load current configuration
     $config = Get-EnvConfig
-    
+
     if ($config.Count -eq 0) {
         Write-Host "No configuration found. Creating default configuration..." -ForegroundColor Yellow
         $config = @{
@@ -235,44 +235,44 @@ try {
             "LLAMA_CPP_MODEL_MISTRAL_7B" = "/path/to/mistral-7b.gguf"
         }
     }
-    
+
     # Main menu loop
     do {
         Show-Menu -Config $config
         $choice = Read-Host "Select model (0-9)"
-        
+
         if ($choice -eq "0") {
             Write-Host "Exiting configuration tool." -ForegroundColor Yellow
             break
         }
-        
+
         if ($choice -ge 1 -and $choice -le 9) {
             $identifierKey = Get-IdentifierKey -Option ([int]$choice)
             $displayName = Get-DisplayName -Option ([int]$choice)
             $modelIdentifier = Get-ModelIdentifier -Option ([int]$choice) -Config $config
-            
+
             if ($identifierKey -and $config.ContainsKey($identifierKey) -and $modelIdentifier) {
                 # Set the selected identifier as the current OPENROUTER_MODEL
                 $newConfig = $config.Clone()
                 $newConfig["OPENROUTER_MODEL"] = $config[$identifierKey]
                 Set-EnvConfig -Config $newConfig
-                
+
                 # Also update the user's config.yaml file
                 Set-UserConfig -ModelIdentifier $modelIdentifier
-                
+
                 Write-Host "Set current model to $displayName ($($config[$identifierKey]))" -ForegroundColor Green
                 # Reload config to show updated values
                 $config = Get-EnvConfig
             }
-            
+
             Write-Host "Press any key to continue..." -ForegroundColor Gray
             $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
         } else {
             Write-Host "Invalid option. Please select 0-9." -ForegroundColor Red
         }
-        
+
     } while ($true)
-    
+
 } catch {
     Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
     exit 1

@@ -30,7 +30,10 @@ dependencies = [
 dev = [
     "pytest==8.4.2",
     "black==24.4.0",
-    "flake8==7.0.0"
+    "flake8==7.0.0",
+    "mypy==1.8.0",
+    "ruff==0.2.0",
+    "types-PyYAML==6.0.12.12"
 ]
 # LLM dependencies for local model support (optional, may require compilation)
 # Note: These dependencies are large and may take time to install
@@ -57,3 +60,24 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.ruff]
+line-length = 100
+fix = true
+
+[tool.isort]
+profile = "black"
+
+[tool.black]
+line-length = 100
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = false
+warn_unused_configs = true
+no_implicit_optional = false
+disallow_untyped_defs = false
+disallow_any_generics = false
+check_untyped_defs = false
+# Disable specific error codes that require deep refactoring
+disable_error_code = ["arg-type", "return-value", "assignment", "attr-defined", "var-annotated", "truthy-function", "index", "import-untyped"]

@@ -8,12 +8,21 @@ Future database backends (SQLite, PostgreSQL, etc.) can be added by implementing
 the StorageBackend interface from base.py.
 """
 
-from .base import StorageBackend, StorageEntry, QueryFilter, EntryType
+from .base import EntryType, QueryFilter, StorageBackend, StorageEntry
 from .json_file import JsonFileStorage
 
 # Import semantic memory (optional, will handle missing dependencies gracefully)
 try:
     from .semantic_memory import SemanticMemory, SemanticMemoryEntry
-    __all__ = ['StorageBackend', 'StorageEntry', 'QueryFilter', 'EntryType', 'JsonFileStorage', 'SemanticMemory', 'SemanticMemoryEntry']
+
+    __all__ = [
+        "StorageBackend",
+        "StorageEntry",
+        "QueryFilter",
+        "EntryType",
+        "JsonFileStorage",
+        "SemanticMemory",
+        "SemanticMemoryEntry",
+    ]
 except ImportError:
-    __all__ = ['StorageBackend', 'StorageEntry', 'QueryFilter', 'EntryType', 'JsonFileStorage']
+    __all__ = ["StorageBackend", "StorageEntry", "QueryFilter", "EntryType", "JsonFileStorage"]

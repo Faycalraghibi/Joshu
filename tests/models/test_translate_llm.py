@@ -1,18 +1,20 @@
 import json
-import platform
-import builtins
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
-from joshu.core.translate import translate_to_command, translate_with_openrouter, translate_with_local_model, adapt_command_for_windows
-from joshu.tools.system_info import get_system_info
+from joshu.core.translate import (
+    adapt_command_for_windows,
+    translate_to_command,
+    translate_with_local_model,
+    translate_with_openrouter,
+)
 from joshu.models import LLM
+from joshu.tools.system_info import get_system_info
 
 
 def test_translate_llm_success():
-    mock_response = json.dumps({
-        "command": "ps aux | grep python",
-        "explanation": "List all running Python processes"
-    })
+    mock_response = json.dumps(
+        {"command": "ps aux | grep python", "explanation": "List all running Python processes"}
+    )
     with patch("joshu.models.openrouter.chat_completion", return_value=mock_response):
         t = translate_to_command("show all python processes")
         assert t is not None
@@ -32,10 +34,7 @@ def test_translate_llm_bad_json_fallback_pattern():
 
 
 def test_translate_with_openrouter_success():
-    mock_response = json.dumps({
-        "command": "ls -la",
-        "explanation": "List all files with details"
-    })
+    mock_response = json.dumps({"command": "ls -la", "explanation": "List all files with details"})
     with patch("joshu.models.openrouter.chat_completion", return_value=mock_response):
         result = translate_with_openrouter("list all files")
         assert result is not None
@@ -45,12 +44,15 @@ def test_translate_with_openrouter_success():
 
 def test_translate_with_openrouter_with_markdown():
     # Test with markdown code blocks
-    mock_response = "```json\n{\n  \"command\": \"type readme.md\",\n  \"explanation\": \"Display the content of the file named readme.md in the current directory.\"\n}\n```"
+    mock_response = '```json\n{\n  "command": "type readme.md",\n  "explanation": "Display the content of the file named readme.md in the current directory."\n}\n```'
     with patch("joshu.models.openrouter.chat_completion", return_value=mock_response):
         result = translate_with_openrouter("display the content of readme.md file")
         assert result is not None
         assert result["command"] == "type readme.md"
-        assert result["explanation"] == "Display the content of the file named readme.md in the current directory."
+        assert (
+            result["explanation"]
+            == "Display the content of the file named readme.md in the current directory."
+        )
 
 
 def test_translate_with_local_model_success():
@@ -58,10 +60,10 @@ def test_translate_with_local_model_success():
     class MockLLM(LLM):
         def generate(self, prompt: str, **kwargs):
             return '{"command": "date", "explanation": "Show current date and time"}'
-    
-    with patch("joshu.models.inference.get_model") as mock_get_model:
+
+    with patch("joshu.core.translate.get_model") as mock_get_model:
         mock_get_model.return_value = MockLLM()
-        
+
         t = translate_with_local_model("show current date", model_name="default")
         assert t is not None
         assert t.command == "date"
@@ -73,16 +75,16 @@ def test_translate_with_local_model_bad_json():
     class MockLLM(LLM):
         def generate(self, prompt: str, **kwargs):
             return "not json"
-    
-    with patch("joshu.models.inference.get_model") as mock_get_model:
+
+    with patch("joshu.core.translate.get_model") as mock_get_model:
         mock_get_model.return_value = MockLLM()
-        
+
         t = translate_with_local_model("show current date", model_name="default")
         # With new behavior, may return a Translation with conversational response OR None
         # Either is acceptable
         if t is not None:
             # If it returns a Translation, it should be marked as conversational
-            assert hasattr(t, 'command') and hasattr(t, 'explanation')
+            assert hasattr(t, "command") and hasattr(t, "explanation")
             # May have needs_execution = False for conversational
         # If None, that's also acceptable (fallback behavior)
 
@@ -105,22 +107,21 @@ def test_adapt_command_for_windows():
     # Test ls command
     assert adapt_command_for_windows("ls") == "dir"
     assert adapt_command_for_windows("ls -la") == "dir -la"
-    
+
     # Test pwd command
     assert adapt_command_for_windows("pwd") == "cd"
-    
+
     # Test cat command
     assert adapt_command_for_windows("cat file.txt") == "type file.txt"
-    
+
     # Test type command (already Windows)
     assert adapt_command_for_windows("type file.txt") == "type file.txt"
-    
+
     # Test du command
     assert adapt_command_for_windows("du -sh .") == "dir"
-    
+
     # Test find command
     assert adapt_command_for_windows('find . -name "*.py"') == "dir /s *.py"
-    
+
     # Test command that doesn't need adaptation
     assert adapt_command_for_windows("git status") == "git status"
-

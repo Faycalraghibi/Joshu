@@ -29,7 +29,7 @@ joshu --interactive
 > Assistant: I can help you compress the folder. Here are your options:
 > 1. tar -czf folder.tar.gz foldername  (gzip compression)
 > 2. zip -r folder.zip foldername       (zip format)
-> 
+>
 > Which format would you prefer? [1/2]
 ```
 
@@ -153,25 +153,25 @@ joshu --explain "tar command"
 
 # 🧠 TODO.md — Advanced Claude-like CLI Integration Roadmap
 
-> **Reference Docs**  
+> **Reference Docs**
 >
-> - [CLI Reference](https://docs.claude.com/en/docs/claude-code/cli-reference)  
-> - [Interactive Mode](https://docs.claude.com/en/docs/claude-code/interactive-mode)  
-> - [Slash Commands](https://docs.claude.com/en/docs/claude-code/slash-commands)  
-> - [Checkpointing](https://docs.claude.com/en/docs/claude-code/checkpointing)  
+> - [CLI Reference](https://docs.claude.com/en/docs/claude-code/cli-reference)
+> - [Interactive Mode](https://docs.claude.com/en/docs/claude-code/interactive-mode)
+> - [Slash Commands](https://docs.claude.com/en/docs/claude-code/slash-commands)
+> - [Checkpointing](https://docs.claude.com/en/docs/claude-code/checkpointing)
 > - [Hooks](https://docs.claude.com/en/docs/claude-code/hooks)
 
 ---
 
 ## ✅ Core Features (Already Implemented)
 
-- [x] Natural Language → CLI Command Translation  
-- [x] Interactive Chat Mode  
-- [x] Local Model Context Switching  
-- [x] Command Validation & Safety Layer  
-- [x] File System Operations (list, read, edit, permissions)  
-- [x] Contextual History & Auto-suggestions  
-- [x] Built-in Help and Docs lookup  
+- [x] Natural Language → CLI Command Translation
+- [x] Interactive Chat Mode
+- [x] Local Model Context Switching
+- [x] Command Validation & Safety Layer
+- [x] File System Operations (list, read, edit, permissions)
+- [x] Contextual History & Auto-suggestions
+- [x] Built-in Help and Docs lookup
 
 ---
 
@@ -221,10 +221,10 @@ joshu --explain "tar command"
 
 *(Ref: [Checkpointing](https://docs.claude.com/en/docs/claude-code/checkpointing))*
 
-- Create automatic checkpoints after each edit or command execution.  
-- Implement `/rewind` or `Esc Esc` shortcuts for state restoration.  
-- Multi-level checkpoint depth (configurable).  
-- Handle non-checkpointable actions (e.g., shell commands) gracefully.  
+- Create automatic checkpoints after each edit or command execution.
+- Implement `/rewind` or `Esc Esc` shortcuts for state restoration.
+- Multi-level checkpoint depth (configurable).
+- Handle non-checkpointable actions (e.g., shell commands) gracefully.
 - Persistent checkpoint tracking per session ID.
 
 ---
@@ -270,14 +270,14 @@ joshu --explain "tar command"
 
 ## 🧩 Development Checklist
 
-- [ ] Implement CLI flags and options (parity with Claude Code CLI).  
-- [ ] Integrate interactive REPL shortcuts (cross-terminal testing).  
-- [ ] Add slash command parser and runtime registry.  
-- [ ] Develop checkpoint manager with serialization and restore logic.  
-- [ ] Design secure event-based hook system.  
-- [ ] Introduce subagent orchestration layer.  
-- [ ] Prototype plugin system and skill discovery mechanism.  
-- [ ] Write internal docs with official references.  
+- [ ] Implement CLI flags and options (parity with Claude Code CLI).
+- [ ] Integrate interactive REPL shortcuts (cross-terminal testing).
+- [ ] Add slash command parser and runtime registry.
+- [ ] Develop checkpoint manager with serialization and restore logic.
+- [ ] Design secure event-based hook system.
+- [ ] Introduce subagent orchestration layer.
+- [ ] Prototype plugin system and skill discovery mechanism.
+- [ ] Write internal docs with official references.
 
 ---
 
@@ -285,17 +285,17 @@ joshu --explain "tar command"
 
 When in doubt, consult:
 
-- [CLI Reference](https://docs.claude.com/en/docs/claude-code/cli-reference)  
-- [Interactive Mode](https://docs.claude.com/en/docs/claude-code/interactive-mode)  
-- [Slash Commands](https://docs.claude.com/en/docs/claude-code/slash-commands)  
-- [Checkpointing](https://docs.claude.com/en/docs/claude-code/checkpointing)  
+- [CLI Reference](https://docs.claude.com/en/docs/claude-code/cli-reference)
+- [Interactive Mode](https://docs.claude.com/en/docs/claude-code/interactive-mode)
+- [Slash Commands](https://docs.claude.com/en/docs/claude-code/slash-commands)
+- [Checkpointing](https://docs.claude.com/en/docs/claude-code/checkpointing)
 - [Hooks](https://docs.claude.com/en/docs/claude-code/hooks)
 
 ---
 
 ### 🧭 Notes
 
-This document serves as the **living specification** for building Claude-like CLI parity within your assistant.  
+This document serves as the **living specification** for building Claude-like CLI parity within your assistant.
 Update it as new subfeatures roll out or existing ones reach completion.
 
 

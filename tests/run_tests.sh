@@ -32,4 +32,3 @@ if [ "$?" -eq 42 ]; then
 fi
 
 pytest -q
-

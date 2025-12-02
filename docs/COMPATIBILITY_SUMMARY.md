@@ -13,7 +13,7 @@ src/joshu/models/utils.py (219 lines)
 NEW:
 src/joshu/tools/
 ├── parsing_utils.py (87 lines)    - JSON parsing & command extraction
-├── response_utils.py (86 lines)   - Response processing & formatting  
+├── response_utils.py (86 lines)   - Response processing & formatting
 └── retry_utils.py (63 lines)      - Retry decorator
 ```
 
@@ -110,4 +110,3 @@ The refactoring successfully:
 - Maintained backward compatibility
 - Preserved all functionality
 - Enhanced maintainability
-

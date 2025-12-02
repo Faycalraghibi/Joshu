@@ -21,5 +21,3 @@ class Agent:
 
     def run(self, prompt: str) -> AgentResponse:
         return AgentResponse(text="Not implemented", metadata={})
-
-

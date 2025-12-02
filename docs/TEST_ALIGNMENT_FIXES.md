@@ -8,7 +8,7 @@ This document tracks test fixes needed after the storage refactoring and codebas
 ### 1. ✅ Fixed: `test_context_provider.py`
 - **Issue**: Uses `memory_store.kv` which was removed during refactoring
 - **Status**: Fixed - Added `@property kv` to `MemoryStore` for backward compatibility
-- **Tests affected**: 
+- **Tests affected**:
   - `test_context_provider_initialization`
   - `test_context_provider_clear_context`
   - `test_context_provider_get_context_summary`
@@ -28,4 +28,3 @@ This document tracks test fixes needed after the storage refactoring and codebas
 ## Files to Update
 
 1. `tests/test_history_commands.py` - Update mocking strategy for CLI handlers
-
