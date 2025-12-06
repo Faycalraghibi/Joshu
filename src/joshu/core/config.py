@@ -58,6 +58,10 @@ DEFAULT_CONFIG = {
     "tool_calling_enabled": True,
     "tool_calling_max_iterations": 3,
     "web_search_tool_enabled": True,
+    # MCP Server settings
+    "mcp_enabled": True,
+    "mcp_discovery_on_startup": True,
+    "mcp_servers": {},
 }
 
 
@@ -107,6 +111,10 @@ class JoshuConfig:
     tool_calling_enabled: bool = True
     tool_calling_max_iterations: int = 3
     web_search_tool_enabled: bool = True
+    # MCP Server settings
+    mcp_enabled: bool = True
+    mcp_discovery_on_startup: bool = True
+    mcp_servers: Dict[str, Any] = None  # type: ignore  # Will use default_factory in post_init
 
     @classmethod
     def from_dict(cls, config_dict: Dict[str, Any]) -> "JoshuConfig":
@@ -201,6 +209,12 @@ class JoshuConfig:
             web_search_tool_enabled=config_dict.get(
                 "web_search_tool_enabled", DEFAULT_CONFIG["web_search_tool_enabled"]
             ),
+            # MCP Server settings
+            mcp_enabled=config_dict.get("mcp_enabled", DEFAULT_CONFIG["mcp_enabled"]),
+            mcp_discovery_on_startup=config_dict.get(
+                "mcp_discovery_on_startup", DEFAULT_CONFIG["mcp_discovery_on_startup"]
+            ),
+            mcp_servers=config_dict.get("mcp_servers", DEFAULT_CONFIG["mcp_servers"]),
         )
 
     def to_dict(self) -> Dict[str, Any]:

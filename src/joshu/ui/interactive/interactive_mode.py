@@ -537,5 +537,33 @@ class InteractiveMode:
 
 def start_interactive_mode(model: str, sandbox: bool = False, verbose: bool = False):
     """Start the interactive mode."""
+    # Initialize MCP servers and register tools
+    try:
+        from joshu.core.config import get_config_manager
+
+        config_mgr = get_config_manager()
+
+        if config_mgr.get("mcp_enabled", True):
+            import asyncio
+
+            from joshu.mcp.discovery import register_mcp_tools_with_joshu
+            from joshu.ui.cli_handlers.mcp_handler import load_mcp_servers_from_config
+
+            # Load servers from mcp.json
+            load_mcp_servers_from_config()
+
+            # Register MCP tools with Joshu's ToolRegistry
+            if config_mgr.get("mcp_discovery_on_startup", True):
+                try:
+                    count = asyncio.run(register_mcp_tools_with_joshu())
+                    if count > 0:
+                        print(f"[MCP] Registered {count} tools from MCP servers")
+                except Exception as e:
+                    if verbose:
+                        print(f"[MCP] Tool discovery failed: {e}")
+    except Exception as e:
+        if verbose:
+            print(f"[MCP] Initialization skipped: {e}")
+
     interactive_mode = InteractiveMode(model, sandbox, verbose=verbose)
     interactive_mode.start()

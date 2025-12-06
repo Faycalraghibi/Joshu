@@ -1,7 +1,5 @@
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from joshu.core.context_provider import ContextProvider
 from joshu.core.translate import translate_to_command, translate_with_local_model
 
@@ -54,7 +52,6 @@ def test_context_provider_integration_in_translate_with_openrouter():
         assert any("previous command" in msg.get("content", "") for msg in call_args)
 
 
-@pytest.mark.requires_local_model
 def test_context_provider_integration_in_translate_with_local_model():
     """Test context provider integration in local model translation."""
     context_provider = ContextProvider()
@@ -65,48 +62,29 @@ def test_context_provider_integration_in_translate_with_local_model():
     context_provider.add_to_history("assistant", "previous response")
     context_provider.set_memory("user_preference", "likes python")
 
-    # Since translate_with_local_model uses the pool which auto-discovers providers,
-    # we need to mock at the pool level to ensure our mock provider is used
-    from joshu.models.pool import get_model_pool
-
-    with patch("joshu.core.translate.translate_with_openrouter", return_value=None):
-        # Create a mock provider instance
-        mock_provider = MagicMock()
-        mock_provider.is_available.return_value = True
-        mock_provider.chat_completion.return_value = (
+    # Mock the local model with a command that doesn't match patterns
+    with patch("joshu.models.inference.get_model") as mock_get_model:
+        mock_model = MagicMock()
+        mock_model.generate.return_value = (
             '{"command": "echo Hello World", "explanation": "Print greeting"}'
         )
+        mock_get_model.return_value = mock_model
 
-        # Mock the pool's get_provider method to return our mock
-        with patch.object(get_model_pool(), "get_provider", return_value=mock_provider):
-            result = translate_with_local_model("say hello", context_provider, "default")
+        result = translate_with_local_model("say hello", context_provider, "default")
 
-            # Verify that the provider was called
-            assert (
-                mock_provider.chat_completion.called
-            ), "Mock provider's chat_completion should have been called"
+        # Verify that the model was called
+        mock_model.generate.assert_called_once()
+        prompt = mock_model.generate.call_args[0][0]  # First argument (prompt)
 
-            # Get the call arguments
-            call_args = mock_provider.chat_completion.call_args
-            if call_args:
-                messages = call_args[0][0]  # First positional argument (messages)
+        # Should include context information
+        assert "Windows" in prompt  # System info from get_system_info()
+        assert "previous command" in prompt
+        assert "user_preference" in prompt
 
-                # Should include context information
-                assert any(
-                    "Windows" in str(msg) or "system" in str(msg).lower() for msg in messages
-                ), "Messages should include system information"
-                assert any(
-                    "previous command" in str(msg) for msg in messages
-                ), "Messages should include conversation history"
-
-            # Verify that we got a valid result
-            assert result is not None, "Result should not be None"
-            assert (
-                result.command == "echo Hello World"
-            ), f"Expected command 'echo Hello World', got '{result.command}'"
-            assert (
-                result.explanation == "Print greeting"
-            ), f"Expected explanation 'Print greeting', got '{result.explanation}'"
+        # Verify that we got a valid result
+        assert result is not None
+        assert result.command == "echo Hello World"
+        assert result.explanation == "Print greeting"
 
 
 # NOTE: Storage-related tests have been moved to tests/storage/

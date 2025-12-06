@@ -22,6 +22,15 @@ from .cli_handlers.commands import (
     handle_repeat_last,
 )
 from .cli_handlers.init import initialize_context, setup_logging
+from .cli_handlers.mcp_handler import (
+    mcp_add,
+    mcp_connect,
+    mcp_disconnect,
+    mcp_discover,
+    mcp_list,
+    mcp_remove,
+    mcp_status,
+)
 from .cli_handlers.search_handler import handle_search_command
 from .cli_handlers.translation_helpers import handle_translation_execution
 from .display import print_banner
@@ -37,6 +46,8 @@ except ImportError:
 
 # Initialize app and console
 app = typer.Typer(no_args_is_help=True)
+mcp_app = typer.Typer(help="Manage MCP server integrations.")
+app.add_typer(mcp_app, name="mcp")
 console = Console()
 
 # Global state
@@ -362,6 +373,73 @@ def cache_clear() -> None:
         console.print(f"[red]Error clearing cache: {e}[/red]")
 
 
+# MCP Subcommands
+@mcp_app.command("list")
+def mcp_list_cmd() -> None:
+    """List all configured MCP servers and their status."""
+    mcp_list()
+
+
+@mcp_app.command("add")
+def mcp_add_cmd(
+    name: str = typer.Argument(..., help="Unique name for the server"),
+    command: Optional[str] = typer.Option(
+        None, "--command", "-c", help="Command to run (for stdio transport)"
+    ),
+    url: Optional[str] = typer.Option(
+        None, "--url", "-u", help="URL to connect (for http transport)"
+    ),
+    args: Optional[str] = typer.Option(
+        None, "--args", "-a", help="Space-separated command arguments"
+    ),
+    transport: str = typer.Option(
+        "stdio", "--transport", "-t", help="Transport type (stdio, http)"
+    ),
+    disabled: bool = typer.Option(False, "--disabled", help="Add server as disabled"),
+) -> None:
+    """Add a new MCP server configuration."""
+    mcp_add(name, command, url, args, transport, not disabled)
+
+
+@mcp_app.command("remove")
+def mcp_remove_cmd(
+    name: str = typer.Argument(..., help="Name of the server to remove"),
+    force: bool = typer.Option(False, "--force", "-f", help="Skip confirmation prompt"),
+) -> None:
+    """Remove an MCP server configuration."""
+    mcp_remove(name, force)
+
+
+@mcp_app.command("status")
+def mcp_status_cmd(
+    name: Optional[str] = typer.Argument(None, help="Specific server name"),
+) -> None:
+    """Show detailed status of MCP servers."""
+    mcp_status(name)
+
+
+@mcp_app.command("connect")
+def mcp_connect_cmd(
+    name: Optional[str] = typer.Argument(None, help="Server name, or all if not specified"),
+) -> None:
+    """Connect to MCP server(s)."""
+    mcp_connect(name)
+
+
+@mcp_app.command("disconnect")
+def mcp_disconnect_cmd(
+    name: Optional[str] = typer.Argument(None, help="Server name, or all if not specified"),
+) -> None:
+    """Disconnect from MCP server(s)."""
+    mcp_disconnect(name)
+
+
+@mcp_app.command("discover")
+def mcp_discover_cmd() -> None:
+    """Discover and list tools from all connected MCP servers."""
+    mcp_discover()
+
+
 def main() -> None:
     """Main entry point."""
     if len(sys.argv) > 1:
@@ -380,6 +458,7 @@ def main() -> None:
             "cache-stats",
             "cache-clear",
             "interactive",
+            "mcp",
             "--help",
             "-h",
             "--version",

@@ -246,14 +246,11 @@ def test_context_provider_session_deletion():
         session_ids = [s["id"] for s in sessions]
         assert session_id in session_ids
 
-        # Store original session ID
-
         # End session (deletes current session and creates new one)
         provider.end_session()
 
         # Verify session was deleted from sessions list
-        sessions_after = provider.list_sessions()
-        [s["id"] for s in sessions_after]
+        provider.list_sessions()
         # The original session should not be in the list (or marked inactive)
         # But we check that a new session was created
         assert provider.session_id is not None
