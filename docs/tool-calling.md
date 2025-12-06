@@ -115,6 +115,46 @@ What does this page say about X? [url]
 Read the documentation at https://docs.python.org
 ```
 
+### MCP Tools (External Tools)
+
+Joshu integrates with Model Context Protocol (MCP) servers to provide access to external tools. These tools are automatically discovered and registered on startup.
+
+**Built-in MCP Support:**
+- GitHub operations (search repos, create issues, read files)
+- Filesystem operations
+- Any MCP-compatible server
+
+**Setup:**
+```bash
+# List configured MCP servers
+joshu mcp list
+
+# Connect to servers
+joshu mcp connect
+
+# Discover available tools
+joshu mcp discover
+```
+
+**Configuration via `config/mcp.json`:**
+```json
+{
+  "mcpServers": {
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+      }
+    }
+  }
+}
+```
+
+Once configured, MCP tools are available automatically in interactive mode. The LLM will invoke them when appropriate.
+
+See the [MCP Servers Guide](mcp-servers.md) for complete documentation.
+
 ### Future Tools (Coming Soon)
 
 - File operations (read/write files)

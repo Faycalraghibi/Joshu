@@ -223,6 +223,48 @@ While in interactive mode:
 | `web_fetch_timeout` | integer | `15` | Fetch timeout in seconds |
 | `web_fetch_max_content_length` | integer | `50000` | Max characters to return |
 
+### MCP Server Settings
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `mcp_enabled` | boolean | `true` | Enable MCP integration |
+| `mcp_discovery_on_startup` | boolean | `true` | Auto-discover MCP tools on startup |
+| `mcp_servers` | dict | `{}` | MCP server configurations |
+
+**MCP Server Configuration Example:**
+
+```yaml
+mcp_enabled: true
+mcp_discovery_on_startup: true
+
+mcp_servers:
+  github:
+    transport: "stdio"
+    command: "npx"
+    args: ["-y", "@modelcontextprotocol/server-github"]
+    enabled: true
+```
+
+**Using `mcp.json` (Claude Desktop compatible):**
+
+Create `config/mcp.json` or `~/.joshu/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+      }
+    }
+  }
+}
+```
+
+Environment variables in `env` values are expanded automatically using `${VAR_NAME}` syntax.
+
 ## Examples
 
 ### Configure for Maximum Safety
@@ -260,4 +302,5 @@ OPENROUTER_MODEL=openai/gpt-4o-mini
 
 - **[Model Setup](models.md)** — Configure local and cloud models
 - **[OpenRouter Setup](openrouter.md)** — Cloud model configuration
+- **[MCP Servers](mcp-servers.md)** — Integrate external tools via MCP
 - **[Environment Variables](environment-variables.md)** — Complete reference

@@ -52,6 +52,33 @@ mcp_servers:
       - "delete_repository"
 ```
 
+### Using `mcp.json` (Claude Desktop Compatible)
+
+Joshu also supports the standard `mcp.json` format used by Claude Desktop. Create this file at:
+- `config/mcp.json` (in your project)
+- `~/.joshu/mcp.json` (user-level)
+- `./mcp.json` (current directory)
+
+```json
+{
+  "mcpServers": {
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+      }
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/data"]
+    }
+  }
+}
+```
+
+**Environment Variable Expansion:** Use `${VAR_NAME}` syntax in `env` values. Variables are expanded from your environment (including `.env` files).
+
 ### Configuration Options
 
 | Option | Type | Default | Description |
