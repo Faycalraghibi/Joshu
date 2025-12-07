@@ -7,7 +7,7 @@ name = "joshu"
 version = "0.1.0"
 description = "Joshu - AI command-line assistant"
 readme = "README.md"
-requires-python = ">=3.8,<3.14"
+requires-python = ">=3.10,<3.14"
 authors = [{ name = "Joshu Community" }]
 license = { file = "LICENSE" }
 keywords = ["cli", "ai", "assistant", "llm"]
@@ -78,7 +78,7 @@ profile = "black"
 line-length = 100
 
 [tool.mypy]
-python_version = "3.8"
+python_version = "3.13"
 warn_return_any = false
 warn_unused_configs = true
 no_implicit_optional = false
