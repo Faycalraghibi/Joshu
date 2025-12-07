@@ -30,8 +30,9 @@ def test_interactive_mode_import():
 
 def test_interactive_mode_fallback():
     """Test that interactive mode falls back to basic mode when prompt_toolkit is not available."""
-    with patch("joshu.ui.interactive.interactive_mode.PROMPT_TOOLKIT_AVAILABLE", False), patch(
-        "joshu.ui.cli_handlers.basic_interactive.start_basic_interactive_mode"
+    with (
+        patch("joshu.ui.interactive.interactive_mode.PROMPT_TOOLKIT_AVAILABLE", False),
+        patch("joshu.ui.cli_handlers.basic_interactive.start_basic_interactive_mode"),
     ):
         # Import after ensuring prompt_toolkit is available
         from joshu.ui.interactive import start_interactive_mode

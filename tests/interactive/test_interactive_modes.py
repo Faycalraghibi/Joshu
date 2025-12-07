@@ -93,12 +93,12 @@ def test_agent_mode_handler():
 
         # Mock LLM plan generation - chat_completion is imported inside _get_llm_response
         # run_command is imported at module level, so patch it there
-        with patch("joshu.models.openrouter.chat_completion") as mock_chat, patch(
-            "joshu.core.safety.assess_command_safety"
-        ) as mock_safety, patch("joshu.ui.interactive.modes.run_command") as mock_run, patch(
-            "joshu.ui.interactive.modes.os.getenv"
-        ) as mock_getenv, patch(
-            "builtins.input", return_value="n"
+        with (
+            patch("joshu.models.openrouter.chat_completion") as mock_chat,
+            patch("joshu.core.safety.assess_command_safety") as mock_safety,
+            patch("joshu.ui.interactive.modes.run_command") as mock_run,
+            patch("joshu.ui.interactive.modes.os.getenv") as mock_getenv,
+            patch("builtins.input", return_value="n"),
         ):  # Mock user input to avoid prompts
             # Mock environment to use cloud
             mock_getenv.side_effect = lambda key, default=None: {
@@ -135,12 +135,12 @@ def test_agent_mode_handler_stops_on_failure():
 
         # Mock LLM plan generation - chat_completion is imported inside _get_llm_response
         # run_command is imported at module level, so patch it there
-        with patch("joshu.models.openrouter.chat_completion") as mock_chat, patch(
-            "joshu.core.safety.assess_command_safety"
-        ) as mock_safety, patch("joshu.ui.interactive.modes.run_command") as mock_run, patch(
-            "joshu.ui.interactive.modes.os.getenv"
-        ) as mock_getenv, patch(
-            "builtins.input", return_value="n"
+        with (
+            patch("joshu.models.openrouter.chat_completion") as mock_chat,
+            patch("joshu.core.safety.assess_command_safety") as mock_safety,
+            patch("joshu.ui.interactive.modes.run_command") as mock_run,
+            patch("joshu.ui.interactive.modes.os.getenv") as mock_getenv,
+            patch("builtins.input", return_value="n"),
         ):  # Mock user input to avoid prompts
             # Mock environment to use cloud
             mock_getenv.side_effect = lambda key, default=None: {

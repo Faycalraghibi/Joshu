@@ -55,8 +55,9 @@ def test_interactive_mode_history():
 
 def test_interactive_mode_file_injection():
     """Test that the interactive mode handles file injection."""
-    with patch("joshu.core.config.get_config_manager") as mock_config_manager, patch(
-        "joshu.ui.interactive.utils.execute_file_content"
+    with (
+        patch("joshu.core.config.get_config_manager") as mock_config_manager,
+        patch("joshu.ui.interactive.utils.execute_file_content"),
     ):
         # Mock config manager
         mock_config = MagicMock()
@@ -77,9 +78,10 @@ def test_interactive_mode_file_injection():
 
 def test_interactive_mode_bash_command():
     """Test that the interactive mode handles bash commands."""
-    with patch("joshu.core.config.get_config_manager") as mock_config_manager, patch(
-        "joshu.ui.interactive.interactive_mode.run_command"
-    ) as mock_run_command:
+    with (
+        patch("joshu.core.config.get_config_manager") as mock_config_manager,
+        patch("joshu.ui.interactive.interactive_mode.run_command") as mock_run_command,
+    ):
         # Mock config manager
         mock_config = MagicMock()
         mock_config.get.return_value = 1000
@@ -133,9 +135,11 @@ def test_interactive_mode_slash_commands():
 
 def test_interactive_mode_config_commands():
     """Test that the interactive mode handles config commands."""
-    with patch("joshu.core.config.get_config_manager") as mock_config_manager, patch(
-        "joshu.ui.interactive.interactive_mode.ContextProvider"
-    ), patch("joshu.core.translate.establish_connection") as mock_conn:
+    with (
+        patch("joshu.core.config.get_config_manager") as mock_config_manager,
+        patch("joshu.ui.interactive.interactive_mode.ContextProvider"),
+        patch("joshu.core.translate.establish_connection") as mock_conn,
+    ):
         mock_conn.return_value = True
 
         # Mock config manager
@@ -185,9 +189,11 @@ def test_interactive_mode_config_commands():
 
 def test_interactive_mode_model_commands():
     """Test that the interactive mode handles model commands."""
-    with patch("joshu.core.config.get_config_manager") as mock_config_manager, patch(
-        "joshu.ui.interactive.interactive_mode.ContextProvider"
-    ), patch("joshu.core.translate.establish_connection") as mock_conn:
+    with (
+        patch("joshu.core.config.get_config_manager") as mock_config_manager,
+        patch("joshu.ui.interactive.interactive_mode.ContextProvider"),
+        patch("joshu.core.translate.establish_connection") as mock_conn,
+    ):
         mock_conn.return_value = True
 
         # Mock config manager

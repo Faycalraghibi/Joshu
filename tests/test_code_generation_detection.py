@@ -15,9 +15,10 @@ def test_code_generation_detection():
     from joshu.models.providers import EchoProvider
 
     # Mock translate_with_openrouter and translate_with_local_model_api to avoid API calls
-    with patch("joshu.core.translate.translate_with_openrouter", return_value=None), patch(
-        "joshu.core.translate.translate_with_local_model_api"
-    ) as mock_local:
+    with (
+        patch("joshu.core.translate.translate_with_openrouter", return_value=None),
+        patch("joshu.core.translate.translate_with_local_model_api") as mock_local,
+    ):
         # Make local model API return a proper translation
         from joshu.core.translate import Translation
 

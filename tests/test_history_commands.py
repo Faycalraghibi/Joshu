@@ -24,9 +24,11 @@ def test_history_command():
         context_provider.add_to_history("assistant", "Executed: dir *.py")
 
         # Patch the global context_provider in cli module and disable banner
-        with patch("joshu.ui.cli.context_provider", context_provider), patch(
-            "joshu.ui.cli.print_banner"
-        ), patch("joshu.ui.cli_handlers.init.initialize_context") as mock_init:
+        with (
+            patch("joshu.ui.cli.context_provider", context_provider),
+            patch("joshu.ui.cli.print_banner"),
+            patch("joshu.ui.cli_handlers.init.initialize_context") as mock_init,
+        ):
             mock_init.return_value = None
             result = runner.invoke(app, ["history"])
             assert result.exit_code == 0
@@ -57,9 +59,11 @@ def test_history_command_with_limit():
         context_provider.add_to_history("assistant", "response 3")
 
         # Patch the global context_provider in cli module and disable banner
-        with patch("joshu.ui.cli.context_provider", context_provider), patch(
-            "joshu.ui.cli.print_banner"
-        ), patch("joshu.ui.cli_handlers.init.initialize_context") as mock_init:
+        with (
+            patch("joshu.ui.cli.context_provider", context_provider),
+            patch("joshu.ui.cli.print_banner"),
+            patch("joshu.ui.cli_handlers.init.initialize_context") as mock_init,
+        ):
             mock_init.return_value = None
             result = runner.invoke(app, ["history", "--limit", "2"])
             assert result.exit_code == 0
@@ -87,8 +91,9 @@ def test_history_command_no_history():
         assert len(context_provider.conversation_context.messages) == 0
 
         # Patch the global context_provider in cli module and disable banner
-        with patch("joshu.ui.cli.context_provider", context_provider), patch(
-            "joshu.ui.cli.print_banner"
+        with (
+            patch("joshu.ui.cli.context_provider", context_provider),
+            patch("joshu.ui.cli.print_banner"),
         ):  # Disable banner for cleaner test output
             result = runner.invoke(app, ["history"])
             assert result.exit_code == 0
@@ -120,11 +125,14 @@ def test_repeat_last_command():
         assert len(context_provider.conversation_context.messages) >= 2
 
         # Patch context_provider in both places
-        with patch("joshu.ui.cli.context_provider", context_provider), patch(
-            "joshu.ui.cli.print_banner"
-        ), patch("joshu.core.translate.translate_to_command") as mock_translate, patch(
-            "joshu.ui.cli_handlers.translation_helpers.handle_translation_execution"
-        ) as mock_handle_exec:
+        with (
+            patch("joshu.ui.cli.context_provider", context_provider),
+            patch("joshu.ui.cli.print_banner"),
+            patch("joshu.core.translate.translate_to_command") as mock_translate,
+            patch(
+                "joshu.ui.cli_handlers.translation_helpers.handle_translation_execution"
+            ) as mock_handle_exec,
+        ):
             # Set up mocks
             mock_config = MagicMock()
             mock_config.get.side_effect = lambda key, default=None: {
@@ -203,8 +211,9 @@ def test_explain_last_command():
         # Verify history is present
         assert len(context_provider.conversation_context.messages) >= 2
 
-        with patch("joshu.ui.cli.context_provider", context_provider), patch(
-            "joshu.ui.cli.print_banner"
+        with (
+            patch("joshu.ui.cli.context_provider", context_provider),
+            patch("joshu.ui.cli.print_banner"),
         ):  # Disable banner
             result = runner.invoke(app, ["explain-last"])
             # Check for content

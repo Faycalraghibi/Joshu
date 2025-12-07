@@ -234,9 +234,10 @@ def test_generate_code_with_openrouter():
     """Test code generation using OpenRouter API."""
     editor = CodeEditorCore()
 
-    with patch("joshu.core.code_editor.os.getenv") as mock_getenv, patch(
-        "joshu.models.openrouter.chat_completion"
-    ) as mock_chat:
+    with (
+        patch("joshu.core.code_editor.os.getenv") as mock_getenv,
+        patch("joshu.models.openrouter.chat_completion") as mock_chat,
+    ):
         mock_getenv.return_value = "test-api-key"
         mock_chat.return_value = "def hello():\n    print('Hello')"
 

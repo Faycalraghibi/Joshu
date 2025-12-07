@@ -11,9 +11,12 @@ def test_code_generation_fix():
     from joshu.core.translate import Translation
 
     # Mock the translation helpers
-    with patch("joshu.core.translate.translate_to_command") as mock_translate, patch(
-        "joshu.ui.cli_handlers.translation_helpers.handle_translation_execution"
-    ) as mock_handle_exec:
+    with (
+        patch("joshu.core.translate.translate_to_command") as mock_translate,
+        patch(
+            "joshu.ui.cli_handlers.translation_helpers.handle_translation_execution"
+        ) as mock_handle_exec,
+    ):
         # Mock translation to return a code generation suggestion
         mock_translation = Translation(
             command='echo "Use the code command: joshu code \\"your request\\""',

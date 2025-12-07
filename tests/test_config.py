@@ -249,8 +249,10 @@ class TestConfig(unittest.TestCase):
     def test_config_edit_command_success(self):
         """Test the config --edit command when editor is available."""
         # Mock subprocess.run to simulate successful editor launch
-        with patch("subprocess.run") as mock_run, patch("sys.stdout", self.stdout), patch(
-            "sys.stderr", self.stderr
+        with (
+            patch("subprocess.run") as mock_run,
+            patch("sys.stdout", self.stdout),
+            patch("sys.stderr", self.stderr),
         ):
             mock_run.return_value = MagicMock(returncode=0)
             try:
@@ -265,8 +267,10 @@ class TestConfig(unittest.TestCase):
     def test_config_edit_command_failure(self):
         """Test the config --edit command when editor is not available."""
         # Mock subprocess.run to simulate editor failure
-        with patch("subprocess.run") as mock_run, patch("sys.stdout", self.stdout), patch(
-            "sys.stderr", self.stderr
+        with (
+            patch("subprocess.run") as mock_run,
+            patch("sys.stdout", self.stdout),
+            patch("sys.stderr", self.stderr),
         ):
             mock_run.side_effect = Exception("Editor not found")
             try:
