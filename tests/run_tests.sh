@@ -15,20 +15,17 @@ fi
 export PYTHONUNBUFFERED=1
 export PYTHONDONTWRITEBYTECODE=1
 
-# Ensure OpenRouter config is optional
-export OPENROUTER_API_KEY="${OPENROUTER_API_KEY:-}"
-export OPENROUTER_MODEL="${OPENROUTER_MODEL:-openai/gpt-4o}"
+# Model configuration
+if [ -z "${OPENROUTER_MODEL:-}" ]; then export OPENROUTER_MODEL="z-ai/glm-4.5-air:free"; fi
+if [ -z "${GLM_Identifier:-}" ]; then export GLM_Identifier="z-ai/glm-4.5-air:free"; fi
 
-# Ensure package import
-python - <<'PY'
-import sys
-try:
-    import joshu  # noqa: F401
-except Exception as e:
-    sys.exit(42)
-PY
-if [ "$?" -eq 42 ]; then
-  pip install -e .
+# Skip LLM tests in CI (set SKIP_LLM_TESTS=1 to skip)
+if [ -z "${SKIP_LLM_TESTS:-}" ]; then export SKIP_LLM_TESTS="0"; fi
+
+# Ensure package is importable (editable install fallback)
+if ! python -c "import joshu" 2>/dev/null; then
+  pip install -e ".[dev] .[use]"
 fi
 
-pytest -q
+# Run tests
+pytest tests/ -q --tb=short

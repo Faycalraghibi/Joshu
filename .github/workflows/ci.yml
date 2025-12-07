@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  PYTHONUNBUFFERED: "1"
+  PYTHONDONTWRITEBYTECODE: "1"
+  SKIP_LLM_TESTS: "1"
+
+  # Model configuration
+  GLM_Identifier: "z-ai/glm-4.5-air:free"
+  GLM_AUTO_EXEC: "false"
+  OPENROUTER_MODEL: "z-ai/glm-4.5-air:free"
+
+  # API Keys (from GitHub Secrets)
+  GLM_API_KEY: ${{ secrets.GLM_API_KEY }}
+  TESTSPRITE_API_KEY: ${{ secrets.TESTSPRITE_API_KEY }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  ci:
+    name: Build, Lint & Test
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install -e ".[dev,use]"
+
+      - name: Verify CLI installation
+        run: |
+          joshu --version
+          joshu --help
+
+      - name: Run Ruff linter
+        run: ruff check src/ tests/
+
+      - name: Run Ruff formatter check
+        run: ruff format --check src/ tests/
+
+      - name: Run mypy type checking
+        run: mypy src/ --ignore-missing-imports
+
+      - name: Run tests
+        run: .\tests\run_tests.ps1

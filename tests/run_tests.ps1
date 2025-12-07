@@ -13,15 +13,20 @@ if (Test-Path $venv) { . $venv }
 $env:PYTHONUNBUFFERED = "1"
 $env:PYTHONDONTWRITEBYTECODE = "1"
 
-# Optional OpenRouter config
-if (-not $env:OPENROUTER_MODEL) { $env:OPENROUTER_MODEL = "openai/gpt-4o" }
+# Model configuration
+if (-not $env:OPENROUTER_MODEL) { $env:OPENROUTER_MODEL = "z-ai/glm-4.5-air:free" }
+if (-not $env:GLM_Identifier) { $env:GLM_Identifier = "z-ai/glm-4.5-air:free" }
+
+# Skip LLM tests in CI (set SKIP_LLM_TESTS=1 to skip)
+if (-not $env:SKIP_LLM_TESTS) { $env:SKIP_LLM_TESTS = "0" }
 
 # Ensure package is importable (editable install fallback)
 try {
   python -c "import joshu" | Out-Null
 }
 catch {
-  pip install -e .
+  pip install -e ".[dev] .[use]"
 }
 
-pytest -q
+# Run tests
+pytest tests/ -q --tb=short
