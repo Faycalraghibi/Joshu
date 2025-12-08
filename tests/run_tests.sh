@@ -24,7 +24,7 @@ if [ -z "${SKIP_LLM_TESTS:-}" ]; then export SKIP_LLM_TESTS="0"; fi
 
 # Ensure package is importable (editable install fallback)
 if ! python -c "import joshu" 2>/dev/null; then
-  pip install -e ".[dev] .[use]"
+  pip install -e ".[dev]"
 fi
 
 # Run tests

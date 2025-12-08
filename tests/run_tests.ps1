@@ -25,7 +25,7 @@ try {
   python -c "import joshu" | Out-Null
 }
 catch {
-  pip install -e ".[dev] .[use]"
+  pip install -e ".[dev]"
 }
 
 # Run tests
