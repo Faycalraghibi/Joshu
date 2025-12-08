@@ -7,7 +7,7 @@ from joshu.core.translate import translate_to_command, translate_with_local_mode
 def test_translate_to_command_with_context_provider():
     """Test that translate_to_command works with context provider."""
     context_provider = ContextProvider()
-    from joshu.tools.system_info import get_detailed_system_info
+    from joshu.tools.system_info import get_detailed_system_info, get_system_info
 
     context_provider.set_system_info(get_detailed_system_info())
     context_provider.add_to_history("user", "Hello")
@@ -16,7 +16,13 @@ def test_translate_to_command_with_context_provider():
     # Test with pattern matching (should not use context)
     translation = translate_to_command("show disk usage of current directory", context_provider)
     assert translation is not None
-    assert translation.command == "dir"  # Windows adapted command
+
+    # Check the command based on the actual OS
+    system_info = get_system_info()
+    if "Windows" in system_info:
+        assert translation.command == "dir"  # Windows adapted command
+    else:
+        assert translation.command == "du -sh ."  # Unix command
 
 
 def test_context_provider_integration_in_translate_with_openrouter():

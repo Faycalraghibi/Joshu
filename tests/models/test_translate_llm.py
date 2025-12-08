@@ -104,24 +104,31 @@ def test_get_system_info():
 
 def test_adapt_command_for_windows():
     """Test Windows command adaptation."""
+    # Explicitly pass system_info="Windows" to test Windows adaptation logic
+    # regardless of the actual OS the test is running on
+
     # Test ls command
-    assert adapt_command_for_windows("ls") == "dir"
-    assert adapt_command_for_windows("ls -la") == "dir -la"
+    assert adapt_command_for_windows("ls", system_info="Windows") == "dir"
+    assert adapt_command_for_windows("ls -la", system_info="Windows") == "dir -la"
 
     # Test pwd command
-    assert adapt_command_for_windows("pwd") == "cd"
+    assert adapt_command_for_windows("pwd", system_info="Windows") == "cd"
 
     # Test cat command
-    assert adapt_command_for_windows("cat file.txt") == "type file.txt"
+    assert adapt_command_for_windows("cat file.txt", system_info="Windows") == "type file.txt"
 
     # Test type command (already Windows)
-    assert adapt_command_for_windows("type file.txt") == "type file.txt"
+    assert adapt_command_for_windows("type file.txt", system_info="Windows") == "type file.txt"
 
     # Test du command
-    assert adapt_command_for_windows("du -sh .") == "dir"
+    assert adapt_command_for_windows("du -sh .", system_info="Windows") == "dir"
 
     # Test find command
-    assert adapt_command_for_windows('find . -name "*.py"') == "dir /s *.py"
+    assert adapt_command_for_windows('find . -name "*.py"', system_info="Windows") == "dir /s *.py"
 
     # Test command that doesn't need adaptation
-    assert adapt_command_for_windows("git status") == "git status"
+    assert adapt_command_for_windows("git status", system_info="Windows") == "git status"
+
+    # Test that non-Windows systems don't get adapted
+    assert adapt_command_for_windows("ls", system_info="Linux") == "ls"
+    assert adapt_command_for_windows("ls", system_info="macOS") == "ls"
