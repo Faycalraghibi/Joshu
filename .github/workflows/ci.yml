@@ -24,7 +24,7 @@ env:
 jobs:
   ci:
     name: Build, Lint & Test
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -54,5 +54,12 @@ jobs:
       - name: Run mypy type checking
         run: mypy src/ --config-file mypy.ini
 
-      - name: Run tests
+      - name: Run tests (Windows)
+        if: runner.os == 'Windows'
         run: .\tests\run_tests.ps1
+
+      - name: Run tests (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          chmod +x ./tests/run_tests.sh
+          ./tests/run_tests.sh

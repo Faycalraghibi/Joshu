@@ -15,12 +15,12 @@ try:
         format_messages_as_prompt as _format_messages_func,
     )
 
-    format_messages_as_prompt: Optional[
-        Callable[[List[Dict[str, str]]], str]
-    ] = _format_messages_func
-    chunk_response: Optional[
-        Callable[[str, int], Generator[str, None, None]]
-    ] = _chunk_response_func
+    format_messages_as_prompt: Optional[Callable[[List[Dict[str, str]]], str]] = (
+        _format_messages_func
+    )
+    chunk_response: Optional[Callable[[str, int], Generator[str, None, None]]] = (
+        _chunk_response_func
+    )
 except ImportError:
     # Fallback if tools not available
     format_messages_as_prompt = None
