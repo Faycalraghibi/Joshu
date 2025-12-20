@@ -1,6 +1,15 @@
 """Model providers and pool architecture for Joshu Assistant."""
 
 # Export new pool architecture
+# Availability service
+from .availability import (
+    FailureCategory,
+    HealthState,
+    HealthStatus,
+    ModelAvailabilityService,
+    ModelSelectionResult,
+    get_model_availability_service,
+)
 from .base import LLM, ModelProvider
 
 # Maintain backward compatibility - export old API
@@ -29,6 +38,13 @@ __all__ = [
     "get_model_pool",
     "ModelProvider",
     "LLM",
+    # Availability service
+    "ModelAvailabilityService",
+    "HealthState",
+    "HealthStatus",
+    "FailureCategory",
+    "ModelSelectionResult",
+    "get_model_availability_service",
     # Backward compatibility
     "get_model",
     "establish_model_connection",
