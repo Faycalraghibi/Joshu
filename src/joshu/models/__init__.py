@@ -19,6 +19,18 @@ from .openrouter import (
     establish_openrouter_connection,
     get_openrouter_client,
 )
+
+# Policy-driven fallback
+from .policy import (
+    FallbackAction,
+    FallbackActionType,
+    FallbackIntent,
+    ModelPolicy,
+    ModelPolicyChain,
+    PolicyCatalog,
+    create_default_policy_chain,
+    get_policy_catalog,
+)
 from .pool import ModelPool, get_model_pool
 from .providers import EchoProvider, LocalModelProvider
 
@@ -45,6 +57,15 @@ __all__ = [
     "FailureCategory",
     "ModelSelectionResult",
     "get_model_availability_service",
+    # Policy-driven fallback
+    "ModelPolicy",
+    "ModelPolicyChain",
+    "PolicyCatalog",
+    "FallbackIntent",
+    "FallbackAction",
+    "FallbackActionType",
+    "create_default_policy_chain",
+    "get_policy_catalog",
     # Backward compatibility
     "get_model",
     "establish_model_connection",
