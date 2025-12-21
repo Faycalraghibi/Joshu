@@ -15,10 +15,7 @@ repos:
         args: ["--fix"]
       - id: ruff-format
 
-  - repo: https://github.com/psf/black
-    rev: 25.12.0
-    hooks:
-      - id: black
+  # Note: Black removed - using ruff-format instead (they're compatible)
 
   - repo: https://github.com/PyCQA/isort
     rev: 7.0.0
