@@ -12,7 +12,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, HTTPException, Request
@@ -20,6 +22,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
+from joshu.a2a.event_bus import get_event_bus
 from joshu.a2a.events import AgentExecutionEvent
 from joshu.a2a.executor import TaskNotFoundError, get_agent_executor
 from joshu.a2a.task import AgentSettings
@@ -82,12 +85,39 @@ class ConfirmationResponse(BaseModel):
     response: str = Field(..., description="Response: proceed_once, cancel, cancel_task")
 
 
+class ExecuteCommandRequest(BaseModel):
+    """Request to execute a CLI command."""
+
+    command: str = Field(..., description="Command name to execute")
+    args: Dict[str, Any] = Field(default_factory=dict, description="Command arguments")
+    workspace_path: Optional[str] = Field(None, description="Working directory")
+
+
+class CommandArgumentInfo(BaseModel):
+    """Information about a command argument."""
+
+    name: str
+    description: str
+    type: str = "string"
+    required: bool = False
+    default: Any = None
+
+
+class SubcommandInfo(BaseModel):
+    """Information about a subcommand."""
+
+    name: str
+    description: str
+    arguments: List[CommandArgumentInfo] = []
+
+
 class CommandInfo(BaseModel):
     """Information about an available command."""
 
     name: str
     description: str
-    category: Optional[str] = None
+    arguments: List[CommandArgumentInfo] = []
+    subcommands: List[SubcommandInfo] = []
 
 
 class AgentCard(BaseModel):
@@ -109,6 +139,12 @@ class AgentCard(BaseModel):
 async def lifespan(app: FastAPI):
     """Lifespan handler for startup/shutdown."""
     logger.info("A2A Server starting...")
+
+    # Register default commands
+    from joshu.a2a.commands.registry import register_default_commands
+
+    register_default_commands()
+
     yield
     logger.info("A2A Server shutting down...")
 
@@ -172,6 +208,22 @@ async def get_task(task_id: str) -> TaskMetadataResponse:
         return TaskMetadataResponse(**metadata)
     except TaskNotFoundError:
         raise HTTPException(status_code=404, detail=f"Task not found: {task_id}")
+
+
+@app.get("/tasks/metadata")
+async def get_all_tasks_metadata() -> List[Dict[str, Any]]:
+    """Get metadata for all active tasks."""
+    executor = get_agent_executor()
+
+    tasks_metadata = []
+    for task_id in executor._active_tasks:
+        try:
+            metadata = executor.get_task_metadata(task_id)
+            tasks_metadata.append(metadata)
+        except TaskNotFoundError:
+            pass
+
+    return tasks_metadata
 
 
 @app.get("/tasks/{task_id}/stream")
@@ -257,36 +309,153 @@ async def respond_to_confirmation(task_id: str, response: ConfirmationResponse) 
 
 
 # ============================================================================
-# Command Discovery Endpoints
+# Command Execution Endpoints
 # ============================================================================
 
 
-@app.get("/commands", response_model=List[CommandInfo])
+@app.post("/executeCommand")
+async def execute_command(
+    request: ExecuteCommandRequest, http_request: Request
+) -> StreamingResponse:
+    """
+    Execute a CLI command with SSE streaming.
+
+    Executes the specified command and streams TaskStatusUpdateEvents
+    as Server-Sent Events for real-time feedback.
+    """
+    from uuid import uuid4
+
+    from joshu.a2a.commands.registry import get_command_registry
+    from joshu.a2a.commands.types import CommandContext
+
+    registry = get_command_registry()
+    command = registry.get(request.command)
+
+    if not command:
+        raise HTTPException(status_code=404, detail=f"Command not found: {request.command}")
+
+    # Determine workspace path
+    workspace_path = Path(
+        request.workspace_path or os.environ.get("CODER_AGENT_WORKSPACE_PATH", ".")
+    )
+
+    # Create command context
+    task_id = str(uuid4())
+    ctx = CommandContext(
+        workspace_path=workspace_path,
+        config={},  # Could load from config file
+        event_bus=get_event_bus(),
+        executor=get_agent_executor(),
+        task_id=task_id,
+    )
+
+    async def event_generator():
+        """Generate SSE events from command execution."""
+        try:
+            # Publish start event
+            start_event = AgentExecutionEvent.message(
+                task_id,
+                f"Executing command: {request.command}",
+            )
+            yield start_event.to_sse()
+
+            # Execute command
+            async for result in command.execute(ctx, request.args):
+                # Check for client disconnect
+                if await http_request.is_disconnected():
+                    logger.info(f"Client disconnected during command: {request.command}")
+                    break
+
+                # Convert result to SSE event
+                event = AgentExecutionEvent.message(
+                    task_id,
+                    result.message,
+                )
+                event.data["status"] = result.status.value
+                event.data["command_data"] = result.data
+                if result.error:
+                    event.data["error"] = result.error
+                yield event.to_sse()
+
+            # Complete event
+            complete_event = AgentExecutionEvent.complete(
+                task_id,
+                f"Command {request.command} completed",
+            )
+            yield complete_event.to_sse()
+
+        except Exception as e:
+            logger.error(f"Command execution error: {e}")
+            error_event = AgentExecutionEvent.error(task_id, str(e))
+            yield error_event.to_sse()
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@app.get("/listCommands", response_model=List[CommandInfo])
 async def list_commands() -> List[CommandInfo]:
     """
-    List available CLI commands.
+    List all available CLI commands.
 
-    Returns commands that can be executed via the agent.
+    Returns a comprehensive list of all top-level commands,
+    their descriptions, arguments, and subcommands.
     """
-    # Return a static list for now - could integrate with command registry
-    commands = [
-        CommandInfo(
-            name="init",
-            description="Initialize project with GEMINI.md",
-            category="project",
-        ),
-        CommandInfo(
-            name="restore",
-            description="Restore from checkpoint",
-            category="project",
-        ),
-        CommandInfo(
-            name="extensions",
-            description="List configured extensions",
-            category="config",
-        ),
-    ]
-    return commands
+    from joshu.a2a.commands.registry import get_command_registry
+
+    registry = get_command_registry()
+    commands_data = registry.list_commands()
+
+    result = []
+    for cmd_data in commands_data:
+        # Convert arguments
+        arguments = [
+            CommandArgumentInfo(
+                name=arg["name"],
+                description=arg["description"],
+                type=arg.get("type", "string"),
+                required=arg.get("required", False),
+                default=arg.get("default"),
+            )
+            for arg in cmd_data.get("arguments", [])
+        ]
+
+        # Convert subcommands
+        subcommands = [
+            SubcommandInfo(
+                name=sub["name"],
+                description=sub["description"],
+                arguments=[
+                    CommandArgumentInfo(
+                        name=arg["name"],
+                        description=arg["description"],
+                        type=arg.get("type", "string"),
+                        required=arg.get("required", False),
+                        default=arg.get("default"),
+                    )
+                    for arg in sub.get("arguments", [])
+                ],
+            )
+            for sub in cmd_data.get("subcommands", [])
+        ]
+
+        result.append(
+            CommandInfo(
+                name=cmd_data["name"],
+                description=cmd_data["description"],
+                arguments=arguments,
+                subcommands=subcommands,
+            )
+        )
+
+    return result
 
 
 # ============================================================================
@@ -294,6 +463,7 @@ async def list_commands() -> List[CommandInfo]:
 # ============================================================================
 
 
+@app.get("/.well-known/agent-card.json", response_model=AgentCard)
 @app.get("/agent-card.json", response_model=AgentCard)
 async def agent_card() -> AgentCard:
     """
