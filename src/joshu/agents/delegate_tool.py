@@ -1,17 +1,3 @@
-"""
-Delegate-to-Agent Tool for subagent delegation.
-
-This module provides the DelegateToAgentTool that enables a primary agent
-to delegate tasks to subagents. It dynamically generates schemas from
-the AgentRegistry and produces validated DelegationRequest objects.
-
-Key principles:
-- ZERO execution logic - produces validated requests only
-- Dynamic schema from available subagents
-- Strict validation at call time
-- Integrates with existing ToolRegistry
-"""
-
 from __future__ import annotations
 
 import logging
