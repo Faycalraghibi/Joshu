@@ -38,9 +38,9 @@ class ExecutionEventBus:
 
     def __init__(self) -> None:
         # task_id -> list of subscriber queues
-        self._subscribers: Dict[str, List[asyncio.Queue[Optional[AgentExecutionEvent]]]] = (
-            defaultdict(list)
-        )
+        self._subscribers: Dict[
+            str, List[asyncio.Queue[Optional[AgentExecutionEvent]]]
+        ] = defaultdict(list)
         # Set of active task IDs
         self._active_tasks: Set[str] = set()
         # Lock for thread-safe operations
