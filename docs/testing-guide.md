@@ -2,17 +2,21 @@
 
 ## Overview
 
-Joshu has a comprehensive test suite with **333 passing tests** covering all major features. Tests are organized by feature area and use pytest with mocking to avoid external API calls during testing.
+Joshu has a comprehensive test suite covering all major features. Tests are organized by feature area and use pytest with mocking to avoid external API calls during testing.
 
 ## Test Organization
 
-The test suite has **43 test files** organized into 5 categories:
+The test suite has **67 test files** organized into these categories:
 
-- **Models & LLM** (12 tests) - Model providers, configuration, pool management
-- **Interactive Mode** (8 tests) - Interactive commands and mode behavior
-- **Search** (3 tests) - Web search functionality
-- **Storage** (2 tests) - Data persistence and session management
-- **Core Features** (18 tests) - Safety, auto-fix, context, caching, etc.
+- **Models & LLM** (14 files) - Model providers, configuration, pool management, availability policies
+- **Interactive Mode** (8 files) - Interactive commands and mode behavior
+- **Search** (3 files) - Web search functionality
+- **Storage** (2 files) - Data persistence and session management
+- **Core Features** (18 files) - Safety, auto-fix, context, caching, etc.
+- **A2A Server** (5 files) - Agent-to-agent communication, events, task stores
+- **Agents** (6 files) - Agent definitions, registry, delegation, schema conversion
+- **Commands** (1 file) - CLI command processing and action types
+- **MCP** (4 files) - MCP server discovery, registry, security
 
 ## Running Tests
 
@@ -37,6 +41,15 @@ pytest tests/models/ -v
 
 # Run only storage tests
 pytest tests/storage/ -v
+
+# Run only A2A server tests
+pytest tests/a2a/ -v
+
+# Run agent tests
+pytest tests/agents/ -v
+
+# Run command tests
+pytest tests/commands/ -v
 
 # Run a specific test file
 pytest tests/test_safety.py -v

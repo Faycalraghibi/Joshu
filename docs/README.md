@@ -19,12 +19,21 @@ Complete documentation for Joshu AI-powered command-line assistant.
 ## Core Systems
 
 - **[Models & Providers](models-and-providers.md)** - Configure LLM providers and model pool
+- **[Model Availability](model-availability.md)** - Health tracking and fallback policies
 - **[Context System](context-system.md)** - Conversation state and memory management
 - **[Safety Features](safety.md)** - Command safety validation and protection
 - **[Auto-Fix](auto-fix.md)** - Automatic command error fixing
+- **[A2A Server](a2a-server.md)** - Agent-to-Agent communication via HTTP/SSE
+
+## Agent System
+
+- **[Agent Definitions](agent-system.md)** - Declarative agent definitions and registration
+- **[Chat & Scheduling](chat-and-scheduling.md)** - Session management, tools, and hooks
+- **[Command Processing](command-processing.md)** - CLI commands and state restoration
 
 ## Advanced
 
+- **[MCP Servers](mcp-servers.md)** - External tool servers via MCP protocol
 - **[vLLM Server Integration](VLLM_SERVER_INTEGRATION.md)** - Local model deployment
 - **[Testing Guide](testing-guide.md)** - Running and writing tests
 - **[CLI Reference](cli-reference.md)** - All CLI commands and discovery features

@@ -37,6 +37,20 @@ pip install -e .
 
 ## Optional Dependencies
 
+### A2A Server
+
+Enables the HTTP/SSE server for agent-to-agent communication:
+
+```bash
+pip install -e .[a2a]
+```
+
+Includes:
+- `fastapi>=0.104.0` — Web framework
+- `uvicorn>=0.24.0` — ASGI server
+
+See [A2A Server Documentation](a2a-server.md) for usage.
+
 ### Semantic Memory
 
 Enables semantic search of past conversations using ChromaDB:
@@ -73,15 +87,15 @@ pip install -e .[dev]
 
 Includes:
 - `pytest>=8.4.2` — Testing
-- `black>=24.4.0` — Code formatting
-- `flake8>=7.0.0` — Linting
+- `ruff>=0.14.0` — Linting and formatting
+- `mypy>=1.19.0` — Type checking
 
 ### Complete Installation
 
 Install everything:
 
 ```bash
-pip install -e .[dev,llm,semantic]
+pip install -e .[dev,llm,semantic,a2a]
 ```
 
 ## Automated Installation Scripts
@@ -110,3 +124,4 @@ joshu --help
 
 - **[Quick Start Guide](quick-start.md)** — Your first steps with Joshu
 - **[Configuration](configuration.md)** — Set up API keys and preferences
+- **[A2A Server](a2a-server.md)** — Run the HTTP/SSE server
