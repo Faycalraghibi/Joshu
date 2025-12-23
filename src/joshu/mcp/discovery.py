@@ -13,7 +13,11 @@ from typing import Any, Dict, List, Optional, Set
 
 from joshu.mcp.exceptions import MCPToolExecutionError
 from joshu.mcp.registry import MCPServerRegistry, get_mcp_registry
-from joshu.mcp.schemas import MCPToolDefinition
+from joshu.mcp.schemas import (
+    MCPPromptDefinition,
+    MCPResourceDefinition,
+    MCPToolDefinition,
+)
 from joshu.mcp.security import (
     is_tool_allowed,
     resolve_conflict,
@@ -295,3 +299,159 @@ def discover_tools_sync(
         List of discovered tools.
     """
     return asyncio.run(discover_mcp_tools(registry))
+
+
+async def discover_mcp_resources(
+    registry: Optional[MCPServerRegistry] = None,
+    connect_if_needed: bool = True,
+) -> List["MCPResourceDefinition"]:
+    """
+    Discover resources from all configured MCP servers.
+
+    Args:
+        registry: MCP server registry (uses global if None).
+        connect_if_needed: Connect to servers if not already connected.
+
+    Returns:
+        List of discovered resources.
+    """
+
+    if registry is None:
+        registry = get_mcp_registry()
+
+    resources: List[MCPResourceDefinition] = []
+
+    for server_config in registry.list_servers():
+        if not server_config.enabled:
+            continue
+
+        if connect_if_needed and not registry.is_connected(server_config.name):
+            try:
+                await registry.connect_server(server_config.name)
+            except Exception as e:
+                logger.error(f"Failed to connect to {server_config.name}: {e}")
+                continue
+
+        transport = registry.get_transport(server_config.name)
+        if not transport:
+            continue
+
+        try:
+            server_resources = await transport.list_resources()
+            resources.extend(server_resources)
+            logger.info(f"Discovered {len(server_resources)} resources from {server_config.name}")
+        except Exception as e:
+            logger.error(f"Failed to discover resources from {server_config.name}: {e}")
+
+    return resources
+
+
+async def discover_mcp_prompts(
+    registry: Optional[MCPServerRegistry] = None,
+    connect_if_needed: bool = True,
+) -> List["MCPPromptDefinition"]:
+    """
+    Discover prompts from all configured MCP servers.
+
+    Args:
+        registry: MCP server registry (uses global if None).
+        connect_if_needed: Connect to servers if not already connected.
+
+    Returns:
+        List of discovered prompts.
+    """
+
+    if registry is None:
+        registry = get_mcp_registry()
+
+    prompts: List[MCPPromptDefinition] = []
+
+    for server_config in registry.list_servers():
+        if not server_config.enabled:
+            continue
+
+        if connect_if_needed and not registry.is_connected(server_config.name):
+            try:
+                await registry.connect_server(server_config.name)
+            except Exception as e:
+                logger.error(f"Failed to connect to {server_config.name}: {e}")
+                continue
+
+        transport = registry.get_transport(server_config.name)
+        if not transport:
+            continue
+
+        try:
+            server_prompts = await transport.list_prompts()
+            prompts.extend(server_prompts)
+            logger.info(f"Discovered {len(server_prompts)} prompts from {server_config.name}")
+        except Exception as e:
+            logger.error(f"Failed to discover prompts from {server_config.name}: {e}")
+
+    return prompts
+
+
+async def read_mcp_resource(
+    uri: str,
+    registry: Optional[MCPServerRegistry] = None,
+) -> Optional[Any]:
+    """
+    Read a resource by URI from the appropriate MCP server.
+
+    Args:
+        uri: Resource URI to read.
+        registry: MCP server registry (uses global if None).
+
+    Returns:
+        Resource content or None if not found.
+    """
+    if registry is None:
+        registry = get_mcp_registry()
+
+    # Find which server has this resource
+    resources = await discover_mcp_resources(registry)
+
+    for resource in resources:
+        if resource.uri == uri and resource.server_name:
+            transport = registry.get_transport(resource.server_name)
+            if transport:
+                try:
+                    return await transport.read_resource(uri)
+                except Exception as e:
+                    logger.error(f"Failed to read resource {uri}: {e}")
+
+    return None
+
+
+async def invoke_mcp_prompt(
+    name: str,
+    arguments: Optional[Dict[str, Any]] = None,
+    registry: Optional[MCPServerRegistry] = None,
+) -> Optional[str]:
+    """
+    Invoke a prompt from an MCP server.
+
+    Args:
+        name: Prompt name.
+        arguments: Prompt arguments.
+        registry: MCP server registry (uses global if None).
+
+    Returns:
+        Prompt content or None if not found.
+    """
+    if registry is None:
+        registry = get_mcp_registry()
+
+    # Find which server has this prompt
+    prompts = await discover_mcp_prompts(registry)
+
+    for prompt in prompts:
+        if prompt.name == name and prompt.server_name:
+            transport = registry.get_transport(prompt.server_name)
+            if transport:
+                try:
+                    return await transport.get_prompt(name, arguments)
+                except Exception as e:
+                    logger.error(f"Failed to invoke prompt {name}: {e}")
+
+    return None
