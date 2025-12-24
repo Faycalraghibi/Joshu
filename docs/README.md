@@ -34,6 +34,7 @@ Complete documentation for Joshu AI-powered command-line assistant.
 ## Advanced
 
 - **[Extensions Framework](extensions.md)** - Create and manage extensions
+- **[Hooks System](hooks.md)** - Intercept and customize agent behavior
 - **[MCP Servers](mcp-servers.md)** - External tool servers via MCP protocol
 - **[vLLM Server Integration](VLLM_SERVER_INTEGRATION.md)** - Local model deployment
 - **[Testing Guide](testing-guide.md)** - Running and writing tests

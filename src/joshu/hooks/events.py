@@ -13,12 +13,16 @@ class HookEvent(str, Enum):
 
     Hooks are executed at specific points in the agent workflow:
     - SESSION_START: Beginning of a new session
+    - SESSION_END: End of a session
     - BEFORE_AGENT: Before agent processes a prompt
+    - AFTER_AGENT: After agent generates a response
+    - BEFORE_MODEL: Before sending request to LLM
+    - AFTER_MODEL: After receiving response from LLM
     - BEFORE_TOOL_SELECTION: Before selecting tools for a request
     - BEFORE_TOOL: Before executing a specific tool
     - AFTER_TOOL: After a tool has been executed
-    - AFTER_AGENT: After agent generates a response
-    - SESSION_END: End of a session
+    - PRE_COMPRESS: Before context window compression
+    - NOTIFICATION: When a notification/permission fires
     """
 
     # Session lifecycle
@@ -29,10 +33,20 @@ class HookEvent(str, Enum):
     BEFORE_AGENT = "before_agent"
     AFTER_AGENT = "after_agent"
 
+    # Model interaction
+    BEFORE_MODEL = "before_model"
+    AFTER_MODEL = "after_model"
+
     # Tool execution
     BEFORE_TOOL_SELECTION = "before_tool_selection"
     BEFORE_TOOL = "before_tool"
     AFTER_TOOL = "after_tool"
+
+    # Context management
+    PRE_COMPRESS = "pre_compress"
+
+    # Notifications
+    NOTIFICATION = "notification"
 
     @classmethod
     def from_string(cls, value: str) -> "HookEvent":
