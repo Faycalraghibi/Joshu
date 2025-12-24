@@ -1,0 +1,77 @@
+{
+  "name": "joshu-ide-companion",
+  "displayName": "Joshu IDE Companion",
+  "description": "IDE integration for Joshu CLI - provides editor context and native diffing",
+  "version": "0.1.0",
+  "publisher": "joshu",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "joshu.run",
+        "title": "Joshu: Run"
+      },
+      {
+        "command": "joshu.sendSelection",
+        "title": "Joshu: Send Selection"
+      },
+      {
+        "command": "joshu.showStatus",
+        "title": "Joshu: Show Status"
+      },
+      {
+        "command": "joshu.acceptDiff",
+        "title": "Joshu: Accept Diff"
+      },
+      {
+        "command": "joshu.rejectDiff",
+        "title": "Joshu: Reject Diff"
+      }
+    ],
+    "configuration": {
+      "title": "Joshu",
+      "properties": {
+        "joshu.serverPort": {
+          "type": "number",
+          "default": 0,
+          "description": "Port for IDE server (0 = auto)"
+        },
+        "joshu.autoConnect": {
+          "type": "boolean",
+          "default": true,
+          "description": "Auto-connect to running Joshu CLI"
+        },
+        "joshu.contextLimit": {
+          "type": "number",
+          "default": 16384,
+          "description": "Max selected text bytes to send"
+        },
+        "joshu.recentFilesLimit": {
+          "type": "number",
+          "default": 10,
+          "description": "Number of recent files to track"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "node esbuild.js",
+    "watch": "node esbuild.js --watch"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.80.0",
+    "esbuild": "^0.19.0",
+    "typescript": "^5.0.0"
+  }
+}

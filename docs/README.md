@@ -15,6 +15,7 @@ Complete documentation for Joshu AI-powered command-line assistant.
 - **[Tool Calling](tool-calling.md)** - Automatic tool invocation for enhanced responses
 - **[Web Search](web-search.md)** - Search the web from your terminal
 - **[Semantic Memory](semantic-memory.md)** - Persistent memory and context
+- **[IDE Integration](ide-integration.md)** - VS Code extension for enhanced workflow
 
 ## Core Systems
 
