@@ -155,11 +155,54 @@ Once configured, MCP tools are available automatically in interactive mode. The 
 
 See the [MCP Servers Guide](mcp-servers.md) for complete documentation.
 
-### Future Tools (Coming Soon)
+### Filesystem Tools
 
-- File operations (read/write files)
-- Code execution (run and test code)
-- Shell commands (with user approval)
+Joshu includes built-in filesystem tools for reading and writing files.
+
+| Tool | Description |
+|------|-------------|
+| `list_directory` | List directory contents with file info |
+| `read_file` | Read file contents (with line range support) |
+| `write_file` | Write content to file (requires approval) |
+| `glob` | Find files matching patterns |
+| `search_file_content` | Search for text in files |
+| `replace` | Find and replace text in files |
+
+**Security:** File write operations require user approval.
+
+**Example usage in conversation:**
+```
+Read the contents of src/main.py
+List all Python files in the project
+Search for "TODO" comments in the codebase
+```
+
+### Shell Command Tool
+
+Execute shell commands with configurable restrictions.
+
+**Features:**
+- Allowlist/blocklist for command control
+- Background process management
+- Output processing with ANSI stripping
+- Configurable timeouts
+
+**Security:** Requires user approval for commands not on the allowlist.
+
+**Example:**
+```
+Run the tests with pytest
+What's the output of git status?
+```
+
+### Memory & Task Tools
+
+| Tool | Description |
+|------|-------------|
+| `save_memory` | Store facts in `~/.joshu/JOSHU.md` |
+| `write_todos` | Manage task lists with status tracking |
+
+
 
 ## Creating Custom Tools
 
