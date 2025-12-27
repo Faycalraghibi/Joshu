@@ -12,6 +12,8 @@ Joshu includes a comprehensive Python-based automation system for building, test
 | Clean artifacts | `python scripts/clean.py` |
 | Check build freshness | `python scripts/check_build_status.py` |
 | Pre-commit checks | `python scripts/pre_commit.py` |
+| Scan for secrets | `python scripts/check_secrets.py` |
+| Start CLI | `python scripts/start.py` |
 
 > [!TIP]
 > All scripts support `--help` for detailed usage information.
@@ -221,10 +223,44 @@ python scripts/releasing/comment_on_pr.py --pr 123 --template release_ready
 
 ## Sandbox (Docker/Podman)
 
+Joshu supports sandboxed execution using Docker or Podman containers.
+
+### CLI Launcher (`scripts/start.py`)
+
 ```bash
-python scripts/build_sandbox.py                    # Build image
-python scripts/sandbox_command.py -- --help        # Run command
+python scripts/start.py                     # Auto-detect mode
+python scripts/start.py --sandbox           # Force sandbox
+python scripts/start.py --no-sandbox        # Force normal
+python scripts/start.py -- chat "Hello"     # Pass args to joshu
+```
+
+**Modes:**
+- **Auto** (default): Uses sandbox if Docker/Podman available, otherwise normal
+- **Sandbox**: Forces container execution (fails if no runtime)
+- **Normal**: Skips sandbox, runs directly
+
+### Build Sandbox Image (`scripts/build_sandbox.py`)
+
+```bash
+python scripts/build_sandbox.py             # Build with auto-detected engine
+python scripts/build_sandbox.py --engine docker --tag v0.1.0
+python scripts/build.py --sandbox           # Include in full build
+```
+
+### Run Commands in Sandbox (`scripts/sandbox_command.py`)
+
+```bash
+python scripts/sandbox_command.py -- --help
 python scripts/sandbox_command.py --mount-cwd -- analyze file.py
+```
+
+### Configuration (optional)
+
+```yaml
+# ~/.joshu/config.yaml
+sandbox:
+  enabled: auto    # auto | true | false
+  engine: auto     # auto | docker | podman
 ```
 
 ---
@@ -268,19 +304,24 @@ pytest tests/ -q --tb=short
 
 ```
 scripts/
+├── start.py                    # CLI launcher with sandbox detection
 ├── build.py                    # Multi-language build orchestrator
 ├── clean.py                    # Multi-language artifact cleanup
 ├── lint.py                     # Multi-language linter (20 languages)
 ├── pre_commit.py               # Multi-language pre-commit hook
+├── check_secrets.py            # Secrets scanner
+├── check_lockfile.py           # Dependency validator (Python + npm)
+├── check_build_status.py       # Build freshness checker
 ├── build_package.py            # Python package builder
 ├── build_vscode_companion.py   # VSCode extension builder
 ├── build_sandbox.py            # Container image builder
-├── check_lockfile.py           # Dependency validator
-├── check_build_status.py       # Build freshness checker
-├── generate_git_info.py        # Version embedder
-├── generate_settings_*.py      # Config documentation
 ├── sandbox_command.py          # Sandbox CLI wrapper
-├── telemetry*.py               # Telemetry utilities
+├── generate_git_info.py        # Version embedder
+├── generate_keybindings_docs.py # Keybindings doc (AST introspection)
+├── generate_settings_docs.py   # Settings documentation
+├── generate_settings_schema.py # JSON schema generator
+├── telemetry.py                # Telemetry management
+├── telemetry_local.py          # Local debugging server
 └── releasing/
     ├── get_release_version.py
     ├── prepare_github_release.py

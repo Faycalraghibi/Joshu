@@ -367,12 +367,13 @@ Supported Languages:
 Examples:
     python scripts/build.py                    # Build all
     python scripts/build.py --python           # Python only
-    python scripts/build.py --rust --go        # Rust and Go
+    python scripts/build.py --sandbox          # Include sandbox image
     python scripts/build.py --skip-deps        # Skip deps
         """,
     )
     for lang in LANGUAGE_BUILDERS.keys():
         parser.add_argument(f"--{lang}", action="store_true", help=f"Build {lang.capitalize()}")
+    parser.add_argument("--sandbox", action="store_true", help="Build sandbox container image")
     parser.add_argument("--skip-codegen", action="store_true", help="Skip code generation")
     parser.add_argument("--skip-deps", action="store_true", help="Skip dependencies")
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
@@ -401,6 +402,24 @@ Examples:
                     log_success(f"{name}")
                 else:
                     log_error(f"{name} failed")
+
+    # Build sandbox image if requested
+    if args.sandbox:
+        print("\n" + "=" * 60)
+        print("Building Sandbox Image")
+        print("=" * 60)
+        sandbox_script = SCRIPTS_DIR / "build_sandbox.py"
+        if sandbox_script.exists():
+            cmd = [sys.executable, str(sandbox_script)]
+            if args.verbose:
+                cmd.append("--verbose")
+            result = subprocess.run(cmd)
+            sandbox_success = result.returncode == 0
+            all_results.append(("Sandbox: container image", sandbox_success))
+            if sandbox_success:
+                log_success("Sandbox image built")
+            else:
+                log_error("Sandbox image build failed")
 
     create_build_marker(args.verbose)
 

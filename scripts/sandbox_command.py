@@ -53,6 +53,33 @@ def detect_container_engine() -> str | None:
     return None
 
 
+def get_sandbox_command() -> str | None:
+    """
+    API function to get available sandbox command.
+
+    This function is designed to be called by other scripts (like start.py)
+    to determine sandbox availability.
+
+    Returns:
+        "docker" if Docker is available and responsive
+        "podman" if Podman is available and responsive
+        None if no sandbox tool is available
+    """
+    for engine in ["docker", "podman"]:
+        if shutil.which(engine):
+            try:
+                result = subprocess.run(
+                    [engine, "version"],
+                    capture_output=True,
+                    timeout=5,
+                )
+                if result.returncode == 0:
+                    return engine
+            except Exception:
+                continue
+    return None
+
+
 def check_image_exists(engine: str, image: str) -> bool:
     """Check if container image exists locally."""
     try:
