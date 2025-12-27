@@ -21,6 +21,101 @@ DEFAULT_MEMORY_DIR = Path.home() / ".joshu"
 DEFAULT_MEMORY_FILE = "JOSHU.md"
 MEMORY_SECTION_HEADER = "## Agent Memory"
 
+# Project-level system prompt file
+PROJECT_SYSTEM_PROMPT_FILE = "joshu.md"
+
+
+def find_project_root(start_path: Path | None = None) -> Path | None:
+    """
+    Find the project root by looking for joshu.md.
+
+    Walks up directory tree from start_path looking for joshu.md.
+
+    Args:
+        start_path: Directory to start searching from (defaults to cwd)
+
+    Returns:
+        Path to project root containing joshu.md, or None if not found
+    """
+    if start_path is None:
+        start_path = Path.cwd()
+
+    current = start_path.resolve()
+
+    # Walk up directory tree
+    while current != current.parent:
+        candidate = current / PROJECT_SYSTEM_PROMPT_FILE
+        if candidate.is_file():
+            return current
+        current = current.parent
+
+    # Check root directory
+    candidate = current / PROJECT_SYSTEM_PROMPT_FILE
+    if candidate.is_file():
+        return current
+
+    return None
+
+
+def load_project_system_prompt(start_path: Path | None = None) -> str:
+    """
+    Load project-level system prompt from joshu.md.
+
+    Searches for joshu.md starting from start_path and walking up
+    the directory tree.
+
+    Args:
+        start_path: Directory to start searching from (defaults to cwd)
+
+    Returns:
+        Content of joshu.md, or empty string if not found
+    """
+    project_root = find_project_root(start_path)
+
+    if project_root is None:
+        logger.debug("No project joshu.md found")
+        return ""
+
+    joshu_path = project_root / PROJECT_SYSTEM_PROMPT_FILE
+
+    try:
+        content = joshu_path.read_text(encoding="utf-8")
+        logger.info(f"Loaded project system prompt from {joshu_path}")
+        return content
+    except Exception as e:
+        logger.error(f"Error loading project system prompt: {e}")
+        return ""
+
+
+def load_combined_context(start_path: Path | None = None) -> str:
+    """
+    Load combined context from project joshu.md and user memory.
+
+    Project-level rules take precedence and appear first.
+    User memory provides session-specific context.
+
+    Args:
+        start_path: Directory to start searching for project root
+
+    Returns:
+        Combined context string for AI agent
+    """
+    parts = []
+
+    # 1. Project-level system prompt (highest priority)
+    project_prompt = load_project_system_prompt(start_path)
+    if project_prompt:
+        parts.append("# Project System Prompt")
+        parts.append(project_prompt)
+
+    # 2. User-level memory
+    user_memory = load_memory()
+    if user_memory:
+        parts.append("\n# User Memory")
+        parts.append(user_memory)
+
+    return "\n".join(parts) if parts else ""
+
 
 def get_memory_path() -> Path:
     """

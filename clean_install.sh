@@ -46,6 +46,7 @@ if [ ! -f "$ACTIVATE_SCRIPT" ]; then
   exit 1
 fi
 
+# shellcheck source=/dev/null
 source "$ACTIVATE_SCRIPT"
 echo "[info] Python: $(python --version)"
 

@@ -2,7 +2,7 @@
 Tests for MCP command handlers.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from joshu.commands.mcp import (
     MCPAddConfig,
@@ -175,7 +175,8 @@ class TestMCPConnect:
         mock_registry = MagicMock()
         mock_registry.get_server.return_value = MagicMock()
         mock_registry.is_connected.return_value = False
-        mock_registry.connect_server.return_value = True
+        # connect_server is async, so use AsyncMock
+        mock_registry.connect_server = AsyncMock(return_value=True)
         mock_get_registry.return_value = mock_registry
 
         result = mcp_connect("test-server")

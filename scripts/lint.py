@@ -535,6 +535,10 @@ def check_yaml(fix: bool = False, verbose: bool = False) -> List[Tuple[str, bool
     # yamllint
     if has_tool("yamllint"):
         cmd = ["yamllint", "."]
+        # Use project config if available
+        yamllint_config = PROJECT_ROOT / ".yamllint.yaml"
+        if yamllint_config.exists():
+            cmd = ["yamllint", "-c", str(yamllint_config), "."]
         success, output = run_command(cmd, PROJECT_ROOT, verbose)
         results.append(("YAML: yamllint", success, output))
 

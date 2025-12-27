@@ -68,12 +68,16 @@ class TestExtensionList:
     @patch("joshu.commands.extensions.get_extension_registry")
     def test_list_with_extensions(self, mock_get_registry):
         """Should list installed extensions."""
+        # Create a fully mocked path to avoid PosixPath read-only attribute issues
+        mock_path = MagicMock()
+        mock_path.is_symlink.return_value = False
+        mock_path.__str__ = MagicMock(return_value="/some/path")
+
         mock_ext = MagicMock()
         mock_ext.name = "test-ext"
         mock_ext.version = "1.0.0"
         mock_ext.is_active = True
-        mock_ext.path = Path("/some/path")
-        mock_ext.path.is_symlink = MagicMock(return_value=False)
+        mock_ext.path = mock_path
         mock_ext.loaded_tools = {"tool1": lambda: None}
         mock_ext.loaded_commands = {}
 
@@ -171,12 +175,14 @@ class TestTOMLCommandDiscovery:
 
             # Create a TOML file
             toml_file = commands_dir / "deploy.toml"
-            toml_file.write_text("""
+            toml_file.write_text(
+                """
 [command]
 description = "Deploy application"
 prompt = "Deploy to {{env}}"
 shell = "git push origin main"
-""")
+"""
+            )
 
             commands = discover_toml_commands(Path(tmpdir), "test-ext")
 

@@ -9,6 +9,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+# Import project-level system prompt loader
+from joshu.tools.memory import load_project_system_prompt
+
 from .context import ConversationContext
 from .memory import MemoryStore
 from .storage import (
@@ -131,6 +134,11 @@ class ContextProvider:
         # Track last user message for pairing with assistant response
         self._last_user_message: Optional[Dict[str, Any]] = None
         self._last_user_timestamp: Optional[float] = None
+
+        # Load project-level system prompt (joshu.md)
+        self.project_system_prompt: str = load_project_system_prompt()
+        if self.project_system_prompt:
+            logger.info("Loaded project-level system prompt from joshu.md")
 
         # Load existing conversation history from storage
         self._load_conversation_history()
@@ -509,6 +517,10 @@ class ContextProvider:
             List of context messages formatted for LLM consumption (role, content only)
         """
         context_messages = []
+
+        # Add project-level system prompt first (highest priority)
+        if self.project_system_prompt:
+            context_messages.append({"role": "system", "content": self.project_system_prompt})
 
         # Add system information if available
         if self.system_info:
