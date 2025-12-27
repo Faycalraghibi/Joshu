@@ -215,6 +215,9 @@ python scripts/releasing/prepare_github_release.py --version 0.2.0
 # Patch release automation
 python scripts/releasing/create_patch_pr.py --base v0.1.0 --commits abc123
 
+# Trigger patch release workflow
+python scripts/releasing/patch_trigger.py --pr 123 --version 0.1.1
+
 # PR comments
 python scripts/releasing/comment_on_pr.py --pr 123 --template release_ready
 ```
@@ -271,11 +274,18 @@ sandbox:
 python scripts/telemetry.py --status   # Check status
 python scripts/telemetry.py --enable   # Enable
 python scripts/telemetry.py --disable  # Disable
+```
 
-# Local debugging
-python scripts/telemetry_local.py --start
-python scripts/telemetry_local.py --logs
-python scripts/telemetry_local.py --stop
+### Telemetry Targets
+
+```bash
+# Local OTEL collector
+python scripts/telemetry.py --target local --start
+python scripts/telemetry.py --target local --stop
+
+# Genkit server (AI debugging)
+python scripts/telemetry.py --target genkit --start
+python scripts/telemetry.py --target genkit --stop
 ```
 
 ---

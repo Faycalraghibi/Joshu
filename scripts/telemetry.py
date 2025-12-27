@@ -133,16 +133,44 @@ def is_telemetry_enabled() -> bool:
     return config.get("enabled", False)
 
 
+def run_target(target: str, action: str, verbose: bool = False) -> int:
+    """Run a telemetry target script."""
+    import subprocess
+
+    target_scripts = {
+        "local": SCRIPTS_DIR / "telemetry_local.py",
+        "genkit": SCRIPTS_DIR / "telemetry_genkit.py",
+    }
+
+    script = target_scripts.get(target)
+    if not script or not script.exists():
+        print(f"Unknown target: {target}", file=sys.stderr)
+        print(f"Available: {', '.join(target_scripts.keys())}")
+        return 1
+
+    cmd = [sys.executable, str(script), f"--{action}"]
+    if verbose:
+        cmd.append("--verbose")
+
+    result = subprocess.run(cmd)
+    return result.returncode
+
+
 def main() -> int:
     """Main entry point."""
     parser = argparse.ArgumentParser(
         description="Telemetry configuration for Joshu CLI",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
+Targets:
+    local     Local OTEL collector (default)
+    genkit    Local Genkit server
+
 Examples:
     python scripts/telemetry.py --status
     python scripts/telemetry.py --enable
-    python scripts/telemetry.py --disable
+    python scripts/telemetry.py --target local --start
+    python scripts/telemetry.py --target genkit --start
         """,
     )
     parser.add_argument(
@@ -161,6 +189,21 @@ Examples:
         help="Show current telemetry status",
     )
     parser.add_argument(
+        "--target",
+        choices=["local", "genkit"],
+        help="Telemetry target (local, genkit)",
+    )
+    parser.add_argument(
+        "--start",
+        action="store_true",
+        help="Start telemetry target",
+    )
+    parser.add_argument(
+        "--stop",
+        action="store_true",
+        help="Stop telemetry target",
+    )
+    parser.add_argument(
         "--endpoint",
         help="OTLP endpoint URL (for --enable)",
     )
@@ -172,6 +215,15 @@ Examples:
     )
 
     args = parser.parse_args()
+
+    # Handle target-specific commands
+    if args.target:
+        if args.start:
+            return run_target(args.target, "start", args.verbose)
+        elif args.stop:
+            return run_target(args.target, "stop", args.verbose)
+        else:
+            return run_target(args.target, "status", args.verbose)
 
     # Default to showing status
     if not any([args.enable, args.disable, args.status]):
