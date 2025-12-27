@@ -132,10 +132,37 @@ chmod +x .git/hooks/pre-commit  # Linux/macOS
 
 ### Dependency Check (`scripts/check_lockfile.py`)
 
+Validates both Python and npm lockfile integrity:
+
 ```bash
-python scripts/check_lockfile.py           # Warning mode
-python scripts/check_lockfile.py --strict  # Fail on mismatch
+python scripts/check_lockfile.py              # Check all
+python scripts/check_lockfile.py --python     # Python only
+python scripts/check_lockfile.py --npm        # npm only
+python scripts/check_lockfile.py --strict     # Fail on issues
 ```
+
+**Validates:**
+- Python: `requirements.txt` vs installed packages
+- npm: `package-lock.json` `resolved` and `integrity` fields
+
+### Secrets Scanner (`scripts/check_secrets.py`)
+
+Scans source code for accidental credential commits:
+
+```bash
+python scripts/check_secrets.py              # Scan project
+python scripts/check_secrets.py --strict     # Fail on secrets
+python scripts/check_secrets.py --verbose    # Show details
+```
+
+**Detects:**
+- API keys and tokens (AWS, GCP, Azure, GitHub, Slack)
+- Private keys (RSA, SSH, PGP)
+- Database connection strings
+- JWTs, OAuth tokens, Bearer tokens
+
+> [!TIP]
+> Create `.secretsignore` to suppress false positives.
 
 ### Build Status (`scripts/check_build_status.py`)
 
