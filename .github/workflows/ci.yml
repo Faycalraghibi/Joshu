@@ -1,6 +1,10 @@
 name: CI
 
 on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 env:
@@ -42,14 +46,15 @@ jobs:
           joshu --version
           joshu --help
 
-      - name: Run Ruff linter
-        run: ruff check src/ tests/
+      # Linting delegated to Python scripts for local reproducibility
+      # To run locally: python scripts/lint.py
+      - name: Run linting (via scripts/lint.py)
+        run: python scripts/lint.py
 
-      - name: Run Ruff formatter check
-        run: ruff format --check src/ tests/
-
-      - name: Run mypy type checking
-        run: mypy src/ --config-file mypy.ini
+      # Optional: Check build freshness
+      - name: Check build status
+        run: python scripts/check_build_status.py
+        continue-on-error: true
 
       - name: Run tests (Windows)
         if: runner.os == 'Windows'

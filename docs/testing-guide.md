@@ -211,10 +211,28 @@ def test_local_model_feature():
 
 Tests run automatically on every commit. The CI pipeline:
 
-1. Runs all tests with `pytest -v`
-2. Generates coverage report
-3. Checks code quality with `ruff` and `mypy`
-4. Verifies pre-commit hooks pass
+1. Runs linting via `python scripts/lint.py`
+2. Checks build freshness via `python scripts/check_build_status.py`
+3. Runs all tests with `pytest`
+4. Verifies CLI installation
+
+### Reproduce CI Locally
+
+```bash
+pip install -e ".[dev]"
+python scripts/lint.py
+pytest tests/ -q --tb=short
+```
+
+### Pre-commit Hook
+
+Use the pre-commit script to validate changes before commit:
+
+```bash
+python scripts/pre_commit.py
+```
+
+See [Development Automation](development-automation.md) for all available scripts.
 
 ## Common Testing Patterns
 
@@ -295,4 +313,5 @@ with tempfile.TemporaryDirectory() as tmpdir:
 
 - [Configuration](configuration.md) - Configure test environments
 - [Models & Providers](models-and-providers.md) - LLM provider testing
-- [Contributing](../README.md) - Contributing guidelines
+- [Development Automation](development-automation.md) - Build and lint scripts
+- [Contributing](contributing.md) - Development setup and workflow
