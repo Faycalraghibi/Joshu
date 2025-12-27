@@ -22,7 +22,7 @@ DEFAULT_MEMORY_FILE = "JOSHU.md"
 MEMORY_SECTION_HEADER = "## Agent Memory"
 
 # Project-level system prompt file
-PROJECT_SYSTEM_PROMPT_FILE = "joshu.md"
+PROJECT_SYSTEM_PROMPT_FILE = "config/JOSHU.md"
 
 
 def find_project_root(start_path: Path | None = None) -> Path | None:

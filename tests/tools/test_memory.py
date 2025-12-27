@@ -151,6 +151,7 @@ class TestFindProjectRoot:
         with tempfile.TemporaryDirectory() as tmpdir:
             project_root = Path(tmpdir)
             joshu_file = project_root / PROJECT_SYSTEM_PROMPT_FILE
+            joshu_file.parent.mkdir(parents=True, exist_ok=True)
             joshu_file.write_text("# Test joshu.md", encoding="utf-8")
 
             # Test from project root
@@ -162,6 +163,7 @@ class TestFindProjectRoot:
         with tempfile.TemporaryDirectory() as tmpdir:
             project_root = Path(tmpdir)
             joshu_file = project_root / PROJECT_SYSTEM_PROMPT_FILE
+            joshu_file.parent.mkdir(parents=True, exist_ok=True)
             joshu_file.write_text("# Test joshu.md", encoding="utf-8")
 
             # Create nested subdirectory
@@ -207,6 +209,7 @@ class TestLoadProjectSystemPrompt:
 - ALWAYS test your code
 """
             joshu_file = project_root / PROJECT_SYSTEM_PROMPT_FILE
+            joshu_file.parent.mkdir(parents=True, exist_ok=True)
             joshu_file.write_text(joshu_content, encoding="utf-8")
 
             result = load_project_system_prompt(project_root)
@@ -230,6 +233,7 @@ class TestLoadProjectSystemPrompt:
             project_root = Path(tmpdir)
             joshu_content = "# Project Rules"
             joshu_file = project_root / PROJECT_SYSTEM_PROMPT_FILE
+            joshu_file.parent.mkdir(parents=True, exist_ok=True)
             joshu_file.write_text(joshu_content, encoding="utf-8")
 
             # Create subdirectory
@@ -250,6 +254,7 @@ class TestLoadCombinedContext:
             project_root = Path(tmpdir)
             joshu_content = "# Project Rules"
             joshu_file = project_root / PROJECT_SYSTEM_PROMPT_FILE
+            joshu_file.parent.mkdir(parents=True, exist_ok=True)
             joshu_file.write_text(joshu_content, encoding="utf-8")
 
             with patch("joshu.tools.memory.load_memory", return_value=""):
@@ -264,6 +269,7 @@ class TestLoadCombinedContext:
             project_root = Path(tmpdir)
             joshu_content = "# Project Rules"
             joshu_file = project_root / PROJECT_SYSTEM_PROMPT_FILE
+            joshu_file.parent.mkdir(parents=True, exist_ok=True)
             joshu_file.write_text(joshu_content, encoding="utf-8")
 
             user_memory = "# Joshu Memory\n\n## Agent Memory\n\n- User prefers vim"
