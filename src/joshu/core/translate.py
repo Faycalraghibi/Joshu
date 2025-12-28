@@ -44,7 +44,6 @@ def establish_connection(model_name: str = "default") -> bool:
 
             client = get_openrouter_client(model_name)
             if client:
-                # Test the connection with a simple request
                 _connection_established = True
                 _connection_error = None
                 logger.info("Connection to OpenRouter established successfully")

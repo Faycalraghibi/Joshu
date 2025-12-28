@@ -64,11 +64,9 @@ def discover_ide_servers() -> List[IDEServerInfo]:
                 info_file=info_file,
             )
 
-            # Verify server is still running
             if server.is_alive():
                 servers.append(server)
             else:
-                # Clean up stale info file
                 try:
                     info_file.unlink()
                 except Exception:

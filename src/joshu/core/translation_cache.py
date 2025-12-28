@@ -17,7 +17,6 @@ from typing import Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-# Try to import sentence-transformers (optional dependency)
 try:
     from sentence_transformers import SentenceTransformer
 
@@ -68,7 +67,6 @@ class TranslationCache:
         self.max_entries = max_entries
         self.entries: Dict[str, CacheEntry] = {}
 
-        # Initialize sentence transformer for embeddings if available
         self.embedding_model = None
         if SENTENCE_TRANSFORMERS_AVAILABLE:
             try:
@@ -78,10 +76,8 @@ class TranslationCache:
                 logger.warning(f"Failed to initialize sentence transformer: {e}")
                 self.embedding_model = None
 
-        # Create cache directory if it doesn't exist
         os.makedirs(self.cache_dir, exist_ok=True)
 
-        # Load existing cache
         self.load_cache()
 
     def _generate_query_hash(self, query: str) -> str:
@@ -128,7 +124,6 @@ class TranslationCache:
         """
         query_hash = self._generate_query_hash(query)
 
-        # Check for exact match first
         if query_hash in self.entries:
             entry = self.entries[query_hash]
             entry.hit_count += 1
@@ -137,7 +132,6 @@ class TranslationCache:
             logger.debug(f"Cache hit (exact match): {query}")
             return (entry.translated_command, entry.explanation)
 
-        # Check for semantic similarity if embeddings are available
         if self.embedding_model is not None and SENTENCE_TRANSFORMERS_AVAILABLE:
             try:
                 query_embedding = self.embedding_model.encode(query).tolist()
@@ -177,7 +171,6 @@ class TranslationCache:
         """
         query_hash = self._generate_query_hash(query)
 
-        # Generate embedding for the query if embeddings are available
         embedding = []
         if self.embedding_model is not None and SENTENCE_TRANSFORMERS_AVAILABLE:
             try:
@@ -185,7 +178,6 @@ class TranslationCache:
             except Exception as e:
                 logger.warning(f"Failed to generate embedding: {e}")
 
-        # Create cache entry
         entry = CacheEntry(
             original_query=query,
             translated_command=command,
@@ -196,15 +188,12 @@ class TranslationCache:
             last_hit=0.0,
         )
 
-        # Add to cache
         self.entries[query_hash] = entry
         logger.debug(f"Cached translation: {query}")
 
-        # Evict old entries if cache is full
         if len(self.entries) > self.max_entries:
             self._evict_entries()
 
-        # Save cache
         self.save_cache()
 
     def _evict_entries(self) -> None:
@@ -216,7 +205,6 @@ class TranslationCache:
             key=lambda x: (x[1].last_hit if x[1].last_hit > 0 else x[1].timestamp, x[1].hit_count),
         )
 
-        # Remove oldest entries
         entries_to_remove = len(self.entries) - self.max_entries
         for i in range(entries_to_remove):
             entry_hash = sorted_entries[i][0]
@@ -241,7 +229,6 @@ class TranslationCache:
     def save_cache(self) -> None:
         """Save cache to disk."""
         try:
-            # Convert entries to serializable format
             serializable_entries = {
                 entry_hash: asdict(entry) for entry_hash, entry in self.entries.items()
             }

@@ -22,7 +22,7 @@ class CommandHandler:
 
         parts = command.split()
 
-        if len(parts) == 1:  # /session
+        if len(parts) == 1:
             session_id = self.context_provider.session_id
             session_short = session_id[:8]
             self.interactive_mode._show_message(
@@ -142,7 +142,6 @@ class CommandHandler:
                 self.interactive_mode._show_message(
                     f"✅ Ended and deleted session: {current_session_id[:8]}..."
                 )
-                # Automatically start a new session
                 new_session_id = self.context_provider.new_session()
                 self.interactive_mode._show_message(
                     f"🆕 Started new session: {new_session_id[:8]}..."
@@ -171,9 +170,9 @@ class CommandHandler:
 
         semantic_memory = self.context_provider.semantic_memory
 
-        parts = command.split(maxsplit=2)  # Split into at most 3 parts: /memory, subcommand, args
+        parts = command.split(maxsplit=2)
 
-        if len(parts) == 1:  # Just /memory
+        if len(parts) == 1:
             self.interactive_mode._show_message("📚 Semantic Memory Commands:")
             self.interactive_mode._show_message("")
             self.interactive_mode._show_message(
@@ -211,7 +210,6 @@ class CommandHandler:
             self.interactive_mode._show_message("  Storage: ChromaDB (persistent)")
             self.interactive_mode._show_message("")
 
-            # Get config values if available
             if hasattr(self.config_manager, "config"):
                 config = self.config_manager.config
                 threshold = getattr(config, "semantic_memory_similarity_threshold", 0.3)
@@ -241,7 +239,6 @@ class CommandHandler:
 
             query = parts[2]
 
-            # Get config values
             max_results = 5
             min_score = 0.3
             if hasattr(self.config_manager, "config"):
@@ -249,7 +246,6 @@ class CommandHandler:
                 max_results = getattr(config, "semantic_memory_max_results", 5)
                 min_score = getattr(config, "semantic_memory_similarity_threshold", 0.3)
 
-            # Search semantic memory
             results = semantic_memory.search(query=query, limit=max_results, min_score=min_score)
 
             if not results:
@@ -265,7 +261,6 @@ class CommandHandler:
             self.interactive_mode._show_message("")
 
             for i, entry in enumerate(results, 1):
-                # Format timestamp
                 from datetime import datetime
 
                 timestamp_str = "Unknown"
@@ -276,7 +271,6 @@ class CommandHandler:
                     except Exception:
                         pass
 
-                # Get session info
                 session_info = ""
                 if entry.session_id:
                     session_info = f" [Session: {entry.session_id[:8]}...]"
@@ -285,7 +279,6 @@ class CommandHandler:
                     f"{i}. [{entry.role.upper()}]{session_info} @ {timestamp_str}"
                 )
 
-                # Truncate content if too long
                 content = entry.content
                 if len(content) > 200:
                     content = content[:197] + "..."
@@ -308,7 +301,6 @@ class CommandHandler:
                 self.interactive_mode._show_message("ℹ️  No memories to clear.")
                 return True
 
-            # Clear all memories
             success = semantic_memory.clear()
 
             if success:
@@ -329,21 +321,17 @@ class CommandHandler:
 
     def handle_slash_command(self, command: str) -> bool:
         """Handle slash commands."""
-        # Handle session commands first
         if command.startswith("/session"):
             return self.handle_session_command(command)
 
-        # Handle memory commands
         if command.startswith("/memory"):
             return self.handle_memory_command(command)
 
         if command == "/clear":
-            # Clear prompt history from storage
             from joshu.core.storage import EntryType, QueryFilter
 
             filter = QueryFilter(entry_type=EntryType.PROMPT_HISTORY)
             self.interactive_mode.context_provider.storage.delete_entries(filter)
-            # Reload history
             self.interactive_mode.prompt_history._load_history()
             self.interactive_mode.command_history = []
             self.interactive_mode._show_message("✅ Command history cleared.")
@@ -365,7 +353,6 @@ class CommandHandler:
             return True
 
         elif command.startswith("/search"):
-            # Handle web search command
             parts = command.split(maxsplit=1)
             if len(parts) < 2:
                 self.interactive_mode._show_message("❌ Usage: /search <query>")
@@ -376,7 +363,6 @@ class CommandHandler:
 
             query = parts[1]
 
-            # Import and use the search handler
             from joshu.ui.cli_handlers.search_handler import handle_search_command
 
             handle_search_command(query, max_results=None)
@@ -413,7 +399,6 @@ class CommandHandler:
 
     def display_history(self):
         """Display command history."""
-        # Load from prompt history storage
         history_strings = self.interactive_mode.prompt_history.load_history_strings()
 
         if not history_strings:

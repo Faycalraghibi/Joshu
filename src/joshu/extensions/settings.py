@@ -16,7 +16,6 @@ from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-# Try to import keyring for secure storage
 try:
     import keyring
 
@@ -25,10 +24,8 @@ except ImportError:
     KEYRING_AVAILABLE = False
     keyring = None  # type: ignore
 
-# Settings filename
 SETTINGS_FILENAME = ".env"
 
-# Keyring service prefix
 KEYRING_SERVICE_PREFIX = "joshu-extension"
 
 
@@ -71,12 +68,10 @@ class ExtensionSettings:
 
     def load(self) -> None:
         """Load settings from .env file and keychain."""
-        # Load from .env file
         env_file = self.extension_path / SETTINGS_FILENAME
         if env_file.exists():
             self._load_env_file(env_file)
 
-        # Load sensitive values from keychain
         if KEYRING_AVAILABLE:
             for name, definition in self.definitions.items():
                 if definition.sensitive and name not in self.values:
@@ -89,7 +84,6 @@ class ExtensionSettings:
                     except Exception as e:
                         logger.warning(f"Failed to load keychain value {name}: {e}")
 
-        # Apply defaults for missing values
         for name, definition in self.definitions.items():
             if name not in self.values and definition.default is not None:
                 self.values[name] = definition.default
@@ -106,11 +100,9 @@ class ExtensionSettings:
             else:
                 env_values[name] = value
 
-        # Save non-sensitive to .env
         if env_values:
             self._save_env_file(self.extension_path / SETTINGS_FILENAME, env_values)
 
-        # Save sensitive to keychain
         if keychain_values and KEYRING_AVAILABLE:
             for name, value in keychain_values.items():
                 try:
@@ -133,7 +125,6 @@ class ExtensionSettings:
         if name in self.values:
             del self.values[name]
 
-            # Also remove from keychain if sensitive
             definition = self.definitions.get(name)
             if definition and definition.sensitive and KEYRING_AVAILABLE:
                 try:

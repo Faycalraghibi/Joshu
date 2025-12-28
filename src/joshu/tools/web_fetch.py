@@ -14,7 +14,6 @@ from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
-# Try to import httpx
 try:
     import httpx
 
@@ -24,7 +23,6 @@ except ImportError:
     HTTPX_AVAILABLE = False
     logger.warning("httpx not available. Install with: pip install httpx")
 
-# Try to import BeautifulSoup
 try:
     from bs4 import BeautifulSoup
 
@@ -35,7 +33,6 @@ except ImportError:
     logger.warning("beautifulsoup4 not available. Install with: pip install beautifulsoup4")
 
 
-# Default configuration
 DEFAULT_TIMEOUT = 15
 DEFAULT_MAX_LENGTH = 50000
 DEFAULT_USER_AGENT = "Joshu-Assistant/1.0 (Web Fetch Tool)"
@@ -92,7 +89,6 @@ def fetch_url(url: str, timeout: int = DEFAULT_TIMEOUT) -> Dict[str, Any]:
             "error": "httpx library not installed. Install with: pip install httpx",
         }
 
-    # Validate URL
     if not is_valid_url(url):
         return {
             "success": False,
@@ -105,7 +101,6 @@ def fetch_url(url: str, timeout: int = DEFAULT_TIMEOUT) -> Dict[str, Any]:
     try:
         logger.info(f"Fetching URL: {url}")
 
-        # Make the request with proper headers
         headers = {
             "User-Agent": DEFAULT_USER_AGENT,
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -114,7 +109,6 @@ def fetch_url(url: str, timeout: int = DEFAULT_TIMEOUT) -> Dict[str, Any]:
 
         response = httpx.get(url, timeout=timeout, headers=headers, follow_redirects=True)
 
-        # Check for HTTP errors
         if response.status_code >= 400:
             return {
                 "success": False,
@@ -203,37 +197,30 @@ def html_to_markdown(html: str) -> str:
     try:
         soup = BeautifulSoup(html, "html.parser")
 
-        # Remove script! and style elements
         for element in soup(["script", "style", "noscript", "iframe", "nav", "footer", "header"]):
             element.decompose()
 
-        # Convert links to markdown format
         for a in soup.find_all("a", href=True):
             href = a.get("href", "")
             text = a.get_text(strip=True)
             if text and href:
                 a.replace_with(f"[{text}]({href})")
 
-        # Convert headings
         for i in range(1, 7):
             for h in soup.find_all(f"h{i}"):
                 text = h.get_text(strip=True)
                 h.replace_with(f"\n{'#' * i} {text}\n")
 
-        # Convert list items
         for li in soup.find_all("li"):
             text = li.get_text(strip=True)
             li.replace_with(f"\n• {text}")
 
-        # Get text and clean up whitespace
         text = soup.get_text(separator="\n")
 
-        # Clean up excessive whitespace
         lines = [line.strip() for line in text.split("\n")]
         lines = [line for line in lines if line]  # Remove empty lines
         text = "\n".join(lines)
 
-        # Collapse multiple newlines
         text = re.sub(r"\n{3,}", "\n\n", text)
 
         return text.strip()
@@ -275,7 +262,6 @@ def process_url_content(
             - truncated: bool indicating if content was truncated
             - error: error message if success is False
     """
-    # Fetch the URL content
     fetch_result = fetch_url(url, timeout=timeout)
 
     if not fetch_result["success"]:
@@ -292,7 +278,6 @@ def process_url_content(
     content = fetch_result["content"]
     truncated = False
 
-    # Apply truncation if needed
     if content and len(content) > max_length:
         content = content[:max_length]
         truncated = True

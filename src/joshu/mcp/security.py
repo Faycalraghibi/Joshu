@@ -16,14 +16,12 @@ from joshu.mcp.schemas import MCPToolDefinition
 
 logger = logging.getLogger(__name__)
 
-# Reserved tool names that cannot be overridden by MCP
 RESERVED_TOOL_NAMES: Set[str] = {
     "web_search",
     "web_fetch",
     # Add other built-in tools here
 }
 
-# Maximum allowed lengths
 MAX_TOOL_NAME_LENGTH = 64
 MAX_DESCRIPTION_LENGTH = 1024
 MAX_PARAMETER_DEPTH = 5
@@ -52,14 +50,11 @@ def sanitize_tool_name(name: str, server_name: str = "") -> str:
     if not name:
         raise MCPSecurityError("Tool name cannot be empty")
 
-    # Remove invalid characters
     sanitized = re.sub(r"[^a-zA-Z0-9_]", "_", name)
 
-    # Ensure starts with letter
     if sanitized and not sanitized[0].isalpha():
         sanitized = "tool_" + sanitized
 
-    # Apply length limit
     if len(sanitized) > MAX_TOOL_NAME_LENGTH:
         sanitized = sanitized[:MAX_TOOL_NAME_LENGTH]
 
@@ -91,10 +86,8 @@ def sanitize_description(description: str) -> str:
     if not description:
         return ""
 
-    # Remove control characters
     sanitized = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]", "", description)
 
-    # Truncate if too long
     if len(sanitized) > MAX_DESCRIPTION_LENGTH:
         sanitized = sanitized[: MAX_DESCRIPTION_LENGTH - 3] + "..."
 
@@ -123,13 +116,11 @@ def sanitize_schema(schema: Dict[str, Any], depth: int = 0) -> Dict[str, Any]:
 
     sanitized: Dict[str, Any] = {}
 
-    # Copy allowed top-level keys
     allowed_keys = {"type", "properties", "required", "items", "enum", "description", "default"}
 
     for key in allowed_keys:
         if key in schema:
             if key == "properties" and isinstance(schema[key], dict):
-                # Recursively sanitize properties
                 sanitized[key] = {
                     k: sanitize_schema(v, depth + 1)
                     for k, v in schema[key].items()
@@ -140,14 +131,12 @@ def sanitize_schema(schema: Dict[str, Any], depth: int = 0) -> Dict[str, Any]:
             elif key == "required" and isinstance(schema[key], list):
                 sanitized[key] = [r for r in schema[key] if isinstance(r, str)]
             elif key == "enum" and isinstance(schema[key], list):
-                # Limit enum values
                 sanitized[key] = schema[key][:50]
             elif key == "description":
                 sanitized[key] = sanitize_description(str(schema[key]))
             else:
                 sanitized[key] = schema[key]
 
-    # Ensure type is valid
     if sanitized.get("type") not in (
         "object",
         "string",
@@ -178,7 +167,6 @@ def is_tool_allowed(
     Returns:
         True if tool is allowed, False otherwise.
     """
-    # Check blacklist first
     if exclude_tools and tool_name in exclude_tools:
         return False
 
@@ -210,7 +198,6 @@ def resolve_conflict(
     """
     original_name = new_tool.name
 
-    # Check if reserved
     if original_name in RESERVED_TOOL_NAMES:
         if strategy == "replace":
             raise MCPSecurityError(f"Cannot replace reserved tool: {original_name}", original_name)
@@ -269,12 +256,10 @@ def validate_tool_definition(tool: MCPToolDefinition) -> bool:
         logger.warning(f"Tool {tool.name} missing description")
         # Description is recommended but not required
 
-    # Validate name format
     if not re.match(r"^[a-zA-Z][a-zA-Z0-9_]*$", tool.name):
         logger.warning(f"Tool {tool.name} has invalid name format")
         return False
 
-    # Validate parameters schema
     if tool.parameters:
         if not isinstance(tool.parameters, dict):
             logger.warning(f"Tool {tool.name} has invalid parameters")

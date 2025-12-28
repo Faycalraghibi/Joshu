@@ -167,7 +167,6 @@ class DelegateToAgentTool:
         """
         inputs = inputs or {}
 
-        # Resolve agent from registry
         try:
             agent = self._registry.get_agent(agent_name)
         except AgentNotFoundError:
@@ -176,17 +175,14 @@ class DelegateToAgentTool:
                 f"Available: {self._registry.list_agents()}"
             )
 
-        # Check if enabled
         if not agent.enabled:
             raise AgentValidationError(f"Cannot delegate to '{agent_name}': agent is disabled")
 
-        # Validate inputs against agent's InputConfig
         if agent.input_config and agent.input_config.fields:
             validation_error = self._validate_inputs(agent, inputs)
             if validation_error:
                 raise AgentValidationError(f"Invalid inputs for '{agent_name}': {validation_error}")
 
-        # Build and return the validated request
         return DelegationRequest(
             agent_name=agent_name,
             agent=agent,
@@ -208,7 +204,6 @@ class DelegateToAgentTool:
         if not agent.input_config:
             return None
 
-        # Check required fields
         for field_def in agent.input_config.fields:
             if field_def.required and field_def.name not in inputs:
                 return f"Missing required input: {field_def.name}"

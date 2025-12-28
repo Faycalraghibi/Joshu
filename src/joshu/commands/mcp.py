@@ -49,7 +49,6 @@ def mcp_add(config: MCPAddConfig) -> CommandActionReturn:
         CommandActionReturn with result
     """
     try:
-        # Determine transport type
         if config.command:
             transport = TransportType.STDIO
         elif config.url:
@@ -64,7 +63,6 @@ def mcp_add(config: MCPAddConfig) -> CommandActionReturn:
                 recoverable=True,
             )
 
-        # Create server config
         server_config = MCPServerConfig(
             name=config.name,
             transport=transport,
@@ -76,10 +74,8 @@ def mcp_add(config: MCPAddConfig) -> CommandActionReturn:
             enabled=True,
         )
 
-        # Validate
         server_config.validate()
 
-        # Add to registry
         registry = get_mcp_registry()
         registry.add_server(server_config)
 
@@ -170,7 +166,6 @@ def mcp_remove(name: str) -> CommandActionReturn:
                 recoverable=True,
             )
 
-        # Disconnect if connected
         if registry.is_connected(name):
             try:
                 asyncio.get_event_loop().run_until_complete(registry.disconnect_server(name))
@@ -178,7 +173,6 @@ def mcp_remove(name: str) -> CommandActionReturn:
                 # No event loop, create a new one
                 asyncio.run(registry.disconnect_server(name))
 
-        # Remove
         registry.remove_server(name)
 
         logger.info(f"Removed MCP server: {name}")

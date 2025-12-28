@@ -211,16 +211,13 @@ class IDEServer:
             def log_message(self, format, *args):
                 pass  # Suppress logging
 
-        # Find available port
         server = socketserver.TCPServer((self.config.host, 0), Handler)
         self._port = server.server_address[1]
         self._running = True
         self._server = server
 
-        # Write server info
         self._write_server_info()
 
-        # Run in thread
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
 
@@ -267,7 +264,6 @@ class IDEServer:
             "pid": os.getpid(),
         }
 
-        # Write to temp directory
         temp_dir = Path(tempfile.gettempdir())
         info_file = temp_dir / f"joshu-ide-server-{os.getpid()}-{self._port}.json"
 
@@ -285,7 +281,6 @@ class IDEServer:
         self._running = False
         if self._server:
             self._server.shutdown()
-        # Clean up info file
         temp_dir = Path(tempfile.gettempdir())
         info_file = temp_dir / f"joshu-ide-server-{os.getpid()}-{self._port}.json"
         try:

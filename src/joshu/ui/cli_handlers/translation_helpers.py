@@ -17,7 +17,6 @@ def check_conversational_response(translation: Translation) -> bool:
     """Check if a translation is a conversational response that shouldn't be executed."""
     needs_execution = getattr(translation, "needs_execution", True)
 
-    # Check explanation and command format directly as backup
     explanation_lower = translation.explanation.lower()
     command_normalized = translation.command.replace('\\"', '"').replace("\\'", "'")
 
@@ -41,7 +40,6 @@ def check_conversational_response(translation: Translation) -> bool:
         command_normalized.startswith('echo "') and len(translation.command) > 100
     )
 
-    # Override needs_execution if we detect conversational response
     if is_conversational_explanation or is_conversational_command:
         needs_execution = False
 
@@ -99,7 +97,6 @@ def handle_translation_execution(
 
     # Check if conversational response (after safety check)
     if check_conversational_response(translation):
-        # Execute conversational response directly without asking
         code, out, err = run_command(translation.command)
         if code == 0:
             if out:
@@ -109,7 +106,6 @@ def handle_translation_execution(
                 console.print(f"[red]{err}[/red]")
         return 0
 
-    # Check if this is a code generation request
     if (
         "code command" in translation.explanation.lower()
         or "code' command" in translation.explanation.lower()
@@ -123,7 +119,6 @@ def handle_translation_execution(
         )
         return 0
 
-    # Auto-execute or ask for confirmation
     if auto_execute:
         console.print("[dim]Auto-executing command (auto_execute enabled in config)[/dim]")
         proceed = True
@@ -137,21 +132,17 @@ def handle_translation_execution(
                 )
             return 0
 
-    # Get config for auto-fix
     config_manager = get_config_manager()
     config_dict = config_manager.config.to_dict()
 
-    # Execute command with auto-fix support
     code, out, err, fixed_cmd = run_command_with_auto_fix(
         translation.command, config_dict, context_provider, timeout=60, model=model
     )
 
-    # Display fix notification if auto-fix was applied
     if fixed_cmd:
         console.print("[yellow]✨ Original command failed. Auto-fixed to:[/yellow]")
         console.print(f"[cyan]{fixed_cmd}[/cyan]")
 
-    # Handle results
     if code == 0:
         if out:
             console.print(out)

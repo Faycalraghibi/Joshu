@@ -174,7 +174,6 @@ class AgentModeHandler(ModeHandler):
     def handle(self, user_input: str) -> bool:
         """Handle agent mode input."""
         try:
-            # Check if conversational query
             if _is_conversational_query(user_input):
                 response_lines = [
                     "💬 I see you're saying hello! In agent mode, I execute tasks from start to finish.",
@@ -199,7 +198,6 @@ class AgentModeHandler(ModeHandler):
                     )
                 return True
 
-            # Generate plan
             goal_message = f"🎯 Goal: {user_input}"
             planning_message = "📝 Generating execution plan...\n"
             self._show_message(f"\n{goal_message}")
@@ -232,12 +230,10 @@ Do not include any explanation or markdown formatting, just the JSON array."""
                 )
                 return True
 
-            # Parse JSON commands
             commands = self._parse_plan_response(plan_response)
             if not commands:
                 return True
 
-            # Execute commands
             return self._execute_plan(commands, goal_message, planning_message, user_input)
 
         except KeyboardInterrupt:
@@ -299,7 +295,6 @@ Do not include any explanation or markdown formatting, just the JSON array."""
             self._show_message(step_message)
             execution_log.append(step_message)
 
-            # Safety check
             report = assess_command_safety(command, self.sandbox)
             if not report.safe:
                 self._show_message(f"⚠️  WARNING: Command flagged as {report.danger_level}")
@@ -315,7 +310,6 @@ Do not include any explanation or markdown formatting, just the JSON array."""
                     self._show_message("\n⏹️  Execution stopped by user.")
                     break
 
-            # Execute command
             code, out, err = run_command(command)
 
             if out:
@@ -343,12 +337,10 @@ Do not include any explanation or markdown formatting, just the JSON array."""
             else:
                 executed_count += 1
 
-            # Store in memory
             if self.context_provider:
                 result = f"Command: {command}\nExit code: {code}\nOutput: {out[:500] if out else 'No output'}\nError: {err[:500] if err else 'No errors'}"
                 self.context_provider.set_memory(f"last_command_{i}", result)
 
-        # Final summary
         summary_header = "=" * 50
         summary_title = "📊 Execution Summary:"
         success_msg = f"  ✅ Successfully executed: {executed_count}/{len(commands)}"

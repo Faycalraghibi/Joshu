@@ -69,11 +69,9 @@ class StdioTransport(MCPTransport):
             raise MCPConnectionError(self.server_name, "No command specified for stdio transport")
 
         try:
-            # Build environment
             env = os.environ.copy()
             env.update(self.config.env)
 
-            # Start subprocess
             logger.info(f"Starting MCP server: {self.config.command} {' '.join(self.config.args)}")
 
             import sys
@@ -99,10 +97,8 @@ class StdioTransport(MCPTransport):
                     env=env,
                 )
 
-            # Start reading responses
             self._read_task = asyncio.create_task(self._read_loop())
 
-            # Initialize connection
             result = await self._send_request(
                 "initialize",
                 {
@@ -118,7 +114,6 @@ class StdioTransport(MCPTransport):
             self._server_info = result
             self._connected = True
 
-            # Send initialized notification
             await self._send_notification("notifications/initialized", {})
 
             logger.info(f"Connected to MCP server: {self.server_name}")
@@ -180,12 +175,10 @@ class StdioTransport(MCPTransport):
                 },
             )
 
-            # Parse content blocks
             content_blocks = []
             for block in result.get("content", []):
                 content_blocks.append(MCPContentBlock.from_mcp_response(block))
 
-            # Extract text content
             text_content = "\n".join(block.get_text_content() for block in content_blocks)
 
             is_error = result.get("isError", False)
@@ -316,17 +309,14 @@ class StdioTransport(MCPTransport):
             "params": params,
         }
 
-        # Create future for response
         future: asyncio.Future = asyncio.get_event_loop().create_future()
         self._pending_requests[request_id] = future
 
         try:
-            # Send request
             message = json.dumps(request) + "\n"
             self._process.stdin.write(message.encode("utf-8"))
             await self._process.stdin.drain()
 
-            # Wait for response with timeout
             result = await asyncio.wait_for(future, timeout=self.config.timeout)
             return result
 

@@ -26,10 +26,8 @@ def handle_search_command(query: str, max_results: Optional[int] = None) -> None
         query: Search query string
         max_results: Optional maximum number of results to show (overrides config)
     """
-    # Get configuration
     config_manager = get_config_manager()
 
-    # Check if web search is enabled
     if not config_manager.get("web_search_enabled", True):
         console.print("[yellow]⚠[/yellow] Web search is disabled in configuration.")
         console.print(
@@ -37,7 +35,6 @@ def handle_search_command(query: str, max_results: Optional[int] = None) -> None
         )
         return
 
-    # Check if library is available
     if not DDGS_AVAILABLE:
         console.print("[red]✗[/red] Web search library not installed.")
         console.print("[dim]Install with:[/dim] [cyan]pip install ddgs[/cyan]")
@@ -46,18 +43,14 @@ def handle_search_command(query: str, max_results: Optional[int] = None) -> None
         )
         return
 
-    # Get max results from config or parameter
     if max_results is None:
         max_results = config_manager.get("web_search_max_results", 5)
 
-    # Get timeout from config
     timeout = config_manager.get("web_search_timeout", 10)
 
-    # Display search indicator
     console.print(f"[bold]🔍 Searching for:[/bold] {query}")
     console.print()
 
-    # Perform search
     try:
         with console.status("[bold cyan]Searching the web...", spinner="dots"):
             result = search_web(query, max_results=max_results, timeout=timeout)
@@ -66,13 +59,11 @@ def handle_search_command(query: str, max_results: Optional[int] = None) -> None
         logger.error(f"Search error: {e}", exc_info=True)
         return
 
-    # Handle search failure
     if not result.get("success"):
         error_msg = result.get("error", "Unknown error")
         console.print(f"[red]✗ Search failed:[/red] {error_msg}")
         return
 
-    # Get results
     results = result.get("results", [])
 
     if not results:
@@ -80,7 +71,6 @@ def handle_search_command(query: str, max_results: Optional[int] = None) -> None
         console.print("[dim]Try rephrasing your search query or using different keywords.[/dim]")
         return
 
-    # Display results
     console.print(
         f"[bold green]✓[/bold green] Found {len(results)} result{'s' if len(results) != 1 else ''}:"
     )
@@ -91,7 +81,6 @@ def handle_search_command(query: str, max_results: Optional[int] = None) -> None
         url = item.get("url", "")
         snippet = item.get("snippet", "No description available")
 
-        # Create a panel for each result
         panel_content = f"[bold]{title}[/bold]\n"
         panel_content += f"[dim]{url}[/dim]\n\n"
         panel_content += f"{snippet}"
@@ -103,7 +92,6 @@ def handle_search_command(query: str, max_results: Optional[int] = None) -> None
         console.print(panel)
         console.print()
 
-    # Show helpful tip
     console.print(
         "[dim]💡 Tip: Use [cyan]--max-results N[/cyan] to show more or fewer results[/dim]"
     )

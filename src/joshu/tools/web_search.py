@@ -10,7 +10,6 @@ from typing import Any, Dict
 
 logger = logging.getLogger(__name__)
 
-# Try to import ddgs
 try:
     from ddgs import DDGS
 
@@ -58,16 +57,13 @@ def search_web(query: str, max_results: int = 5, timeout: int = 10) -> Dict[str,
     try:
         logger.info(f"Searching web for: {query}")
 
-        # Initialize DuckDuckGo search
         ddgs = DDGS()
 
-        # Perform the search
         raw_results = ddgs.text(
             query,
             max_results=max_results,
         )
 
-        # Parse and format results
         results = []
         for item in raw_results:
             result = {

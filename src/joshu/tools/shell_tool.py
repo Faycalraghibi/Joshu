@@ -102,16 +102,13 @@ def is_command_allowed(command: str) -> Tuple[bool, str]:
     """
     config = get_shell_config()
 
-    # Check blocklist first
     for blocked in config.blocklist:
         if blocked.lower() in command.lower():
             return False, f"Command contains blocked pattern: {blocked}"
 
-    # If allowlist is empty, allow all (except blocked)
     if not config.allowlist:
         return True, "Allowed by default"
 
-    # Check allowlist
     cmd_base = command.split()[0] if command.split() else ""
     for allowed in config.allowlist:
         if cmd_base == allowed or command.startswith(allowed):
@@ -152,7 +149,6 @@ def run_shell_command(
     timeout = timeout or config.timeout
     cwd = cwd or config.working_directory
 
-    # Check if command is allowed
     allowed, reason = is_command_allowed(command)
     if not allowed:
         return {
@@ -162,12 +158,10 @@ def run_shell_command(
         }
 
     try:
-        # Prepare environment
         process_env = os.environ.copy()
         if env:
             process_env.update(env)
 
-        # Execute command
         result = subprocess.run(
             command,
             shell=True,

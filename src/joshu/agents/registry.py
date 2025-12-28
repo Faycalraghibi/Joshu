@@ -70,7 +70,6 @@ class AgentRegistry:
             AgentValidationError: If the agent fails validation
             AgentRegistrationError: If an agent with the same name already exists
         """
-        # Validate the agent
         if not agent.validate():
             raise AgentValidationError(f"Agent '{agent.name}' failed validation")
 
@@ -101,7 +100,6 @@ class AgentRegistry:
                     version=agent.version,
                 )
 
-        # Check for duplicates
         if agent.name in self._agents and not allow_overwrite:
             raise AgentRegistrationError(
                 f"Agent '{agent.name}' is already registered. Use allow_overwrite=True to replace."

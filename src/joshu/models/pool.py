@@ -15,7 +15,6 @@ from .providers import (
     OpenRouterProvider,
 )
 
-# Try to import vLLM server provider (optional)
 try:
     from .providers import VLLM_SERVER_AVAILABLE, VLLMServerProvider
 except ImportError:
@@ -25,7 +24,6 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-# Global pool instance
 _pool_instance: Optional[ModelPool] = None
 _pool_lock = Lock()
 
@@ -68,7 +66,6 @@ class ModelPool:
 
     def _auto_discover_providers(self) -> None:
         """Auto-discover and add available providers."""
-        # Try OpenRouter first if cloud should be used
         if ModelConfig.should_use_cloud():
             try:
                 openrouter = OpenRouterProvider()
@@ -91,7 +88,6 @@ class ModelPool:
             except Exception as e:
                 logger.debug(f"Failed to auto-discover vLLM server provider: {e}")
 
-        # Try local model API if configured
         try:
             local_url = ModelConfig.get_local_model_api_url()
             local_model = ModelConfig.get_local_model_api_identifier()
@@ -103,44 +99,8 @@ class ModelPool:
         except Exception as e:
             logger.debug(f"Failed to auto-discover local model provider: {e}")
 
-        # Try to discover direct llama.cpp models (DEPRECATED: Use local model API instead)
-        # Kept for backward compatibility
-        import warnings
-
-        for model_name in ModelConfig.SUPPORTED_LOCAL_MODELS.keys():
-            try:
-                llama_provider = LlamaCppProvider(model_name)
-                if llama_provider.initialize():
-                    warnings.warn(
-                        f"Llama.cpp provider '{model_name}' is deprecated. "
-                        "Please use local model API instead. Set LOCAL_MODEL_URL and LOCAL_MODEL_IDENTIFIER environment variables.",
-                        DeprecationWarning,
-                        stacklevel=2,
-                    )
-                    self.add_provider(llama_provider)
-                    logger.debug(
-                        f"Auto-discovered llama.cpp model provider: {model_name} (deprecated)"
-                    )
-            except Exception as e:
-                logger.debug(f"Failed to auto-discover llama.cpp model {model_name}: {e}")
-
-        # Try generic llama model from env (DEPRECATED)
-        try:
-            model_path = ModelConfig.get_local_model_path("default")
-            if model_path:
-                # Use the model name from path or a default name
-                llama_provider = LlamaCppProvider("default")
-                if llama_provider.initialize():
-                    warnings.warn(
-                        "Llama.cpp provider is deprecated. "
-                        "Please use local model API instead. Set LOCAL_MODEL_URL and LOCAL_MODEL_IDENTIFIER environment variables.",
-                        DeprecationWarning,
-                        stacklevel=2,
-                    )
-                    self.add_provider(llama_provider)
-                    logger.debug("Auto-discovered default llama.cpp model provider (deprecated)")
-        except Exception as e:
-            logger.debug(f"Failed to auto-discover default llama.cpp model: {e}")
+        # NOTE: Deprecated llama.cpp auto-discovery removed.
+        # Use local model API instead by setting LOCAL_MODEL_URL and LOCAL_MODEL_IDENTIFIER.
 
         # Always add echo provider as fallback
         echo_provider = EchoProvider()
@@ -192,7 +152,6 @@ class ModelPool:
             Provider instance or None if not found
         """
         with self._lock:
-            # Try cache first
             cache_key = name or model_name or "default"
             if cache_key in self._provider_cache:
                 cached = self._provider_cache[cache_key]
@@ -285,7 +244,6 @@ class ModelPool:
         Raises:
             RuntimeError: If no providers are available
         """
-        # Try specific provider first if requested
         if provider_name:
             provider = self.get_provider(name=provider_name)
             if provider:
@@ -296,7 +254,6 @@ class ModelPool:
                 except Exception as e:
                     logger.debug(f"Provider {provider_name} failed: {e}, trying fallback")
 
-        # Try specific model if requested
         if model_name:
             provider = self.get_provider(model_name=model_name)
             if provider:
@@ -307,7 +264,6 @@ class ModelPool:
                 except Exception as e:
                     logger.debug(f"Model {model_name} failed: {e}, trying fallback")
 
-        # Try all available providers in priority order
         available = self.get_available_providers()
         if not available:
             raise RuntimeError("No model providers are available")
@@ -322,7 +278,6 @@ class ModelPool:
                 logger.debug(f"Provider {provider.name} failed: {e}, trying next")
                 last_exception = e
 
-        # All providers failed
         if last_exception:
             raise RuntimeError(
                 f"All model providers failed. Last error: {last_exception}"
@@ -353,7 +308,6 @@ class ModelPool:
         Returns:
             Generated text response or None if all providers failed
         """
-        # Try specific provider first if requested
         if provider_name:
             provider = self.get_provider(name=provider_name)
             if provider:
@@ -364,7 +318,6 @@ class ModelPool:
                 except Exception as e:
                     logger.debug(f"Provider {provider_name} failed: {e}, trying fallback")
 
-        # Try specific model if requested
         if model_name:
             provider = self.get_provider(model_name=model_name)
             if provider:
@@ -375,7 +328,6 @@ class ModelPool:
                 except Exception as e:
                     logger.debug(f"Model {model_name} failed: {e}, trying fallback")
 
-        # Try all available providers in priority order
         available = self.get_available_providers()
         if not available:
             logger.warning("No model providers are available for chat completion")
@@ -417,7 +369,6 @@ class ModelPool:
         Yields:
             Chunks of generated text
         """
-        # Try specific provider first if requested
         if provider_name:
             provider = self.get_provider(name=provider_name)
             if provider:
@@ -429,7 +380,6 @@ class ModelPool:
                 except Exception as e:
                     logger.debug(f"Provider {provider_name} failed: {e}, trying fallback")
 
-        # Try specific model if requested
         if model_name:
             provider = self.get_provider(model_name=model_name)
             if provider:
@@ -441,7 +391,6 @@ class ModelPool:
                 except Exception as e:
                     logger.debug(f"Model {model_name} failed: {e}, trying fallback")
 
-        # Try all available providers in priority order
         available = self.get_available_providers()
         if not available:
             raise RuntimeError("No model providers are available for streaming")

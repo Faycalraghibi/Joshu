@@ -111,19 +111,16 @@ class AgentExecutor:
         settings = settings or AgentSettings()
         task = Task.create(settings)
 
-        # Add initial user message to session
         from joshu.core.chat_session import ChatMessage
 
         task.session.history.add(ChatMessage.user(message))
 
-        # Store task
         self._active_tasks[task.task_id] = task
         self._task_store.save(task)
         self._sequence_counters[task.task_id] = 0
 
         logger.info(f"Created task {task.task_id}")
 
-        # Publish state change event
         event = AgentExecutionEvent.state_change(
             task_id=task.task_id,
             old_state="none",

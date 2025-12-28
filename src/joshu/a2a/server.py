@@ -140,7 +140,6 @@ async def lifespan(app: FastAPI):
     """Lifespan handler for startup/shutdown."""
     logger.info("A2A Server starting...")
 
-    # Register default commands
     from joshu.a2a.commands.registry import register_default_commands
 
     register_default_commands()

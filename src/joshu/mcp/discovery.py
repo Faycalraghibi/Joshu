@@ -188,7 +188,6 @@ async def discover_mcp_tools(
             logger.debug(f"Skipping disabled server: {server_config.name}")
             continue
 
-        # Connect if needed
         if connect_if_needed and not registry.is_connected(server_config.name):
             try:
                 await registry.connect_server(server_config.name)
@@ -201,7 +200,6 @@ async def discover_mcp_tools(
             logger.warning(f"No transport for {server_config.name}")
             continue
 
-        # Discover tools from this server
         try:
             server_tools = await transport.list_tools()
 

@@ -18,7 +18,6 @@ from joshu.hooks.schemas import HookPayload, HookResponse, HookResult
 
 logger = logging.getLogger(__name__)
 
-# Default timeout for hook execution (seconds)
 DEFAULT_HOOK_TIMEOUT = 10
 
 
@@ -30,7 +29,6 @@ class HookConfig:
     timeout: int = DEFAULT_HOOK_TIMEOUT
     hooks_dir: Optional[Path] = None
 
-    # Per-event hooks (script paths)
     hooks: Dict[HookEvent, List[Path]] = field(default_factory=dict)
 
 
@@ -82,7 +80,6 @@ class HookDispatcher:
         """Set hook configuration."""
         self._config = config
 
-        # Register hooks from config
         for event, paths in config.hooks.items():
             for path in paths:
                 self.register_hook(event, path)
@@ -118,7 +115,6 @@ class HookDispatcher:
         )
         self._hooks[event].append(hook)
 
-        # Sort by priority
         self._hooks[event].sort(key=lambda h: h.priority)
 
         logger.info(f"Registered hook for {event.value}: {script_path}")
@@ -178,14 +174,12 @@ class HookDispatcher:
         if not self._config.enabled:
             return HookResult(success=True, allowed=True)
 
-        # Get all hooks for this event
         script_hooks = self._hooks.get(event, [])
         python_hooks = self._python_hooks.get(event, [])
 
         if not script_hooks and not python_hooks:
             return HookResult(success=True, allowed=True)
 
-        # Execute Python hooks first
         for handler in python_hooks:
             try:
                 response = handler(payload)
@@ -200,18 +194,15 @@ class HookDispatcher:
             except Exception as e:
                 logger.error(f"Python hook error: {e}")
 
-        # Execute script hooks
         for hook in script_hooks:
             if not hook.enabled:
                 continue
 
             result = self._execute_hook(hook, payload)
 
-            # If hook blocks, stop execution
             if result.should_block:
                 return result
 
-            # Apply modifications to payload for next hook
             if result.modified_data:
                 payload.data.update(result.modified_data)
 
@@ -240,10 +231,8 @@ class HookDispatcher:
             Hook result
         """
         try:
-            # Serialize payload to JSON
             payload_json = json.dumps(payload.to_dict())
 
-            # Execute hook script
             result = subprocess.run(
                 [str(hook.script_path)],
                 input=payload_json,
@@ -254,7 +243,6 @@ class HookDispatcher:
 
             exit_code = result.returncode
 
-            # Parse response from stdout
             response = None
             if result.stdout.strip():
                 try:
@@ -263,10 +251,8 @@ class HookDispatcher:
                 except json.JSONDecodeError:
                     logger.warning(f"Invalid JSON from hook: {result.stdout[:100]}")
 
-            # Determine if blocked based on exit code
             allowed = exit_code != HookExitCode.BLOCK
 
-            # Log warnings for non-standard exit codes
             if exit_code not in (HookExitCode.ALLOW, HookExitCode.BLOCK):
                 logger.warning(f"Hook {hook.script_path} exited with code {exit_code}")
                 if result.stderr:
@@ -322,7 +308,6 @@ class HookDispatcher:
         logger.info("Cleared all hooks")
 
 
-# Global dispatcher instance
 _dispatcher: Optional[HookDispatcher] = None
 
 
@@ -337,9 +322,6 @@ def get_hook_dispatcher() -> HookDispatcher:
     if _dispatcher is None:
         _dispatcher = HookDispatcher()
     return _dispatcher
-
-
-# Convenience functions for common events
 
 
 def dispatch_session_start(session_id: str, data: Dict[str, Any]) -> HookResult:

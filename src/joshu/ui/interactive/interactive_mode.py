@@ -52,22 +52,17 @@ class InteractiveMode:
 
         self.max_history_entries = self.config_manager.get("history_limit", 1000)
 
-        # Initialize context provider (uses JSON storage by default)
         self.context_provider = ContextProvider()
 
-        # Initialize JSON-backed prompt history (for prompt_toolkit up/down arrow navigation)
-        # Share the same storage backend as context provider for consistency
         storage_path = Path.cwd() / ".joshu_data.json"
         self.prompt_history = JsonHistory(storage_path=storage_path)
 
-        # Mode state
         self.vim_mode = "INSERT"
         self.multiline_mode = False
         self.verbose_mode = verbose
         self.suggestions_enabled = True
-        self.interaction_mode = "agent"  # Default to agent mode
+        self.interaction_mode = "agent"
 
-        # Set logging level based on verbose mode
         if verbose:
             import logging
 
@@ -76,31 +71,25 @@ class InteractiveMode:
             logging.getLogger("joshu.core").setLevel(logging.DEBUG)
             logging.getLogger("joshu.models").setLevel(logging.DEBUG)
 
-        # History
         self.command_history = []
         self.bash_history = []
         self._history_index = -1
 
-        # Initialize handlers
         self.ask_handler = AskModeHandler(self)
         self.plan_handler = PlanModeHandler(self)
         self.agent_handler = AgentModeHandler(self)
         self.command_handler = CommandHandler(self)
 
-        # DeepSeek API
         self.deepseek_client = None
         self.deepseek_model = os.getenv("DEEPSEEK_URL", "deepseek/deepseek-chat-v3.1:free")
         self.deepseek_auto_exec = os.getenv("DEEPSEEK_AUTO_EXEC", "false").lower() == "true"
         self._init_deepseek()
 
-        # Initialize prompt_toolkit components
         if PROMPT_TOOLKIT_AVAILABLE:
             self._init_prompt_toolkit()
 
-        # Load existing history
         self._load_history()
 
-        # Establish connection
         try:
             from joshu.core.translate import establish_connection
 
@@ -120,8 +109,8 @@ class InteractiveMode:
                     self.deepseek_client = OpenAI(
                         api_key=api_key,
                         base_url="https://openrouter.ai/api/v1",
-                        timeout=60.0,  # Add explicit timeout
-                        max_retries=2,  # Add explicit retries
+                        timeout=60.0,
+                        max_retries=2,
                     )
                 except Exception as e:
                     # Silently fail if OpenAI client can't be initialized
@@ -141,7 +130,6 @@ class InteractiveMode:
 
     def _load_history(self):
         """Load command history from JSON storage."""
-        # Load from prompt history storage
         self.command_history = self.prompt_history.load_history_strings()[
             : self.max_history_entries
         ]
@@ -149,12 +137,9 @@ class InteractiveMode:
     def _add_to_history(self, command: str):
         """Add command to history."""
         if command and command.strip():
-            # Store in prompt history (JSON storage)
             self.prompt_history.store_string(command)
-            # Update in-memory list
             if not self.command_history or self.command_history[-1] != command:
                 self.command_history.append(command)
-                # Keep only last N entries in memory
                 if len(self.command_history) > self.max_history_entries:
                     self.command_history = self.command_history[-self.max_history_entries :]
 
@@ -397,7 +382,6 @@ class InteractiveMode:
                 metadata={"mode": self.interaction_mode, "timestamp": time.time()},
             )
 
-        # Handle special commands
         if user_input.startswith("/"):
             return self.command_handler.handle_slash_command(user_input)
         elif user_input.startswith("!"):
@@ -407,7 +391,6 @@ class InteractiveMode:
             self._handle_file_injection(user_input)
             return True
 
-        # Route to appropriate mode handler
         if self.interaction_mode == "ask":
             return self.ask_handler.handle(user_input)
         elif self.interaction_mode == "plan":
@@ -537,7 +520,6 @@ class InteractiveMode:
 
 def start_interactive_mode(model: str, sandbox: bool = False, verbose: bool = False):
     """Start the interactive mode."""
-    # Initialize MCP servers and register tools
     try:
         from joshu.core.config import get_config_manager
 
@@ -549,10 +531,8 @@ def start_interactive_mode(model: str, sandbox: bool = False, verbose: bool = Fa
             from joshu.mcp.discovery import register_mcp_tools_with_joshu
             from joshu.ui.cli_handlers.mcp_handler import load_mcp_servers_from_config
 
-            # Load servers from mcp.json
             load_mcp_servers_from_config()
 
-            # Register MCP tools with Joshu's ToolRegistry
             if config_mgr.get("mcp_discovery_on_startup", True):
                 try:
                     count = asyncio.run(register_mcp_tools_with_joshu())

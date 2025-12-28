@@ -45,12 +45,10 @@ if PROMPT_TOOLKIT_AVAILABLE:
             try:
                 filter = QueryFilter(entry_type=EntryType.PROMPT_HISTORY, limit=1000)
                 entries = self.storage.query_entries(filter)
-                # Sort by timestamp and extract strings
                 entries.sort(key=lambda x: x.timestamp, reverse=True)
                 self._history_strings = [
                     entry.data.get("command", "") for entry in entries if entry.data.get("command")
                 ]
-                # Reverse to get chronological order (oldest first)
                 self._history_strings.reverse()
                 logger.debug(
                     f"Loaded {len(self._history_strings)} prompt history entries from storage"
@@ -63,7 +61,7 @@ if PROMPT_TOOLKIT_AVAILABLE:
             """Save a command to JSON storage."""
             try:
                 entry = StorageEntry(
-                    id=f"prompt_{int(time.time() * 1000000)}",  # Unique ID based on timestamp
+                    id=f"prompt_{int(time.time() * 1000000)}",
                     type=EntryType.PROMPT_HISTORY,
                     data={"command": command},
                     timestamp=time.time(),
@@ -79,16 +77,13 @@ if PROMPT_TOOLKIT_AVAILABLE:
         def store_string(self, string: str) -> None:
             """Store a string in the history."""
             if string and string.strip():
-                # Avoid duplicates
                 if self._history_strings and self._history_strings[-1] == string:
                     return
 
                 self._history_strings.append(string)
-                # Keep only last 1000 entries in memory
                 if len(self._history_strings) > 1000:
                     self._history_strings = self._history_strings[-1000:]
 
-                # Save to storage
                 self._save_to_storage(string)
 
 else:

@@ -14,7 +14,6 @@ from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-# Manifest filename
 MANIFEST_FILENAME = "joshu-extension.json"
 
 
@@ -91,17 +90,14 @@ class ExtensionManifest:
     homepage: Optional[str] = None
     repository: Optional[str] = None
 
-    # Extension components
     context_files: List[str] = field(default_factory=list)
     mcp_servers: Dict[str, MCPServerConfig] = field(default_factory=dict)
     commands: Dict[str, CommandConfig] = field(default_factory=dict)
     tools: List[ToolConfig] = field(default_factory=list)
 
-    # Extension settings
     enabled: bool = True
     auto_activate: bool = True
 
-    # Path to the extension directory (set when loaded)
     extension_path: Optional[Path] = None
 
     def validate(self) -> List[str]:
@@ -231,7 +227,6 @@ def load_manifest(path: Path) -> Optional[ExtensionManifest]:
         manifest = ExtensionManifest.from_dict(data)
         manifest.extension_path = manifest_path.parent if manifest_path.is_file() else path
 
-        # Validate
         errors = manifest.validate()
         if errors:
             for error in errors:
