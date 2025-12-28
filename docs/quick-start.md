@@ -5,8 +5,8 @@ Get Joshu running in under 5 minutes.
 ## Installation
 
 ```bash
-git clone https://github.com/Faycacalraghibi/joshu-assistant.git
-cd joshu-assistant
+git clone https://github.com/Faycacalraghibi/Joshu.git
+cd Joshu
 pip install -e .
 ```
 

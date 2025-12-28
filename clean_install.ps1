@@ -60,8 +60,15 @@ if (-not (Test-Path $joshuConfigDir)) {
     New-Item -ItemType Directory -Path $joshuConfigDir -Force | Out-Null
     Write-Host "  Created: $joshuConfigDir"
 }
-
-
+# Clear cache folder
+Write-Host "[info] Clearing cache folder"
+$cacheDir = "./cache"
+if (Test-Path $cacheDir) {
+    Remove-Item -Recurse -Force $cacheDir
+    Write-Host "  Removed: $cacheDir"
+}
+New-Item -ItemType Directory -Path $cacheDir -Force | Out-Null
+Write-Host "  Created: $cacheDir"
 
 Write-Host "`n[done] Development environment ready!`n" -ForegroundColor Green
 Write-Host "Next steps:"

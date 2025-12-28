@@ -2,7 +2,6 @@ import os
 import sys
 from unittest.mock import patch
 
-# Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 
@@ -14,12 +13,10 @@ def test_code_generation_detection():
     from joshu.models.pool import get_model_pool
     from joshu.models.providers import EchoProvider
 
-    # Mock translate_with_openrouter and translate_with_local_model_api to avoid API calls
     with (
         patch("joshu.core.translate.translate_with_openrouter", return_value=None),
         patch("joshu.core.translate.translate_with_local_model_api") as mock_local,
     ):
-        # Make local model API return a proper translation
         from joshu.core.translate import Translation
 
         mock_local.return_value = Translation(
@@ -28,11 +25,9 @@ def test_code_generation_detection():
             needs_execution=False,
         )
 
-        # Ensure the pool has at least EchoProvider available
         pool = get_model_pool()
         available_providers = pool.get_available_providers()
 
-        # If no providers available, add EchoProvider
         if not available_providers:
             echo_provider = EchoProvider()
             echo_provider._initialized = True
@@ -40,18 +35,11 @@ def test_code_generation_detection():
             pool.add_provider(echo_provider)
 
         # Test case 1: "give the binary search in python"
-        # With new behavior, code generation requests may be treated as conversational or return a different response
         translation = translate_to_command("give the binary search in python")
 
-        # Should return a translation - may suggest code command OR be handled as conversational
         assert translation is not None
-        # New behavior: May be conversational response, so check for either pattern
-        # Also accept API failure messages as valid (since API might not be available in tests)
-        # The response might also be a command that tries to open an editor, which is valid behavior
         explanation_lower = translation.explanation.lower()
         command_lower = translation.command.lower()
-        # Check for various patterns that indicate code generation was detected
-        # Also accept commands that try to help (like opening notepad)
         assert (
             "code command" in explanation_lower
             or "code' command" in explanation_lower
@@ -63,9 +51,9 @@ def test_code_generation_detection():
             or "direct answer" in explanation_lower
             or "failed to get response" in explanation_lower
             or "api" in explanation_lower
-            or "notepad" in command_lower  # May try to open editor
+            or "notepad" in command_lower
             or "open" in command_lower
-        )  # May suggest opening an editor
+        )
 
         # Test case 2: "show me the code for binary search in python"
         mock_local.return_value = Translation(
@@ -79,7 +67,6 @@ def test_code_generation_detection():
         # Should return a translation
         assert translation is not None
         explanation_lower = translation.explanation.lower()
-        # Check for various patterns that indicate code generation was detected
         assert (
             "code command" in explanation_lower
             or "code' command" in explanation_lower
@@ -102,10 +89,8 @@ def test_code_generation_detection():
 
         translation = translate_to_command("generate binary search code in python")
 
-        # Should return a translation
         assert translation is not None
         explanation_lower = translation.explanation.lower()
-        # Check for various patterns that indicate code generation was detected
         assert (
             "code command" in explanation_lower
             or "code' command" in explanation_lower
@@ -129,7 +114,6 @@ def test_non_code_requests_still_work():
         mock_context_provider.return_value = None
         translation = translate_to_command("show disk usage")
 
-        # Should return a translation (might be None if no pattern matches, but shouldn't suggest code command)
         if translation is not None:
             assert "code command" not in translation.explanation.lower()
             assert "joshu code" not in translation.command.lower()

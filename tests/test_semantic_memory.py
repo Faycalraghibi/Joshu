@@ -124,7 +124,6 @@ class TestSemanticMemory:
         if not semantic_memory.enabled:
             pytest.skip("Semantic memory not enabled")
 
-        # Add a memory
         success = semantic_memory.add_memory(
             content="I prefer using Python for data science projects",
             role="user",
@@ -139,7 +138,6 @@ class TestSemanticMemory:
         if not semantic_memory.enabled:
             pytest.skip("Semantic memory not enabled")
 
-        # Add several memories
         semantic_memory.add_memory(
             content="I prefer using Python for data science projects",
             role="user",
@@ -170,7 +168,6 @@ class TestSemanticMemory:
         if not semantic_memory.enabled:
             pytest.skip("Semantic memory not enabled")
 
-        # Add memories to different sessions
         semantic_memory.add_memory(content="I like Python", role="user", session_id="session-1")
         semantic_memory.add_memory(content="I like Python", role="user", session_id="session-2")
         semantic_memory.add_memory(
@@ -191,7 +188,6 @@ class TestSemanticMemory:
         if not semantic_memory.enabled:
             pytest.skip("Semantic memory not enabled")
 
-        # Add memories
         semantic_memory.add_memory(
             content="I'm working on a Python project", role="user", session_id="test-session"
         )
@@ -201,7 +197,6 @@ class TestSemanticMemory:
             session_id="test-session",
         )
 
-        # Get relevant context
         context = semantic_memory.get_relevant_context(
             query="data analysis library", max_results=2, session_id="test-session"
         )
@@ -214,13 +209,11 @@ class TestSemanticMemory:
         if not semantic_memory.enabled:
             pytest.skip("Semantic memory not enabled")
 
-        # Add memories to different sessions
         semantic_memory.add_memory(content="Session 1 memory", role="user", session_id="session-1")
         semantic_memory.add_memory(content="Session 2 memory", role="user", session_id="session-2")
 
         assert semantic_memory.count() == 2
 
-        # Delete session-1 memories
         deleted = semantic_memory.delete_by_session("session-1")
         assert deleted == 1
         assert semantic_memory.count() == 1
@@ -234,13 +227,11 @@ class TestSemanticMemory:
         if not semantic_memory.enabled:
             pytest.skip("Semantic memory not enabled")
 
-        # Add some memories
         semantic_memory.add_memory(content="Memory 1", role="user")
         semantic_memory.add_memory(content="Memory 2", role="user")
 
         assert semantic_memory.count() == 2
 
-        # Clear all
         success = semantic_memory.clear()
         assert success is True
         assert semantic_memory.count() == 0
@@ -250,7 +241,6 @@ class TestSemanticMemory:
         if not semantic_memory.enabled:
             pytest.skip("Semantic memory not enabled")
 
-        # Add a memory
         semantic_memory.add_memory(content="I love Python programming", role="user")
 
         # Search with high min_score (should return fewer results)
@@ -298,10 +288,8 @@ class TestSemanticMemoryIntegration:
         storage = JsonFileStorage(temp_dir / "test_data.json")
         provider = ContextProvider(storage_backend=storage)
 
-        # Check that semantic memory is initialized
         assert hasattr(provider, "semantic_memory")
 
-        # Add some conversation history
         provider.add_to_history("user", "I'm learning Python for data science")
         provider.add_to_history(
             "assistant", "Python is great for data science! You can use pandas, numpy, etc."
@@ -320,13 +308,11 @@ class TestSemanticMemoryIntegration:
         storage = JsonFileStorage(temp_dir / "test_data.json")
         provider = ContextProvider(storage_backend=storage)
 
-        # Add conversation history
         provider.add_to_history("user", "I want to learn machine learning")
         provider.add_to_history(
             "assistant", "Machine learning is fascinating! You should start with scikit-learn."
         )
 
-        # Get relevant context for a query
         context = provider.get_relevant_context("python libraries for ML")
 
         # Should include recent history and potentially semantic memories
@@ -346,7 +332,6 @@ class TestSemanticMemoryIntegration:
         persist_dir = temp_dir / f".chromadb_{uuid.uuid4().hex[:8]}"
 
         try:
-            # Create first instance and add memory
             memory1 = SemanticMemory(persist_directory=persist_dir)
             if memory1.enabled:
                 memory1.add_memory(
@@ -357,7 +342,6 @@ class TestSemanticMemoryIntegration:
                 gc.collect()  # Force garbage collection
                 time.sleep(0.5)  # Give Windows extra time to release handles
 
-                # Create second instance (should load persisted data)
                 memory2 = SemanticMemory(persist_directory=persist_dir)
                 if memory2.enabled:
                     count2 = memory2.count()

@@ -37,7 +37,6 @@ Complete documentation for Joshu AI-powered command-line assistant.
 - **[Extensions Framework](extensions.md)** - Create and manage extensions
 - **[Hooks System](hooks.md)** - Intercept and customize agent behavior
 - **[MCP Servers](mcp-servers.md)** - External tool servers via MCP protocol
-- **[vLLM Server Integration](VLLM_SERVER_INTEGRATION.md)** - Local model deployment
 - **[CLI Reference](cli-reference.md)** - All CLI commands and discovery features
 - **[File Operations](file-operations.md)** - Filesystem utilities reference
 
@@ -46,14 +45,6 @@ Complete documentation for Joshu AI-powered command-line assistant.
 - **[Contributing](contributing.md)** - Development setup and workflow
 - **[Development Automation](development-automation.md)** - Build, lint, and release scripts
 - **[Testing Guide](testing-guide.md)** - Running and writing tests
-- **[Rules & Guidelines](Rules.md)** - Development standards
-- **[Todo](Todo.md)** - Roadmap and planned features
-
-## Project Information
-
-- **[Compatibility Reports](COMPATIBILITY_SUMMARY.md)** - Version compatibility
-- **[Implementation Summary](MERGED_IMPLEMENTATION_SUMMARY.md)** - Recent implementations
-- **[PR Description](PR_DESCRIPTION.md)** - Latest changes
 
 ---
 

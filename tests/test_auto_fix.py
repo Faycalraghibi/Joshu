@@ -79,11 +79,9 @@ class TestFixResponseParsing:
 
     def test_confidence_scoring(self):
         """Test that confidence is scored based on explanation quality."""
-        # Short explanation = lower confidence
         response1 = '{"command": "ls", "explanation": "Fix"}'
         result1 = _parse_fix_response(response1, "sl")
 
-        # Detailed explanation = higher confidence
         response2 = '{"command": "ls", "explanation": "Fixed the typo by changing sl to ls"}'
         result2 = _parse_fix_response(response2, "sl")
 
@@ -112,7 +110,6 @@ class TestAutoFixIntegration:
     @patch("joshu.core.safety.assess_command_safety")
     def test_failed_command_triggers_autofix(self, mock_safety, mock_analyze, mock_run):
         """Test that failed commands trigger auto-fix."""
-        # First call fails, second succeeds
         mock_run.side_effect = [(1, "", "command not found: sl"), (0, "files listed", "")]
 
         mock_analyze.return_value = FixedCommand(

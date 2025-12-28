@@ -19,11 +19,9 @@ class TestCLISearchCommand:
 
     def test_search_command_success(self):
         """Test successful search command execution."""
-        # Mock the handle_search_command function
         with patch("joshu.ui.cli.handle_search_command") as mock_handler:
             self.runner.invoke(app, ["search", "Python programming"])
 
-            # Should call the handler with the query
             mock_handler.assert_called_once_with("Python programming", None)
 
     def test_search_command_with_max_results(self):
@@ -31,14 +29,12 @@ class TestCLISearchCommand:
         with patch("joshu.ui.cli.handle_search_command") as mock_handler:
             self.runner.invoke(app, ["search", "Python", "--max-results", "10"])
 
-            # Should call handler with max_results=10
             mock_handler.assert_called_once_with("Python", 10)
 
     def test_search_command_without_query(self):
         """Test search command without providing a query."""
         result = self.runner.invoke(app, ["search"])
 
-        # Should fail because query is required
         assert result.exit_code != 0
 
     def test_search_command_multiword_query(self):
@@ -46,7 +42,6 @@ class TestCLISearchCommand:
         with patch("joshu.ui.cli.handle_search_command") as mock_handler:
             self.runner.invoke(app, ["search", "Python machine learning best practices"])
 
-            # Should join all words into single query
             mock_handler.assert_called_once_with("Python machine learning best practices", None)
 
 
@@ -65,7 +60,6 @@ class TestSearchHandler:
             with patch("joshu.ui.cli_handlers.search_handler.console") as mock_console:
                 handle_search_command("test query")
 
-                # Should print disabled message
                 assert any(
                     "disabled" in str(call).lower() for call in mock_console.print.call_args_list
                 )
@@ -85,7 +79,6 @@ class TestSearchHandler:
                 with patch("joshu.ui.cli_handlers.search_handler.console") as mock_console:
                     handle_search_command("test query")
 
-                    # Should print library not installed message
                     assert any(
                         "not installed" in str(call).lower()
                         for call in mock_console.print.call_args_list
@@ -123,10 +116,8 @@ class TestSearchHandler:
                     with patch("joshu.ui.cli_handlers.search_handler.console") as mock_console:
                         handle_search_command("test query", max_results=5)
 
-                        # Should call search_web
                         mock_search.assert_called_once_with("test query", max_results=5, timeout=10)
 
-                        # Should print results
                         print_calls = [str(call) for call in mock_console.print.call_args_list]
                         results_printed = any("result" in call.lower() for call in print_calls)
                         assert results_printed
@@ -153,7 +144,6 @@ class TestSearchHandler:
                     with patch("joshu.ui.cli_handlers.search_handler.console") as mock_console:
                         handle_search_command("veryuniquequerywithnoresults")
 
-                        # Should print no results message
                         print_calls = [str(call) for call in mock_console.print.call_args_list]
                         no_results = any("no results" in call.lower() for call in print_calls)
                         assert no_results
@@ -185,7 +175,6 @@ class TestSearchHandler:
                     with patch("joshu.ui.cli_handlers.search_handler.console") as mock_console:
                         handle_search_command("test query")
 
-                        # Should print error message
                         print_calls = [str(call) for call in mock_console.print.call_args_list]
                         error_shown = any("network timeout" in call.lower() for call in print_calls)
                         assert error_shown

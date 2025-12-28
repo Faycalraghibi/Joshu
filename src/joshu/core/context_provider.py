@@ -73,7 +73,7 @@ class ContextProvider:
         """
         # Initialize storage backend
         if storage_backend is None:
-            storage_backend = JsonFileStorage(Path.cwd() / ".joshu_data.json")
+            storage_backend = JsonFileStorage(Path.cwd() / "cache" / "joshu_data.json")
         self.storage = storage_backend
 
         # conversation_log_file is deprecated - no longer used
@@ -197,7 +197,7 @@ class ContextProvider:
 
     def _get_sessions_file(self) -> Path:
         """Get the path to the sessions metadata file."""
-        return self._storage_path / ".joshu_sessions.json"
+        return self._storage_path / "cache" / "joshu_sessions.json"
 
     def _load_all_sessions(self) -> Dict[str, Dict[str, Any]]:
         """Load all sessions from the sessions file."""

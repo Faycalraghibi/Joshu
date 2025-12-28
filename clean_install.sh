@@ -62,18 +62,12 @@ pip install -e .[dev]
 echo -e "\n[info] Installing pre-commit hooks"
 pre-commit install
 
-# Setup Joshu config directory
-echo "[info] Setting up Joshu config directory"
+# Setup Joshu user config directory
+echo "[info] Setting up Joshu user config directory"
 JOSHU_CONFIG_DIR="$HOME/.joshu"
 if [ ! -d "$JOSHU_CONFIG_DIR" ]; then
     mkdir -p "$JOSHU_CONFIG_DIR"
     echo "  Created: $JOSHU_CONFIG_DIR"
-fi
-
-JOSHU_CACHE_DIR="$JOSHU_CONFIG_DIR/cache"
-if [ ! -d "$JOSHU_CACHE_DIR" ]; then
-    mkdir -p "$JOSHU_CACHE_DIR"
-    echo "  Created: $JOSHU_CACHE_DIR"
 fi
 
 # Create default user config if it doesn't exist
@@ -83,19 +77,15 @@ if [ ! -f "$USER_CONFIG_PATH" ]; then
     echo "  Created: $USER_CONFIG_PATH"
 fi
 
-# Clear cache and session files
-echo "[info] Clearing cache and session files"
-CACHE_FILES=(
-    "$HOME/.joshu/cache/translation_cache.json"
-    ".joshu_data.json"
-    ".joshu_sessions.json"
-)
-for file in "${CACHE_FILES[@]}"; do
-    if [ -f "$file" ]; then
-        echo "{}" > "$file"
-        echo "  Cleared: $file"
-    fi
-done
+# Clear cache folder
+echo "[info] Clearing cache folder"
+CACHE_DIR="./cache"
+if [ -d "$CACHE_DIR" ]; then
+    rm -rf "$CACHE_DIR"
+    echo "  Removed: $CACHE_DIR"
+fi
+mkdir -p "$CACHE_DIR"
+echo "  Created: $CACHE_DIR"
 
 echo -e "\n[done] Development environment ready!\n"
 echo "Next steps:"

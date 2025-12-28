@@ -16,13 +16,10 @@ class TestCLISafety(unittest.TestCase):
         """Test that dangerous commands are blocked."""
         from joshu.core.translate import Translation
 
-        # Mock the translation to return a dangerous command
         mock_translation = Translation(
             command="rm -rf /", explanation="Delete everything", needs_execution=True
         )
         mock_translate.return_value = mock_translation
-
-        # Mock safety assessment to return unsafe
         from joshu.core.safety import SafetyReport
 
         mock_safety_report = SafetyReport(
@@ -53,13 +50,10 @@ class TestCLISafety(unittest.TestCase):
         """Test that sandbox mode blocks destructive commands."""
         from joshu.core.translate import Translation
 
-        # Mock the translation to return a destructive command
         mock_translation = Translation(
             command="rm file.txt", explanation="Delete a file", needs_execution=True
         )
         mock_translate.return_value = mock_translation
-
-        # Mock safety assessment in sandbox mode
         from joshu.core.safety import SafetyReport
 
         mock_safety_report = SafetyReport(
@@ -70,10 +64,8 @@ class TestCLISafety(unittest.TestCase):
         )
         mock_assess_safety.return_value = mock_safety_report
 
-        # Run the command with sandbox mode
         result = self.runner.invoke(app, ["run", "--sandbox", "delete a file"])
 
-        # Check that the command was blocked in sandbox mode
         assert result.exit_code == 3
         assert (
             "Sandbox mode: All destructive commands are blocked" in result.stdout

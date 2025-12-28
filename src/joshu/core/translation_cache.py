@@ -54,12 +54,12 @@ class TranslationCache:
         Initialize the translation cache.
 
         Args:
-            cache_dir: Directory to store cache file. Defaults to ~/.joshu/cache
+            cache_dir: Directory to store cache file. Defaults to current directory
             similarity_threshold: Minimum similarity score for semantic matches (0.0-1.0)
             max_entries: Maximum number of entries before eviction occurs
         """
         if cache_dir is None:
-            cache_dir = os.path.expanduser("~/.joshu/cache")
+            cache_dir = "./cache"
 
         self.cache_dir = cache_dir
         self.cache_file = os.path.join(self.cache_dir, "translation_cache.json")

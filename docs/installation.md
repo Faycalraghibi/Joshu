@@ -11,8 +11,8 @@
 ### 1. Clone Repository
 
 ```bash
-git clone https://github.com/Faycacalraghibi/joshu-assistant.git
-cd joshu-assistant
+git clone https://github.com/Faycacalraghibi/Joshu.git
+cd Joshu
 ```
 
 ### 2. Create Virtual Environment (Recommended)

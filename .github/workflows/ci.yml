@@ -42,12 +42,9 @@ jobs:
           joshu --version
           joshu --help
 
-      # Linting delegated to Python scripts for local reproducibility
-      # To run locally: python scripts/lint.py
       - name: Run linting (via scripts/lint.py)
         run: python scripts/lint.py
 
-      # Optional: Check build freshness
       - name: Check build status
         run: python scripts/check_build_status.py
         continue-on-error: true

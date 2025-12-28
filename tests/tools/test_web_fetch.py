@@ -20,7 +20,6 @@ class TestFetchUrl:
         """Test successful URL fetch."""
         from joshu.tools.web_fetch import fetch_url
 
-        # Mock successful response
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.text = "<html><body><h1>Test Page</h1><p>Content here</p></body></html>"
@@ -188,7 +187,6 @@ class TestProcessUrlContent:
         """Test content truncation for large pages."""
         from joshu.tools.web_fetch import process_url_content
 
-        # Create content larger than max length
         large_content = "x" * 60000
         mock_fetch.return_value = {
             "success": True,
@@ -306,7 +304,6 @@ class TestWebFetchTool:
 
         self._reload_web_fetch_tool()
 
-        # Mock process_url_content to return test results
         mock_process.return_value = {
             "success": True,
             "url": "https://example.com",

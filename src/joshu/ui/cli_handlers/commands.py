@@ -106,7 +106,7 @@ def handle_history(limit: int, context_provider: Optional[ContextProvider] = Non
 
     # Fallback: Read from JSON storage
     try:
-        storage = JsonFileStorage(Path.cwd() / ".joshu_data.json")
+        storage = JsonFileStorage(Path.cwd() / "cache" / "joshu_data.json")
         filter = QueryFilter(entry_type=EntryType.CONVERSATION, role="user", limit=limit)
         entries = storage.query_entries(filter)
 

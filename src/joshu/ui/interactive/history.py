@@ -34,7 +34,7 @@ if PROMPT_TOOLKIT_AVAILABLE:
             """
             super().__init__()
             if storage_path is None:
-                storage_path = Path.cwd() / ".joshu_data.json"
+                storage_path = Path.cwd() / "cache" / "joshu_data.json"
 
             self.storage = JsonFileStorage(storage_path)
             self._history_strings: List[str] = []
@@ -93,7 +93,7 @@ else:
 
         def __init__(self, storage_path: Optional[Path] = None):
             if storage_path is None:
-                storage_path = Path.cwd() / ".joshu_data.json"
+                storage_path = Path.cwd() / "cache" / "joshu_data.json"
             self.storage = JsonFileStorage(storage_path)
             self._history_strings: List[str] = []
             self._load_history()

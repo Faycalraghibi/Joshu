@@ -6,7 +6,6 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-# Add src to path so we can import joshu modules
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from joshu.core.config import ConfigManager, JoshuConfig, get_config_manager
@@ -16,7 +15,6 @@ from joshu.ui.cli import app
 class TestConfig(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
-        # Create a temporary directory for test config
         self.test_dir = tempfile.mkdtemp()
         self.test_config_path = Path(self.test_dir) / "config.yaml"
 

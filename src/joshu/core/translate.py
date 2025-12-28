@@ -395,7 +395,7 @@ def translate_to_command(
 
             # Only initialize if cache is enabled in config
             if config_manager.get("cache_enabled", True):
-                cache_dir = config_manager.get("cache_dir", "~/.joshu/cache")
+                cache_dir = config_manager.get("cache_dir", "./cache")
                 similarity_threshold = config_manager.get("cache_similarity_threshold", 0.85)
                 max_entries = config_manager.get("cache_max_entries", 1000)
 

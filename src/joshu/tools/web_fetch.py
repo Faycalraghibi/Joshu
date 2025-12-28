@@ -35,7 +35,7 @@ except ImportError:
 
 DEFAULT_TIMEOUT = 15
 DEFAULT_MAX_LENGTH = 50000
-DEFAULT_USER_AGENT = "Joshu-Assistant/1.0 (Web Fetch Tool)"
+DEFAULT_USER_AGENT = "Joshu/1.0 (Web Fetch Tool)"
 
 
 def is_valid_url(url: str) -> bool:

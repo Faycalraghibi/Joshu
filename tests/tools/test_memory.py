@@ -166,7 +166,6 @@ class TestFindProjectRoot:
             joshu_file.parent.mkdir(parents=True, exist_ok=True)
             joshu_file.write_text("# Test joshu.md", encoding="utf-8")
 
-            # Create nested subdirectory
             sub_dir = project_root / "src" / "joshu" / "tools"
             sub_dir.mkdir(parents=True)
 
@@ -236,7 +235,6 @@ class TestLoadProjectSystemPrompt:
             joshu_file.parent.mkdir(parents=True, exist_ok=True)
             joshu_file.write_text(joshu_content, encoding="utf-8")
 
-            # Create subdirectory
             sub_dir = project_root / "deep" / "nested" / "dir"
             sub_dir.mkdir(parents=True)
 

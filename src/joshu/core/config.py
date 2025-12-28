@@ -40,7 +40,7 @@ DEFAULT_CONFIG = {
     "cache_enabled": True,
     "cache_similarity_threshold": 0.85,
     "cache_max_entries": 1000,
-    "cache_dir": "~/.joshu/cache",
+    "cache_dir": "./cache",
     # Attention mechanism settings
     "attention_enabled": True,
     "attention_similarity_weight": 0.8,
@@ -93,7 +93,7 @@ class JoshuConfig:
     cache_enabled: bool = True
     cache_similarity_threshold: float = 0.85
     cache_max_entries: int = 1000
-    cache_dir: str = "~/.joshu/cache"
+    cache_dir: str = "./cache"
     # Attention mechanism settings
     attention_enabled: bool = True
     attention_similarity_weight: float = 0.8

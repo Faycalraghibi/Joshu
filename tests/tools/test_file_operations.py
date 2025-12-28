@@ -19,19 +19,16 @@ class TestFileOperations(unittest.TestCase):
         self.test_dir = tempfile.mkdtemp()
         self.test_path = Path(self.test_dir)
 
-        # Create test files and directories
         (self.test_path / "file1.py").write_text("print('hello')")
         (self.test_path / "file2.txt").write_text("test content")
         (self.test_path / "config.yaml").write_text("key: value")
         (self.test_path / "app.log").write_text("log content")
 
-        # Create subdirectory with files
         subdir = self.test_path / "subdir"
         subdir.mkdir()
         (subdir / "file3.py").write_text("print('world')")
         (subdir / "config.json").write_text('{"key": "value"}')
 
-        # Create a "large" file for testing (actually small, but larger than threshold)
         large_file = self.test_path / "large_file.txt"
         large_file.write_text("x" * (15 * 1024 * 1024))  # 15MB file
 
@@ -82,7 +79,6 @@ class TestFileOperations(unittest.TestCase):
         contents = list_directory_contents(self.test_dir)
         self.assertGreater(len(contents), 0)
 
-        # Check that we have both files and directories
         file_names = [f.name for f in contents]
         self.assertIn("file1.py", file_names)
         self.assertIn("subdir", file_names)
@@ -99,7 +95,6 @@ class TestFileOperations(unittest.TestCase):
         result = create_backup(self.test_dir, backup_dir)
         self.assertTrue(result)
 
-        # Check that backup was created
         backup_path = Path(backup_dir) / Path(self.test_dir).name
         self.assertTrue(backup_path.exists())
         self.assertTrue((backup_path / "file1.py").exists())

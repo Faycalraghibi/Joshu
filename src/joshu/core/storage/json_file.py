@@ -25,7 +25,7 @@ class JsonFileStorage(StorageBackend):
             storage_path: Path to the JSON storage file. If None, uses .joshu_data.json in current directory.
         """
         if storage_path is None:
-            storage_path = Path.cwd() / ".joshu_data.json"
+            storage_path = Path.cwd() / "cache" / "joshu_data.json"
 
         self.storage_path = Path(storage_path)
         self._entries: List[StorageEntry] = []

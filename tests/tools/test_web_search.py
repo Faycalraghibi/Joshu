@@ -14,7 +14,6 @@ class TestWebSearch:
 
     def test_search_web_success(self):
         """Test successful web search."""
-        # Mock the DDGS class and its text method
         mock_ddgs_instance = Mock()
         mock_ddgs_instance.text.return_value = [
             {

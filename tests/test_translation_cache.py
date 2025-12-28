@@ -1,8 +1,6 @@
 """Tests for translation cache functionality."""
 
 import os
-
-# Add src to path
 import sys
 import tempfile
 import time
@@ -36,7 +34,6 @@ def test_cache_put_and_get(translation_cache):
     # Put entry in cache
     translation_cache.put(query, command, explanation)
 
-    # Get entry from cache
     result = translation_cache.get(query)
     assert result is not None
     assert result == (command, explanation)
@@ -62,7 +59,6 @@ def test_cache_hit_count(translation_cache):
     translation_cache.get(query)
     translation_cache.get(query)
 
-    # Check that hit count was incremented
     import hashlib
 
     query_hash = hashlib.md5(query.encode()).hexdigest()
@@ -76,17 +72,14 @@ def test_cache_eviction(translation_cache):
     for i in range(6):
         translation_cache.put(f"query {i}", f"command {i}", f"explanation {i}")
 
-    # Check that cache size is limited to max_entries
     assert len(translation_cache.entries) <= 5
 
 
 def test_cache_persistence(temp_cache_dir):
     """Test that cache persists to disk and loads correctly."""
-    # Create cache and add entry
     cache1 = TranslationCache(cache_dir=temp_cache_dir)
     cache1.put("test query", "test command", "test explanation")
 
-    # Create new cache instance (should load from disk)
     cache2 = TranslationCache(cache_dir=temp_cache_dir)
     result = cache2.get("test query")
     assert result is not None
@@ -95,13 +88,11 @@ def test_cache_persistence(temp_cache_dir):
 
 def test_cache_clear(translation_cache):
     """Test clearing the cache."""
-    # Add some entries
     translation_cache.put("query 1", "command 1", "explanation 1")
     translation_cache.put("query 2", "command 2", "explanation 2")
 
     assert len(translation_cache.entries) == 2
 
-    # Clear cache
     translation_cache.clear()
 
     assert len(translation_cache.entries) == 0
@@ -109,7 +100,6 @@ def test_cache_clear(translation_cache):
 
 def test_cache_stats(translation_cache):
     """Test cache statistics."""
-    # Add entries and access them
     translation_cache.put("query 1", "command 1", "explanation 1")
     translation_cache.put("query 2", "command 2", "explanation 2")
     translation_cache.get("query 1")
@@ -127,7 +117,6 @@ def test_semantic_similarity(translation_cache):
     try:
         from sentence_transformers import SentenceTransformer  # noqa: F401
 
-        # Add an entry to cache
         translation_cache.put("list files", "ls", "List files in directory")
 
         # Query with similar but not identical text
@@ -147,7 +136,6 @@ def test_similarity_threshold(temp_cache_dir):
     try:
         from sentence_transformers import SentenceTransformer  # noqa: F401
 
-        # Create cache with high similarity threshold
         cache_strict = TranslationCache(cache_dir=temp_cache_dir, similarity_threshold=0.95)
 
         cache_strict.put("list all files", "ls -la", "List all files")
@@ -188,7 +176,6 @@ def test_lru_eviction_order(translation_cache):
     # Access the first entry to make it recently used
     translation_cache.get("query 0")
 
-    # Add a new entry (should trigger eviction)
     translation_cache.put("query 5", "command 5", "explanation 5")
 
     # query 0 should still be in cache (was recently accessed)

@@ -320,7 +320,7 @@ def cache_stats() -> None:
             console.print("Enable it with: [cyan]joshu config --set cache_enabled=true[/cyan]")
             return
 
-        cache_dir = config_manager.get("cache_dir", "~/.joshu/cache")
+        cache_dir = config_manager.get("cache_dir", "./cache")
         similarity_threshold = config_manager.get("cache_similarity_threshold", 0.85)
         max_entries = config_manager.get("cache_max_entries", 1000)
 
@@ -358,7 +358,7 @@ def cache_clear() -> None:
 
     try:
         config_manager = get_config_manager()
-        cache_dir = config_manager.get("cache_dir", "~/.joshu/cache")
+        cache_dir = config_manager.get("cache_dir", "./cache")
         similarity_threshold = config_manager.get("cache_similarity_threshold", 0.85)
         max_entries = config_manager.get("cache_max_entries", 1000)
 

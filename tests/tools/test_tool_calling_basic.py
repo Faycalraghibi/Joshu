@@ -203,7 +203,6 @@ class TestWebSearchTool:
         else:
             import joshu.tools.implementations.web_search_tool  # noqa: F401
 
-        # Mock search_web to return test results
         mock_search.return_value = {
             "success": True,
             "query": "test query",

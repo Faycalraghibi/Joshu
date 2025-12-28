@@ -58,19 +58,17 @@ def test_attention_selects_relevant_turns():
         storage = JsonFileStorage(Path(tmpdir) / "test_data.json")
         config = {
             "attention_enabled": True,
-            "attention_similarity_weight": 0.9,  # High weight on similarity
-            "attention_recency_weight": 0.1,  # Low weight on recency
+            "attention_similarity_weight": 0.9,
+            "attention_recency_weight": 0.1,
             "max_context_turns": 2,
         }
         provider = ContextProvider(storage_backend=storage, config=config)
 
-        # Add an old relevant turn about Python
         provider.add_to_history("user", "How do I install pandas in Python?")
         provider.add_to_history(
             "assistant", "Use pip install pandas to install the pandas library."
         )
 
-        # Add several irrelevant recent turns
         provider.add_to_history("user", "What's the capital of France?")
         provider.add_to_history("assistant", "The capital of France is Paris.")
         provider.add_to_history("user", "Tell me a joke")
@@ -78,17 +76,14 @@ def test_attention_selects_relevant_turns():
             "assistant", "Why did the chicken cross the road? To get to the other side!"
         )
 
-        # Query about Python - should retrieve the old relevant turn
         current_query = "I need to install numpy for Python"
         relevant_context = provider.get_relevant_context(current_query)
 
-        # Extract content from context
         content_list = [
             msg["content"] for msg in relevant_context if msg["role"] in ["user", "assistant"]
         ]
         " ".join(content_list)
 
-        #  Should include the pandas/Python turn due to semantic similarity
         assert any(
             "pandas" in content.lower() or "python" in content.lower() for content in content_list
         ), f"Expected Python-related content, got: {content_list}"
@@ -102,7 +97,6 @@ def test_attention_maintains_chronological_order():
         config = {"attention_enabled": True, "max_context_turns": 3}
         provider = ContextProvider(storage_backend=storage, config=config)
 
-        # Add turns in specific order
         provider.add_to_history("user", "Question 1 about files")
         provider.add_to_history("assistant", "Answer 1")
         provider.add_to_history("user", "Question 2 about weather")
@@ -110,12 +104,10 @@ def test_attention_maintains_chronological_order():
         provider.add_to_history("user", "Question 3 about files")
         provider.add_to_history("assistant", "Answer 3")
 
-        # Query about files - should select Q1, Q3 but maintain order
         relevant_context = provider.get_relevant_context("Tell me about file management")
 
         user_messages = [msg for msg in relevant_context if msg["role"] == "user"]
 
-        # Verify chronological order is maintained (Q1 should come before Q3)
         if len(user_messages) >= 2:
             q1_index = next(
                 (i for i, msg in enumerate(user_messages) if "Question 1" in msg["content"]), None
@@ -135,18 +127,14 @@ def test_attention_fallback_when_disabled():
         config = {"attention_enabled": False, "max_context_turns": 2}
         provider = ContextProvider(storage_backend=storage, config=config)
 
-        # Add multiple messages
         for i in range(5):
             provider.add_to_history("user", f"Message {i}")
             provider.add_to_history("assistant", f"Response {i}")
 
-        # Get context
         context = provider.get_relevant_context("any query")
         user_messages = [msg for msg in context if msg["role"] == "user"]
 
-        # Should only get the most recent 2 user messages (simple truncation)
         assert len(user_messages) <= 2
-        # Should be the most recent ones
         if len(user_messages) >= 2:
             assert (
                 "Message 3" in user_messages[-2]["content"]
@@ -163,16 +151,13 @@ def test_attention_respects_max_context_turns():
         storage = JsonFileStorage(Path(tmpdir) / "test_data.json")
         provider = ContextProvider(storage_backend=storage, config=config)
 
-        # Add many messages
         for i in range(10):
             provider.add_to_history("user", f"Question {i}")
             provider.add_to_history("assistant", f"Answer {i}")
 
-        # Get context
         context = provider.get_relevant_context("test query")
         user_messages = [msg for msg in context if msg["role"] == "user"]
 
-        # Should not exceed max_context_turns
         assert len(user_messages) <= 3
 
 
@@ -183,10 +168,8 @@ def test_attention_with_no_history():
         config = {"attention_enabled": True}
         provider = ContextProvider(storage_backend=storage, config=config)
 
-        # Get context with no history
         context = provider.get_relevant_context("test query")
 
-        # Should return without errors
         assert isinstance(context, list)
 
 

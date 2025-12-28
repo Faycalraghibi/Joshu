@@ -106,11 +106,9 @@ class TestPerformInit:
 
     def test_init_with_explicit_exists_flag(self, tmp_path: Path):
         """Test init with explicit existence flag."""
-        # Override to say it exists even if it doesn't
         result = perform_init(tmp_path, does_gemini_md_exist=True)
         assert isinstance(result, NoOpActionReturn)
 
-        # Override to say it doesn't exist
         result = perform_init(tmp_path, does_gemini_md_exist=False)
         assert isinstance(result, SubmitPromptActionReturn)
 
@@ -128,7 +126,6 @@ class TestPerformRestore:
 
         results = list(perform_restore(data))
 
-        # Should have: start message, load history, success message
         assert len(results) >= 2
         assert any(isinstance(r, MessageActionReturn) for r in results)
         assert any(isinstance(r, LoadHistoryActionReturn) for r in results)
@@ -147,7 +144,6 @@ class TestPerformRestore:
 
         results = list(perform_restore(data, git_service))
 
-        # Should have messages about Git restoration
         assert len(results) >= 2
 
     def test_restore_empty_history(self):
@@ -160,9 +156,7 @@ class TestPerformRestore:
 
         results = list(perform_restore(data))
 
-        # Should still have start and success messages
         assert len(results) >= 2
-        # No LoadHistoryActionReturn for empty history
         assert not any(isinstance(r, LoadHistoryActionReturn) for r in results)
 
 
