@@ -86,6 +86,10 @@ In interactive mode: `/config`, `/config <key>`, `/config <key> <value>`;
 | `sandbox_enabled` | boolean | `true` | Stricter shell safety check (flags all destructive commands) |
 | `save_sessions` | boolean | `true` | Save conversations for `--resume` / `--continue` |
 | `hooks` | dict | `{}` | Commands run on agent events (see [Hooks](hooks.md)) |
+| `diagnostics_enabled` | boolean | `true` | Check files after the agent edits them |
+| `diagnostics` | dict | `{}` | Per-extension check commands (`{file}` placeholder) |
+| `shell_sandbox` | dict | `{mode: off}` | OS sandbox for shell commands (see [Agent](agent.md#shell-sandbox)) |
+| `model_pricing` | dict | `{}` | USD per million tokens, for providers that don't report cost |
 
 ### Memory and context
 

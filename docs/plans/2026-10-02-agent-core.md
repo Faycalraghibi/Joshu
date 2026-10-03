@@ -104,9 +104,14 @@ Where Joshu falls (verified in code):
 - [x] Regex translator removed; unused `core.hooks`, `core.credentials`,
       `tools.filesystem` removed.
 
-## Phase 3 — later
+## Phase 3 — in progress
 
-- LSP diagnostics after edits.
-- OS-level sandbox for shell (container / seatbelt / bubblewrap).
-- Prompt caching, image input, cost tracking per provider.
-- A2A executor driven by `Agent` instead of pre-scheduled tool calls.
+- [x] Checks after edits: syntax / ruff / parse / `node --check` per file type,
+      plus per-extension commands; problems go back to the model
+      (`core/diagnostics.py`). A full LSP client remains possible later.
+- [x] OS-level shell sandbox: bubblewrap, sandbox-exec or Docker; sandboxed
+      commands can skip approval (`core/sandbox.py`).
+- [x] Cost tracking: provider-reported cost (OpenRouter) or `model_pricing`;
+      footer, JSON, `/cost`, sessions (`core/costs.py`).
+- [ ] Prompt caching, image input.
+- [ ] A2A executor driven by `Agent` instead of pre-scheduled tool calls.
