@@ -341,7 +341,7 @@ class InteractiveMode:
         elif user_input.startswith("!"):
             self._handle_bash_command(user_input)
             return True
-        elif user_input.startswith("@"):
+        elif user_input.startswith("@") and not self._references_image(user_input):
             self._handle_file_injection(user_input)
             return True
 
@@ -411,6 +411,13 @@ class InteractiveMode:
         )
         return True
 
+    @staticmethod
+    def _references_image(user_input: str) -> bool:
+        """True when the input refers to an existing image with @path."""
+        from joshu.core.images import find_image_refs
+
+        return bool(find_image_refs(user_input)[1])
+
     def _run_agent(self, user_input: str) -> bool:
         """Run one request through the tool-using agent."""
         from joshu.core.llm_client import LLMError
@@ -423,10 +430,19 @@ class InteractiveMode:
         if self.agent.permissions.mode != mode:
             self.agent.set_mode(mode)
 
+        from joshu.core.images import ImageError, find_image_refs
+
+        prompt, images = find_image_refs(user_input)
+        if images:
+            self._show_message("Attached: " + ", ".join(path.name for path in images))
+
         try:
-            response = self.agent.run(user_input)
+            response = self.agent.run(prompt, images=images)
         except KeyboardInterrupt:
             self._show_message("\nInterrupted.")
+            return True
+        except ImageError as e:
+            self._show_message(str(e))
             return True
         except LLMError as e:
             self._show_message(f"Model error: {e}")

@@ -13,6 +13,7 @@ import json
 import logging
 from typing import Any, Dict, List
 
+from joshu.core.images import IMAGE_TOKEN_ESTIMATE, image_count, message_text
 from joshu.core.llm_client import ChatClient
 
 logger = logging.getLogger(__name__)
@@ -30,7 +31,8 @@ def estimate_tokens(messages: List[Dict[str, Any]]) -> int:
     total_chars = 0
     for message in messages:
         content = message.get("content") or ""
-        total_chars += len(content) if isinstance(content, str) else len(json.dumps(content))
+        # Images are counted at a fixed estimate, not by their base64 size
+        total_chars += len(message_text(content)) + 4 * IMAGE_TOKEN_ESTIMATE * image_count(content)
         if message.get("tool_calls"):
             total_chars += len(json.dumps(message["tool_calls"]))
     return total_chars // 4 + 4 * len(messages)
@@ -97,7 +99,7 @@ def _render_transcript(messages: List[Dict[str, Any]], tool_output_limit: int = 
     lines = []
     for message in messages:
         role = message.get("role", "?")
-        content = message.get("content") or ""
+        content = message_text(message.get("content"))
         if role == "tool" and len(content) > tool_output_limit:
             content = content[:tool_output_limit] + "\n...(truncated)"
         if message.get("tool_calls"):
