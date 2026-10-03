@@ -44,6 +44,14 @@ jobs:
         run: python scripts/check_build_status.py
         continue-on-error: true
 
+      - name: Install sandbox tools (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q bubblewrap
+          # Ubuntu 24.04 blocks the unprivileged user namespaces bubblewrap needs
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
+
       - name: Run tests (Windows)
         if: runner.os == 'Windows'
         run: .\tests\run_tests.ps1

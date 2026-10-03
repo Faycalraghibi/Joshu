@@ -63,6 +63,7 @@ DEFAULT_CONFIG = {
     "model_pricing": {},
     "diagnostics_enabled": True,
     "diagnostics": {},
+    "shell_sandbox": {"mode": "off"},
 }
 
 
@@ -152,6 +153,7 @@ class JoshuConfig:
     model_pricing: Dict[str, Any] = field(default_factory=dict)
     diagnostics_enabled: bool = True
     diagnostics: Dict[str, Any] = field(default_factory=dict)
+    shell_sandbox: Dict[str, Any] = field(default_factory=lambda: {"mode": "off"})
 
     @classmethod
     def from_dict(cls, config_dict: Dict[str, Any]) -> "JoshuConfig":

@@ -89,6 +89,7 @@ class PermissionManager:
         mode: PermissionMode = PermissionMode.DEFAULT,
         approver: Optional[Approver] = None,
         sandbox: bool = False,
+        sandboxed_shell: bool = False,
     ) -> None:
         """
         Args:
@@ -96,10 +97,13 @@ class PermissionManager:
             approver: Callback that asks the user; None means non-interactive
                 (anything that needs approval is denied)
             sandbox: Passed to the shell safety check (blocks all destructive commands)
+            sandboxed_shell: Shell commands run in an OS sandbox (joshu.core.sandbox),
+                so they don't need approval; commands flagged unsafe still do
         """
         self.mode = mode
         self.approver = approver
         self.sandbox = sandbox
+        self.sandboxed_shell = sandboxed_shell
         self._always_allowed_tools: Set[str] = set()
         self._always_allowed_commands: Set[str] = set()
 
@@ -130,6 +134,9 @@ class PermissionManager:
             return self._ask(tool_name, arguments, warning, allow_always=False)
 
         if self.mode == PermissionMode.BYPASS:
+            return PermissionDecision(True)
+
+        if tool_name == SHELL_TOOL and self.sandboxed_shell:
             return PermissionDecision(True)
 
         if self.mode == PermissionMode.ACCEPT_EDITS and tool_name in EDIT_TOOLS:

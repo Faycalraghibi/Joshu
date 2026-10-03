@@ -60,6 +60,9 @@ class ShellConfig:
     strip_colors: bool = False
     use_pager: bool = False
 
+    # OS-level sandbox (joshu.core.sandbox.Sandbox) commands are wrapped in
+    sandbox: Optional[Any] = None
+
 
 # Global configuration (can be overridden)
 _config: ShellConfig = ShellConfig()
@@ -154,6 +157,21 @@ def _matches_blocked(command: str, blocked: str) -> bool:
     return re.search(pattern, command.lower()) is not None
 
 
+def set_shell_sandbox(sandbox: Optional[Any]) -> None:
+    """Run every shell command through `sandbox` (None: run directly)."""
+    get_shell_config().sandbox = sandbox
+
+
+def _sandboxed(command: str, cwd: Optional[str]) -> str:
+    """The command line to execute: wrapped in the sandbox when one is set."""
+    sandbox = get_shell_config().sandbox
+    if sandbox is None:
+        return command
+    from pathlib import Path
+
+    return sandbox.wrap(command, Path(cwd) if cwd else None)
+
+
 def strip_ansi_codes(text: str) -> str:
     """Remove ANSI escape codes from text."""
     import re
@@ -200,7 +218,7 @@ def run_shell_command(
             process_env.update(env)
 
         result = subprocess.run(
-            command,
+            _sandboxed(command, cwd),
             shell=True,
             capture_output=True,
             text=True,
@@ -283,7 +301,7 @@ def start_background_process(
             process_env.update(env)
 
         process = subprocess.Popen(
-            command,
+            _sandboxed(command, cwd),
             shell=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,

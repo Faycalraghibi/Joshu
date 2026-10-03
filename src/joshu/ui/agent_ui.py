@@ -231,10 +231,25 @@ def create_console_agent(
     ui = ConsoleAgentUI(console, quiet=quiet)
     for problem in configure_hooks_from_settings(config.get("hooks") or {}):
         ui.console.print(f"[yellow]Hook configuration: {problem}[/yellow]")
+    from pathlib import Path
+
+    from joshu.core.sandbox import configure_shell_sandbox
+
+    shell_sandbox, sandbox_auto_allow, sandbox_warning = configure_shell_sandbox(
+        config.get("shell_sandbox"), Path.cwd()
+    )
+    if sandbox_warning:
+        ui.console.print(f"[yellow]{sandbox_warning}[/yellow]")
+    elif shell_sandbox is not None and not quiet:
+        ui.console.print(f"[dim]{shell_sandbox.describe()}[/dim]")
+
     if mode is None:
         mode = PermissionMode.from_string(config.get("permission_mode", "default"))
     permissions = PermissionManager(
-        mode, approver=ui.approve if interactive else None, sandbox=sandbox
+        mode,
+        approver=ui.approve if interactive else None,
+        sandbox=sandbox,
+        sandboxed_shell=sandbox_auto_allow,
     )
     agent = Agent(
         permissions=permissions,
