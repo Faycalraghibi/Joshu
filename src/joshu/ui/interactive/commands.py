@@ -346,6 +346,9 @@ class CommandHandler:
             self.interactive_mode._show_message("Agent conversation reset.")
             return True
 
+        if command == "/undo":
+            return self.handle_undo_command()
+
         if command.startswith("/permissions"):
             return self.handle_permissions_command(command)
 
@@ -407,6 +410,22 @@ class CommandHandler:
         else:
             self.interactive_mode._show_message(f"Unknown command: {command}")
             return True
+
+    def handle_undo_command(self) -> bool:
+        """Revert the agent's file edits from its most recent request that edited files."""
+        agent = self.interactive_mode.agent
+        checkpoint = agent.undo() if agent is not None else None
+        if checkpoint is None:
+            self.interactive_mode._show_message("Nothing to undo.")
+            return True
+
+        lines = [f"Undid file changes for: {checkpoint.prompt}"]
+        for path, original in checkpoint.files.items():
+            action = "deleted (was created)" if original is None else "restored"
+            lines.append(f"  {agent._display_path(path)} - {action}")
+        lines.append("Changes made by shell commands are not undone.")
+        self.interactive_mode._show_message("\n".join(lines))
+        return True
 
     def handle_permissions_command(self, command: str) -> bool:
         """Show or set the agent permission mode: /permissions [default|accept_edits|bypass]."""
@@ -497,6 +516,7 @@ Special Commands:
   /history     - Show command history
   /help        - Show this help
   /reset       - Start a new agent conversation
+  /undo        - Revert the agent's file edits from its last request
   /permissions - Show or set the agent permission mode
   /config   - Show/set configuration
   /model    - Switch AI model

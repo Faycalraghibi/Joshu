@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
+from joshu.core.checkpoints import Checkpoint, CheckpointStore
 from joshu.core.compaction import compact_messages, estimate_tokens
 from joshu.core.config import get_config_manager
 from joshu.core.llm_client import (
@@ -22,7 +23,7 @@ from joshu.core.llm_client import (
     ToolCall,
     create_chat_client,
 )
-from joshu.core.permissions import PermissionManager, PermissionMode
+from joshu.core.permissions import EDIT_TOOLS, PermissionManager, PermissionMode
 from joshu.core.system_prompt import build_system_prompt
 from joshu.core.tool_executor import ToolExecutor
 from joshu.core.tool_registry import ToolSpec, load_builtin_tools
@@ -127,6 +128,9 @@ class Agent:
         ]
         self.usage: Dict[str, int] = {"prompt_tokens": 0, "completion_tokens": 0}
         self.tool_call_count = 0
+        self.checkpoints = CheckpointStore()
+        # Notes for the model about things that happened outside the loop (e.g. undo)
+        self._pending_notes: List[str] = []
 
     # ------------------------------------------------------------------ public
 
@@ -134,6 +138,25 @@ class Agent:
         """Switch permission mode; the system prompt is updated to match."""
         self.permissions.mode = mode
         self.messages[0] = {"role": "system", "content": self._build_system_prompt()}
+
+    def undo(self) -> Optional[Checkpoint]:
+        """
+        Revert the file edits made for the most recent request that edited files.
+
+        The model is told about it at the start of the next request.
+
+        Returns:
+            The undone checkpoint (its `files` are the restored paths), or None
+            when there is nothing to undo.
+        """
+        checkpoint = self.checkpoints.undo()
+        if checkpoint is not None:
+            paths = ", ".join(str(self._display_path(p)) for p in checkpoint.files)
+            self._pending_notes.append(
+                f"[Note: the user undid your file changes for the request "
+                f"{checkpoint.prompt!r}. Restored: {paths}. Re-read files before editing them.]"
+            )
+        return checkpoint
 
     def reset(self) -> None:
         """Start a new conversation (keeps settings and session approvals)."""
@@ -167,7 +190,12 @@ class Agent:
             message = (hook.response.message if hook.response else None) or "Blocked by hook."
             return AgentResponse(text=message, metadata={"blocked": True})
 
-        self.messages.append({"role": "user", "content": prompt})
+        self.checkpoints.begin(prompt)
+        content = prompt
+        if self._pending_notes:
+            content = "\n".join(self._pending_notes) + "\n\n" + prompt
+            self._pending_notes = []
+        self.messages.append({"role": "user", "content": content})
         tool_calls_before = self.tool_call_count
 
         for turn_number in range(1, self.max_turns + 1):
@@ -256,6 +284,9 @@ class Agent:
             self.events.on_tool_end(call.name, output, False)
             return output
 
+        if call.name in EDIT_TOOLS:
+            self._snapshot_target(arguments)
+
         self.events.on_tool_start(call.name, arguments)
         success, output = self._invoke(spec, arguments, self._formatter)
         output = truncate_output(output, self.tool_output_limit)
@@ -263,6 +294,21 @@ class Agent:
         dispatch_after_tool(self.session_id, call.name, output, success)
         self.events.on_tool_end(call.name, output, success)
         return output
+
+    def _snapshot_target(self, arguments: Dict[str, Any]) -> None:
+        """Record the file an edit tool is about to change, for undo."""
+        from joshu.tools.filesystem_tools import resolve_path
+
+        try:
+            self.checkpoints.snapshot(resolve_path(str(arguments.get("path", ""))))
+        except ValueError:
+            pass  # outside the workspace: the tool itself will refuse
+
+    def _display_path(self, path: Path) -> Path:
+        try:
+            return path.relative_to(self.cwd.resolve())
+        except ValueError:
+            return path
 
     def _find_tool(self, name: str) -> Optional[ToolSpec]:
         if self._tool_names is not None and name not in self._tool_names:
