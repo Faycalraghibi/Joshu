@@ -108,24 +108,23 @@ class TestInteractiveModeIntegration:
 
             with patch("joshu.ui.interactive.interactive_mode.ContextProvider"):
                 with patch("joshu.ui.interactive.interactive_mode.JsonHistory"):
-                    with patch("joshu.core.translate.establish_connection"):
-                        with patch(
-                            "joshu.ui.interactive.interactive_mode.PROMPT_TOOLKIT_AVAILABLE", False
-                        ):
-                            mode = InteractiveMode("test-model", sandbox=True)
+                    with patch(
+                        "joshu.ui.interactive.interactive_mode.PROMPT_TOOLKIT_AVAILABLE", False
+                    ):
+                        mode = InteractiveMode("test-model", sandbox=True)
 
-                            # Mock the command handler
-                            mode.command_handler = Mock()
-                            mode.command_handler.handle_slash_command.return_value = True
+                        # Mock the command handler
+                        mode.command_handler = Mock()
+                        mode.command_handler.handle_slash_command.return_value = True
 
-                            # Test that slash commands are dispatched correctly
-                            result = mode._handle_user_input("/search test query")
+                        # Test that slash commands are dispatched correctly
+                        result = mode._handle_user_input("/search test query")
 
-                            # Should call the command handler
-                            mode.command_handler.handle_slash_command.assert_called_once_with(
-                                "/search test query"
-                            )
-                            assert result is True
+                        # Should call the command handler
+                        mode.command_handler.handle_slash_command.assert_called_once_with(
+                            "/search test query"
+                        )
+                        assert result is True
 
     def test_search_command_in_interactive_session_flow(self):
         """Test /search command in a simulated interactive session."""

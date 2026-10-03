@@ -266,7 +266,7 @@ Command History:
 [Shows all configuration]
 
 > /config model
-model: llama-3-8b
+model: poolside/laguna-s-2.1:free
 
 > /config model llama-3-70b
 Set model = llama-3-70b

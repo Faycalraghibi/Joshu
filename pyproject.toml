@@ -50,12 +50,6 @@ use = [
     # Semantic memory (vector database and embeddings)
     "chromadb>=0.4.0",
     "sentence-transformers>=2.2.0",
-    # Local LLM support (may require compilation on some systems)
-    "transformers==4.36.2",
-    "torch==2.9.0",
-    "huggingface_hub==0.23.0",
-    "llama-cpp-python==0.2.55",
-    "sentencepiece==0.1.99",
 ]
 
 [project.scripts]

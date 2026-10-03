@@ -108,7 +108,7 @@ class ContextProvider:
         self.embedding_model = None
         if self.attention_enabled and ATTENTION_AVAILABLE:
             try:
-                # Use a lightweight model for efficiency (same as translation cache)
+                # Use a lightweight model for efficiency (all-MiniLM-L6-v2)
                 self.embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
                 logger.debug("Attention mechanism initialized with sentence-transformers")
             except Exception as e:

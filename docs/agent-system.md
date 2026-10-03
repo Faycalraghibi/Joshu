@@ -667,7 +667,6 @@ except AgentNotFoundError as e:
 
 ## See Also
 
-- [Tool Calling](tool-calling.md) - Tool registration and execution
-- [Model Availability](model-availability.md) - Health tracking and fallback
+- [Agent Tools](agent.md#tools) - Tool registration and execution
 - [Chat & Scheduling](chat-and-scheduling.md) - Session management
 - [Configuration](configuration.md) - System configuration

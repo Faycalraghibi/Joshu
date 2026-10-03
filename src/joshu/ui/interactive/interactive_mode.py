@@ -1,6 +1,5 @@
 """Main interactive mode implementation."""
 
-import os
 import subprocess
 import time
 from pathlib import Path
@@ -15,31 +14,19 @@ except ImportError:
 
 from joshu.core.config import get_config_manager
 from joshu.core.context_provider import ContextProvider
-from joshu.core.safety import assess_command_safety
-from joshu.core.translate import translate_to_command
 from joshu.tools.shell import run_command
 
 from .commands import CommandHandler
 from .completers import get_command_completer, get_path_completer
 from .history import JsonHistory
 from .keybindings import create_key_bindings
-from .modes import AgentModeHandler, AskModeHandler, PlanModeHandler
+from .modes import AskModeHandler
 from .prompt import get_prompt, get_style
 from .utils import (
     copy_to_clipboard,
     execute_file_content,
     paste_from_clipboard,
-    process_command_substitution,
 )
-
-# Conditional imports for OpenAI
-try:
-    from openai import OpenAI
-
-    OPENAI_AVAILABLE = True
-except ImportError:
-    OpenAI = None
-    OPENAI_AVAILABLE = False
 
 
 class InteractiveMode:
@@ -69,54 +56,21 @@ class InteractiveMode:
             logging.getLogger().setLevel(logging.DEBUG)
             logging.getLogger("joshu").setLevel(logging.DEBUG)
             logging.getLogger("joshu.core").setLevel(logging.DEBUG)
-            logging.getLogger("joshu.models").setLevel(logging.DEBUG)
 
         self.command_history = []
         self.bash_history = []
         self._history_index = -1
 
         self.ask_handler = AskModeHandler(self)
-        self.plan_handler = PlanModeHandler(self)
-        self.agent_handler = AgentModeHandler(self)
+        # Tool-using agent for agent and plan modes, created on first use
+        self.agent = None
+        self.agent_ui = None
         self.command_handler = CommandHandler(self)
-
-        self.deepseek_client = None
-        self.deepseek_model = os.getenv("DEEPSEEK_URL", "deepseek/deepseek-chat-v3.1:free")
-        self.deepseek_auto_exec = os.getenv("DEEPSEEK_AUTO_EXEC", "false").lower() == "true"
-        self._init_deepseek()
 
         if PROMPT_TOOLKIT_AVAILABLE:
             self._init_prompt_toolkit()
 
         self._load_history()
-
-        try:
-            from joshu.core.translate import establish_connection
-
-            if establish_connection(self.model):
-                self._show_message("Connection established successfully")
-            else:
-                self._show_message("Failed to establish connection, will retry on first request")
-        except Exception as e:
-            self._show_message(f"Connection establishment skipped: {e}")
-
-    def _init_deepseek(self):
-        """Initialize DeepSeek API client."""
-        if OPENAI_AVAILABLE:
-            api_key = os.getenv("DEEPSEEK_API_KEY")
-            if api_key and OpenAI is not None:
-                try:
-                    self.deepseek_client = OpenAI(
-                        api_key=api_key,
-                        base_url="https://openrouter.ai/api/v1",
-                        timeout=60.0,
-                        max_retries=2,
-                    )
-                except Exception as e:
-                    # Silently fail if OpenAI client can't be initialized
-                    self.deepseek_client = None
-                    if self.verbose_mode:
-                        print(f"Could not initialize DeepSeek client: {e}")
 
     def _init_prompt_toolkit(self):
         """Initialize prompt_toolkit components."""
@@ -393,84 +347,55 @@ class InteractiveMode:
 
         if self.interaction_mode == "ask":
             return self.ask_handler.handle(user_input)
-        elif self.interaction_mode == "plan":
-            return self.plan_handler.handle(user_input)
-        elif self.interaction_mode == "agent":
-            return self.agent_handler.handle(user_input)
+
+        if self._ensure_agent():
+            return self._run_agent(user_input)
+        return True
+
+    def _ensure_agent(self) -> bool:
+        """Create the agent on first use; False when no model endpoint is configured."""
+        if self.agent is not None:
+            return True
+
+        from joshu.core.llm_client import LLMError
+        from joshu.ui.agent_ui import create_console_agent
+
+        try:
+            self.agent, self.agent_ui = create_console_agent(model=self.model, sandbox=self.sandbox)
+            return True
+        except LLMError as e:
+            self._show_message(f"Model unavailable: {e}")
+            self._show_message("Run `joshu providers` to pick a provider and set its API key.")
+            return False
+
+    def _run_agent(self, user_input: str) -> bool:
+        """Run one request through the tool-using agent."""
+        from joshu.core.llm_client import LLMError
+        from joshu.core.permissions import PermissionMode
+
+        if self.interaction_mode == "plan":
+            mode = PermissionMode.PLAN
         else:
-            # Fallback to original behavior
-            processed_input = process_command_substitution(user_input)
-            translation = translate_to_command(processed_input, self.context_provider, self.model)
+            mode = PermissionMode.from_string(self.config_manager.get("permission_mode", "default"))
+        if self.agent.permissions.mode != mode:
+            self.agent.set_mode(mode)
 
-            if not translation:
-                self._show_message("No translation found. Try rephrasing.")
-                return True
+        try:
+            response = self.agent.run(user_input)
+        except KeyboardInterrupt:
+            self._show_message("\nInterrupted.")
+            return True
+        except LLMError as e:
+            self._show_message(f"Model error: {e}")
+            return True
 
-            self._show_message(f"Proposed command: {translation.command}")
-            self._show_message(f"Explanation: {translation.explanation}")
-
-            needs_execution = getattr(translation, "needs_execution", True)
-            explanation_lower = translation.explanation.lower()
-            command_normalized = translation.command.replace('\\"', '"').replace("\\'", "'")
-
-            conversational_keywords = [
-                "conversational response",
-                "direct response",
-                "direct answer",
-                "to user's query",
-                "to user's question",
-                "user's query",
-                "user's question",
-                "answering",
-                "providing answer",
-                "providing response",
-            ]
-
-            is_conversational_explanation = any(
-                keyword in explanation_lower for keyword in conversational_keywords
+        self.agent_ui.print_footer(response)
+        if self.context_provider and response.text:
+            self.context_provider.add_to_history(
+                "assistant",
+                response.text,
+                metadata={"mode": self.interaction_mode, "timestamp": time.time()},
             )
-            is_conversational_command = '"""' in command_normalized or (
-                command_normalized.startswith('echo "') and len(translation.command) > 100
-            )
-
-            if is_conversational_explanation or is_conversational_command:
-                needs_execution = False
-
-            if not needs_execution:
-                self._execute_command(translation.command)
-                return True
-
-            if (
-                "code command" in translation.explanation.lower()
-                or "code' command" in translation.explanation.lower()
-            ):
-                self._show_message("💡 Tip: For code generation requests, use the 'code' command:")
-                self._show_message(f'   joshu code "{processed_input}"')
-                self._show_message(
-                    "This will generate the code directly instead of trying to translate to a shell command."
-                )
-                return True
-
-            report = assess_command_safety(translation.command, self.sandbox)
-            if not report.safe:
-                self._show_message(f"⚠️  Command blocked for safety: {report.danger_level}")
-                for reason in report.reasons:
-                    self._show_message(f"  - {reason}")
-                if report.suggested_alternative:
-                    self._show_message(f"Suggested alternative: {report.suggested_alternative}")
-                return True
-
-            auto_execute = self.config_manager.get("auto_execute", False)
-            if auto_execute:
-                self._execute_command(translation.command)
-            else:
-                try:
-                    confirm = input("Execute this command? [y/N]: ")
-                    if confirm.lower() in ["y", "yes"]:
-                        self._execute_command(translation.command)
-                except EOFError:
-                    pass
-
         return True
 
     def _show_message(self, message: str):
@@ -479,15 +404,6 @@ class InteractiveMode:
 
     def start(self):
         """Start the interactive mode."""
-        if not PROMPT_TOOLKIT_AVAILABLE:
-            self._show_message(
-                "Interactive Mode requires prompt_toolkit. Falling back to basic mode."
-            )
-            from joshu.ui.cli import start_basic_interactive_mode
-
-            start_basic_interactive_mode(self.model, self.sandbox, self.config_manager)
-            return
-
         self._show_message("Interactive Mode started. Type /help for commands.")
         self._show_message(
             f"Current mode: [{self.interaction_mode.upper()}]. Switch modes with /agent, /ask, or /plan"

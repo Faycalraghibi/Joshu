@@ -8,9 +8,6 @@ import typer
 from rich.console import Console
 
 from joshu.core.context_provider import ContextProvider
-from joshu.core.translate import translate_to_command
-
-from .translation_helpers import display_safety_report, handle_translation_execution
 
 console = Console()
 
@@ -56,7 +53,7 @@ def handle_config(
             config_manager.save_config()
             console.print(f"[green]Set {key} = {value}[/green]")
         else:
-            console.print(f"[red]Invalid configuration key: {key}[/red]")
+            console.print(f"[red]Invalid configuration key or value type: {key}={value!r}[/red]")
             raise typer.Exit(code=1)
         return
 
@@ -124,92 +121,6 @@ def handle_history(limit: int, context_provider: Optional[ContextProvider] = Non
         console.print("[yellow]No history available.[/yellow]")
 
 
-def handle_repeat_last(context_provider: Optional[ContextProvider] = None) -> None:
-    """Repeat the last executed command."""
-    if context_provider is None:
-        context_provider = ContextProvider()
-
-    from joshu.core.config import get_config_manager
-
-    config_manager = get_config_manager()
-
-    model = config_manager.get("model", "llama-3-8b")
-    sandbox = config_manager.get("sandbox_enabled", True)
-    auto_execute = config_manager.get("auto_execute", False)
-
-    history_messages = context_provider.conversation_context.messages
-
-    if not history_messages:
-        console.print("[yellow]No history available to repeat.[/yellow]")
-        raise typer.Exit(code=1)
-
-    last_command = None
-    for msg in reversed(history_messages):
-        if msg["role"] == "user":
-            last_command = msg["content"]
-            break
-
-    if not last_command:
-        console.print("[yellow]No previous command found to repeat.[/yellow]")
-        raise typer.Exit(code=1)
-
-    console.print(f"[bold]Repeating last command:[/bold] {last_command}")
-
-    translation = translate_to_command(last_command, context_provider, model)
-
-    if not translation:
-        console.print("[yellow]No translation found for the last command.[/yellow]")
-        raise typer.Exit(code=2)
-
-    console.print(f"[bold]Proposed command:[/bold] [cyan]{translation.command}[/cyan]")
-    console.print(f"[dim]{translation.explanation}[/dim]\n")
-
-    from joshu.core.safety import assess_command_safety
-
-    report = assess_command_safety(translation.command, sandbox)
-
-    if not report.safe:
-        display_safety_report(report)
-        raise typer.Exit(code=3)
-
-    exit_code = handle_translation_execution(
-        translation, last_command, sandbox, auto_execute, context_provider
-    )
-    raise typer.Exit(code=exit_code)
-
-
-def handle_explain_last(context_provider: Optional[ContextProvider] = None) -> None:
-    """Explain the last executed command."""
-    if context_provider is None:
-        context_provider = ContextProvider()
-
-    history_messages = context_provider.conversation_context.messages
-
-    if not history_messages:
-        console.print("[yellow]No history available to explain.[/yellow]")
-        raise typer.Exit(code=1)
-
-    last_user_command = None
-    last_assistant_response = None
-
-    for i in range(len(history_messages) - 1, -1, -1):
-        msg = history_messages[i]
-        if msg["role"] == "assistant" and not last_assistant_response:
-            last_assistant_response = msg["content"]
-        elif msg["role"] == "user" and not last_user_command:
-            last_user_command = msg["content"]
-
-        if last_user_command and last_assistant_response:
-            break
-
-    if not last_user_command or not last_assistant_response:
-        console.print("[yellow]No complete command history found to explain.[/yellow]")
-        raise typer.Exit(code=1)
-
-    console.print(f"[bold]Last Command:[/bold] {last_user_command}")
-    console.print(f"[bold]Explanation:[/bold] {last_assistant_response}")
-
-
 def handle_examples() -> None:
     """Show usage examples."""
     console.print("[bold]Joshu Usage Examples[/bold]\n")
@@ -235,11 +146,11 @@ def handle_examples() -> None:
 
     console.print("[cyan]Safety Features:[/cyan]")
     console.print('  joshu "delete all files in /home"  # Will be blocked for safety')
-    console.print('  joshu --sandbox "delete all files"  # Sandbox mode for testing\n')
+    console.print('  joshu run --sandbox "delete all files"  # Sandbox mode for testing\n')
 
     console.print("[cyan]Configuration:[/cyan]")
     console.print("  joshu config --list")
-    console.print("  joshu config --set auto_execute=true")
+    console.print("  joshu config --set permission_mode=accept_edits")
     console.print("  joshu config --edit\n")
 
 
@@ -307,43 +218,3 @@ def handle_commands_list(category: Optional[str]) -> None:
         console.print(f"[yellow]Unknown category: {category}[/yellow]")
         console.print("[cyan]Available Categories:[/cyan]")
         console.print("  file, system, network, process, security, git, docker")
-
-
-def handle_explain(command: str, context_provider: Optional[ContextProvider] = None) -> None:
-    """Explain a specific command or topic."""
-    from joshu.core.config import get_config_manager
-
-    config_manager = get_config_manager()
-    model = config_manager.get("model", "llama-3-8b")
-
-    prompt = f"Explain the '{command}' command in a clear and concise way. Include common usage examples and important options."
-
-    translation = translate_to_command(prompt, context_provider, model)
-
-    if translation and translation.command.startswith("echo"):
-        import re
-
-        match = re.search(r'echo\s+["\']{3}(.*?)["\']{3}', translation.command, re.DOTALL)
-        if match:
-            explanation = match.group(1)
-            console.print(f"[bold]Explanation of '{command}':[/bold]\n{explanation}")
-            return
-
-    # Fallback: Try to get explanation from EchoProvider if available
-    try:
-        from joshu.models.providers import EchoProvider
-
-        echo_provider = EchoProvider()
-        explanation = echo_provider._generate_explanation_for_command(command)
-        if explanation and explanation != f"Execute command: {command}":
-            console.print(f"[bold]Explanation of '{command}':[/bold]\n{explanation}")
-            return
-    except Exception:
-        pass  # Fall through to generic message
-
-    # Final fallback: Generic message
-    console.print(f"[bold]Explanation of '{command}':[/bold]")
-    console.print(f"[yellow]No detailed explanation available for '{command}'.[/yellow]")
-    console.print(
-        "Try asking about common commands like: tar, git, docker, ls, grep, mkdir, cd, etc."
-    )

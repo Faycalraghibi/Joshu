@@ -8,11 +8,9 @@ pytest.importorskip("prompt_toolkit")
 
 def test_interactive_mode_import():
     """Test that the interactive mode can be imported."""
-    from joshu.ui.cli import PROMPT_TOOLKIT_AVAILABLE
     from joshu.ui.interactive import InteractiveMode
 
     assert InteractiveMode is not None
-    assert PROMPT_TOOLKIT_AVAILABLE is True
 
 
 def test_interactive_mode_initialization():
@@ -138,10 +136,7 @@ def test_interactive_mode_config_commands():
     with (
         patch("joshu.core.config.get_config_manager") as mock_config_manager,
         patch("joshu.ui.interactive.interactive_mode.ContextProvider"),
-        patch("joshu.core.translate.establish_connection") as mock_conn,
     ):
-        mock_conn.return_value = True
-
         # Mock config manager
         mock_config = MagicMock()
         mock_config.get.side_effect = lambda key, default=None: {
@@ -192,10 +187,7 @@ def test_interactive_mode_model_commands():
     with (
         patch("joshu.core.config.get_config_manager") as mock_config_manager,
         patch("joshu.ui.interactive.interactive_mode.ContextProvider"),
-        patch("joshu.core.translate.establish_connection") as mock_conn,
     ):
-        mock_conn.return_value = True
-
         # Mock config manager
         mock_config = MagicMock()
         mock_config.get.side_effect = lambda key, default=None: {

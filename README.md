@@ -8,14 +8,14 @@ AI-powered CLI assistant that converts natural language into shell commands.
 
 **Windows (PowerShell):**
 ```powershell
-git clone https://github.com/Faycacalraghibi/joshu.git
+git clone https://github.com/Faycalraghibi/Joshu.git joshu
 cd joshu
 .\clean_install.ps1
 ```
 
 **Linux/macOS:**
 ```bash
-git clone https://github.com/Faycacalraghibi/joshu.git
+git clone https://github.com/Faycalraghibi/Joshu.git joshu
 cd joshu
 chmod +x clean_install.sh
 ./clean_install.sh

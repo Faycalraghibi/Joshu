@@ -10,20 +10,18 @@ Complete documentation for Joshu AI-powered command-line assistant.
 
 ## Features
 
+- **[Agent](agent.md)** - Tool-using agent loop, permissions, headless mode
 - **[Interactive Mode](interactive-mode.md)** - Complete guide to interactive features
 - **[Advanced Interactive Mode](interactive-mode-advanced.md)** - Advanced interactive features
-- **[Tool Calling](tool-calling.md)** - Automatic tool invocation for enhanced responses
 - **[Web Search](web-search.md)** - Search the web from your terminal
 - **[Semantic Memory](semantic-memory.md)** - Persistent memory and context
 - **[IDE Integration](ide-integration.md)** - VS Code extension for enhanced workflow
 
 ## Core Systems
 
-- **[Models & Providers](models-and-providers.md)** - Configure LLM providers and model pool
-- **[Model Availability](model-availability.md)** - Health tracking and fallback policies
+- **[Models & Providers](models-and-providers.md)** - Use any OpenAI-compatible provider
 - **[Context System](context-system.md)** - Conversation state and memory management
 - **[Safety Features](safety.md)** - Command safety validation and protection
-- **[Auto-Fix](auto-fix.md)** - Automatic command error fixing
 - **[A2A Server](a2a-server.md)** - Agent-to-Agent communication via HTTP/SSE
 
 ## Agent System

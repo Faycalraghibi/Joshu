@@ -139,7 +139,7 @@ pip install --upgrade joshu
 
 ## Documentation
 
-See [README.md](https://github.com/Faycalraghibi/OpenCLI/blob/main/README.md) for documentation.
+See [README.md](https://github.com/Faycalraghibi/Joshu/blob/main/README.md) for documentation.
 """
 
     output_dir.mkdir(parents=True, exist_ok=True)

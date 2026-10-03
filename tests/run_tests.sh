@@ -15,9 +15,6 @@ fi
 export PYTHONUNBUFFERED=1
 export PYTHONDONTWRITEBYTECODE=1
 
-# Model configuration
-if [ -z "${OPENROUTER_MODEL:-}" ]; then export OPENROUTER_MODEL="z-ai/glm-4.5-air:free"; fi
-if [ -z "${GLM_Identifier:-}" ]; then export GLM_Identifier="z-ai/glm-4.5-air:free"; fi
 
 # Skip LLM tests in CI (set SKIP_LLM_TESTS=1 to skip)
 if [ -z "${SKIP_LLM_TESTS:-}" ]; then export SKIP_LLM_TESTS="0"; fi

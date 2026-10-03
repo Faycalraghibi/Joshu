@@ -13,9 +13,6 @@ if (Test-Path $venv) { . $venv }
 $env:PYTHONUNBUFFERED = "1"
 $env:PYTHONDONTWRITEBYTECODE = "1"
 
-# Model configuration
-if (-not $env:OPENROUTER_MODEL) { $env:OPENROUTER_MODEL = "z-ai/glm-4.5-air:free" }
-if (-not $env:GLM_Identifier) { $env:GLM_Identifier = "z-ai/glm-4.5-air:free" }
 
 # Skip LLM tests in CI (set SKIP_LLM_TESTS=1 to skip)
 if (-not $env:SKIP_LLM_TESTS) { $env:SKIP_LLM_TESTS = "0" }

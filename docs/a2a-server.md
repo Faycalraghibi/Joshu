@@ -420,7 +420,7 @@ Test coverage (94 tests):
 
 ## Related Documentation
 
-- [Tool Calling](tool-calling.md) - Tool execution framework
+- [Agent Tools](agent.md#tools) - Tool execution framework
 - [Chat & Scheduling](chat-and-scheduling.md) - Session and scheduler details
 - [Command Processing](command-processing.md) - CLI command system
 - [MCP Servers](mcp-servers.md) - External tool integration
