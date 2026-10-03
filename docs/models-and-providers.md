@@ -14,8 +14,8 @@ The agent needs a model that supports **tool calling**.
 
 ```bash
 joshu providers                       # list providers, their key status and default model
-joshu config --set provider=anthropic
-joshu config --set model=claude-sonnet-5-5
+joshu models --provider nvidia        # list the models a provider serves
+joshu use claude-sonnet-5-5 --provider anthropic   # make it the default
 ```
 
 Or for one run, without changing the config:
@@ -43,6 +43,7 @@ it has one).
 | `together` | `https://api.together.xyz/v1` | `TOGETHER_API_KEY` | - |
 | `fireworks` | `https://api.fireworks.ai/inference/v1` | `FIREWORKS_API_KEY` | - |
 | `cerebras` | `https://api.cerebras.ai/v1` | `CEREBRAS_API_KEY` | - |
+| `nvidia` | `https://integrate.api.nvidia.com/v1` | `NVIDIA_API_KEY` | `nvidia/nemotron-3.5-lightning-30b-a3b` |
 | `ollama` | `http://localhost:11434/v1` | not needed | - |
 | `lmstudio` | `http://localhost:1234/v1` | not needed | - |
 | `vllm` | `http://localhost:8000/v1` | not needed | - |
@@ -51,9 +52,58 @@ Anthropic and Gemini are reached through their OpenAI compatibility endpoints.
 
 Put keys in the environment or in `.env` at the project root.
 
+NVIDIA's hosted open models (Nemotron, Llama, Qwen, DeepSeek, ...) take a free
+`nvapi-...` key from [build.nvidia.com](https://build.nvidia.com).
+
+## Finding models
+
+Model lists come live from the provider's `/models` endpoint, so new models
+show up without a Joshu update:
+
+```bash
+joshu models                                   # the configured provider
+joshu models -p openrouter --tools --free      # free models with tool calling
+joshu models -p nvidia --search nemotron
+```
+
+OpenRouter reports tool support, price and context size; for other providers
+those columns show `?`. `joshu use` and `joshu models add` check the id against
+the list and warn about typos or models without tool calling.
+
+In interactive mode, `/models [search]` lists models and `/model <id>` switches
+the running conversation to another model (`joshu use` changes the default).
+
+## Named models
+
+Give a model a short name, its provider and settings:
+
+```bash
+joshu models add fast nvidia/nemotron-3.5-lightning-30b-a3b -p nvidia --context-window 128000
+joshu use fast             # or --model fast, or /model fast
+joshu models remove fast
+```
+
+This writes the `models` setting in the user config:
+
+```yaml
+models:
+  fast:
+    provider: nvidia
+    model: nvidia/nemotron-3.5-lightning-30b-a3b
+    context_window: 128000
+```
+
+A named model's `context_window` overrides the global `context_window` for
+compaction.
+
 ## Custom providers
 
-Add any OpenAI-compatible endpoint under `providers:`:
+```bash
+joshu providers add homelab --base-url http://10.0.0.5:8080/v1 --api-key-env HOMELAB_KEY
+joshu providers remove homelab
+```
+
+Or add any OpenAI-compatible endpoint under `providers:`:
 
 ```yaml
 provider: mycloud

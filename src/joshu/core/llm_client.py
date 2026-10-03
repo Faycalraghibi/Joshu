@@ -111,6 +111,8 @@ class OpenAIChatClient:
         self.extra_body = dict(extra_body or {})
         # Mark the cacheable prompt prefix (see joshu.core.prompt_cache)
         self.cache_breakpoints = cache_breakpoints
+        # Context size of the model, when known (named models can set it)
+        self.context_window: Optional[int] = None
         import httpx
 
         # Short connect timeout: an unreachable endpoint should fail fast so the
@@ -282,6 +284,10 @@ class FallbackChatClient:
     def model(self) -> str:
         return self.clients[0].model
 
+    @property
+    def context_window(self) -> Optional[int]:
+        return getattr(self.clients[0], "context_window", None)
+
     def complete(
         self,
         messages: List[Dict[str, Any]],
@@ -331,6 +337,7 @@ def create_chat_client(model: Optional[str] = None, provider: Optional[str] = No
         LLMError: for an unknown provider, a missing API key, or no model.
     """
     from joshu.core.config import get_config_manager
+    from joshu.core.model_catalog import resolve_named_model
     from joshu.core.providers import DEFAULT_PROVIDER, ProviderError, get_providers
 
     config = get_config_manager()
@@ -338,6 +345,11 @@ def create_chat_client(model: Optional[str] = None, provider: Optional[str] = No
     name = provider or configured
     if name == configured:
         model = model or config.get("model")
+
+    # A named model (the `models` setting) brings its own provider and settings
+    named = resolve_named_model(model)
+    if named is not None:
+        name, model = named.provider, named.model
 
     try:
         providers = get_providers(config.get("providers") or {})
@@ -351,6 +363,8 @@ def create_chat_client(model: Optional[str] = None, provider: Optional[str] = No
         )
 
     clients = [_client_for_provider(providers[name], model)]
+    if named is not None and named.context_window:
+        clients[0].context_window = named.context_window
     for fallback in config.get("fallback_providers") or []:
         if fallback == name or fallback not in providers:
             continue

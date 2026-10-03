@@ -114,7 +114,11 @@ class Agent:
         self.max_turns = max_turns or config.get("agent_max_turns", 50)
         self.max_tokens = max_tokens or config.get("max_tokens", 4096)
         self.temperature = temperature if temperature is not None else 0.2
-        self.context_window = context_window or config.get("context_window", 128000)
+        self.context_window = (
+            context_window
+            or getattr(self.client, "context_window", None)
+            or config.get("context_window", 128000)
+        )
         self.compact_threshold = compact_threshold or config.get("compact_threshold", 0.8)
         self.tool_output_limit = tool_output_limit or config.get("tool_output_limit", 30000)
         self.cwd = cwd or Path.cwd()

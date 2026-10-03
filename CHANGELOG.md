@@ -8,9 +8,13 @@ All notable changes to the Joshu project will be documented in this file.
 - Layered configuration: built-in defaults, `config/config.yaml` in a source checkout, the user config `~/.joshu/config.yaml` (written by `joshu config --set`, only the keys you set) and a project `.joshu/config.yaml`; `joshu config --list` shows where settings come from.
 - `joshu trust`: a project's config only applies once the project is trusted, since it can run commands (hooks, diagnostics) and choose providers.
 - Persistent permission rules (`permissions: {allow, deny}`, e.g. `run_shell_command(git status*)`); deny rules block in every mode; `/permissions allow|deny <rule>` saves one.
+- Model management: `joshu models` lists a provider's models live from its `/models` endpoint (tool support, price and context size where reported; `--search`, `--tools`, `--free`); `joshu use <model>` sets the default; named models (`joshu models add`, the `models` setting) bundle a provider, model id and context window; `joshu providers add|remove` (`joshu.core.model_catalog`).
+- `nvidia` provider preset (`NVIDIA_API_KEY`, free key from build.nvidia.com).
+- `/models [search]` in interactive mode.
 - Instruction files: `AGENTS.md` / `JOSHU.md` from the repository root down to the working directory, plus `~/.joshu/AGENTS.md`, are added to the system prompt (`config/JOSHU.md` still works).
 
 ### Fixed
+- `/model <id>` only saved the setting; it now switches the running conversation's model.
 - The `save_memory` file ignored `JOSHU_HOME` (always `~/.joshu/JOSHU.md`).
 
 ## [0.2.0] - 2026-10-03

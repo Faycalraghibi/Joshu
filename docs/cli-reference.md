@@ -150,10 +150,36 @@ See [Interactive Mode](interactive-mode.md).
 
 ### providers
 
-List model providers, their API key variable and whether it is set:
+List model providers, their API key variable and whether it is set; add or
+remove your own:
 
 ```bash
 joshu providers
+joshu providers add <name> --base-url <url> [--api-key-env VAR] [--model <id>]
+joshu providers remove <name>
+```
+
+---
+
+### models
+
+List the models a provider serves (live), and manage named models:
+
+```bash
+joshu models [-p <provider>] [-s <search>] [--tools] [--free] [--all]
+joshu models add <name> <model-id> [-p <provider>] [--context-window N]
+joshu models remove <name>
+```
+
+---
+
+### use
+
+Make a model (or named model) the default, saved in the user config:
+
+```bash
+joshu use <model-id> [-p <provider>]
+joshu use <named-model>
 ```
 
 See [Models & Providers](models-and-providers.md).

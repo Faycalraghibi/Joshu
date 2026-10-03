@@ -317,7 +317,10 @@ class CommandHandler:
             handle_search_command(query, max_results=None)
             return True
 
-        elif command.startswith("/model"):
+        elif command == "/models" or command.startswith("/models "):
+            return self.handle_models_list(command)
+
+        elif command == "/model" or command.startswith("/model "):
             self.handle_model_command(command)
             return True
 
@@ -577,6 +580,8 @@ Special Commands:
   /reset       - Start a new conversation (same as /session new)
   /undo        - Revert the agent's file edits from its last request
   /cost        - Tokens and cost of this conversation
+  /model [id]  - Show or switch the model for this conversation
+  /models [q]  - List the provider's models
   /resume [id] - List saved sessions, or continue one
   /commands    - List custom commands (.joshu/commands/*.md|toml)
   /agents      - List sub-agents (.joshu/agents/*.md)
@@ -668,16 +673,58 @@ Current Mode: PLAN
                 )
 
     def handle_model_command(self, command: str):
-        """Handle model switching commands."""
-        parts = command.split()
+        """
+        /model shows the model in use; /model <id-or-name> switches this
+        conversation to it (joshu use <model> makes it the default).
+        """
+        from joshu.core.llm_client import LLMError, create_chat_client
+
+        show = self.interactive_mode._show_message
+        parts = command.split(maxsplit=1)
+        agent = self.interactive_mode.agent
         if len(parts) == 1:
-            current_model = self.config_manager.get("model")
-            self.interactive_mode._show_message(f"Current model: {current_model}")
-        elif len(parts) == 2:
-            model = parts[1]
-            if self.config_manager.set("model", model):
-                self.config_manager.save_config()
-                self.interactive_mode.model = model
-                self.interactive_mode._show_message(f"Switched to model: {model}")
-            else:
-                self.interactive_mode._show_message(f"Failed to switch to model: {model}")
+            current = getattr(agent.client, "model", None) if agent else None
+            show(f"Model: {current or self.config_manager.get('model')}")
+            show("Switch: /model <id or named model>   List: /models [search]")
+            return
+
+        model = parts[1].strip()
+        try:
+            client = create_chat_client(model)
+        except LLMError as e:
+            show(f"Can't use {model}: {e}")
+            return
+
+        self.interactive_mode.model = model
+        if agent is not None:
+            agent.client = client
+            window = getattr(client, "context_window", None)
+            if window:
+                agent.context_window = window
+        show(f"Switched to {client.model} for this conversation (joshu use {model} to keep it).")
+
+    def handle_models_list(self, command: str) -> bool:
+        """/models [search]: models the configured provider serves."""
+        from joshu.core.model_catalog import CatalogError, filter_models, list_models
+        from joshu.core.providers import DEFAULT_PROVIDER, ProviderError, get_providers
+
+        show = self.interactive_mode._show_message
+        search = command[len("/models") :].strip() or None
+        name = self.config_manager.get("provider") or DEFAULT_PROVIDER
+        try:
+            provider = get_providers(self.config_manager.get("providers") or {})[name]
+            models = filter_models(list_models(provider), search)
+        except (CatalogError, ProviderError, KeyError) as e:
+            show(f"Can't list models: {e}")
+            return True
+
+        lines = [f"{name}: {len(models)} models" + (f" matching '{search}'" if search else "")]
+        for m in models[:30]:
+            tools = {True: "tools", False: "no tools", None: ""}[m.tools]
+            free = "free" if m.free else ""
+            details = ", ".join(x for x in (tools, free) if x)
+            lines.append(f"  {m.id}" + (f"  ({details})" if details else ""))
+        if len(models) > 30:
+            lines.append(f"  ... {len(models) - 30} more; narrow with /models <search>")
+        show("\n".join(lines))
+        return True

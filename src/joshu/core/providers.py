@@ -127,6 +127,13 @@ BUILTIN_PROVIDERS: Dict[str, Provider] = {
             description="Cerebras",
         ),
         Provider(
+            "nvidia",
+            "https://integrate.api.nvidia.com/v1",
+            api_key_env="NVIDIA_API_KEY",
+            default_model="nvidia/nemotron-3.5-lightning-30b-a3b",
+            description="NVIDIA-hosted open models (free key from build.nvidia.com)",
+        ),
+        Provider(
             "ollama",
             "http://localhost:11434/v1",
             requires_key=False,

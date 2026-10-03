@@ -33,6 +33,12 @@ from .interactive import start_interactive_mode
 app = typer.Typer(no_args_is_help=True)
 mcp_app = typer.Typer(help="Manage MCP server integrations.")
 app.add_typer(mcp_app, name="mcp")
+
+from .cli_models import models_app, providers_app, use  # noqa: E402
+
+app.add_typer(providers_app, name="providers")
+app.add_typer(models_app, name="models")
+app.command(name="use")(use)
 console = Console()
 
 # Global state
@@ -265,45 +271,6 @@ def _use_provider(provider: str, model: Optional[str]) -> str:
     config_manager.set("provider", provider)
     config_manager.set("model", model)
     return model
-
-
-@app.command()
-def providers() -> None:
-    """List model providers and whether each one is ready to use."""
-    from rich.table import Table
-
-    from joshu.core.config import get_config_manager
-    from joshu.core.providers import DEFAULT_PROVIDER, ProviderError, get_providers
-
-    config_manager = get_config_manager()
-    try:
-        all_providers = get_providers(config_manager.get("providers") or {})
-    except ProviderError as e:
-        console.print(f"[red]Invalid provider configuration: {e}[/red]")
-        raise typer.Exit(code=2)
-
-    active = config_manager.get("provider") or DEFAULT_PROVIDER
-    table = Table(title="Model providers")
-    table.add_column("Provider")
-    table.add_column("API key")
-    table.add_column("Base URL")
-    table.add_column("Default model")
-
-    for name, p in all_providers.items():
-        label = f"[bold]{name}[/bold] (active)" if name == active else name
-        if not p.requires_key:
-            key = "[dim]not needed[/dim]"
-        else:
-            source = p.api_key_env or "api_key in config"
-            status = "[green]set[/green]" if p.is_configured() else "[dim]missing[/dim]"
-            key = f"{status} ({source})"
-        table.add_row(label, key, p.base_url, p.default_model or "-")
-
-    console.print(table)
-    console.print(
-        "[dim]Use one: joshu config --set provider=<name> (and model=<id>), "
-        "or --provider on run/interactive. Add others under `providers:` in config.yaml.[/dim]"
-    )
 
 
 @app.command()
@@ -709,6 +676,8 @@ def main() -> None:
             "interactive",
             "mcp",
             "providers",
+            "models",
+            "use",
             "serve",
             "trust",
             "sessions",

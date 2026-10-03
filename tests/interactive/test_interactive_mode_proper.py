@@ -209,18 +209,15 @@ def test_interactive_mode_model_commands():
         result = mode.command_handler.handle_slash_command("/model")
         assert result is True
 
-        # Test /model command (switch model)
-        # Reset mocks before the test
-        mock_config.set.reset_mock()
+        # /model <id> switches the running agent's model for this conversation
+        new_client = MagicMock(model="new-model", context_window=None)
+        mode.agent = MagicMock()
         mock_config.save_config.reset_mock()
-        result = mode.command_handler.handle_slash_command("/model new-model")
+        with patch("joshu.core.llm_client.create_chat_client", return_value=new_client) as create:
+            result = mode.command_handler.handle_slash_command("/model new-model")
         assert result is True
-        # Verify set was called
-        assert mock_config.set.called
-        # Check the actual call arguments - set is called with ("model", "new-model")
-        call_args = mock_config.set.call_args[0] if mock_config.set.called else None
-        assert call_args is not None
-        assert call_args[0] == "model"
-        assert call_args[1] == "new-model"
-        # Verify save_config was called
-        assert mock_config.save_config.called
+        create.assert_called_once_with("new-model")
+        assert mode.agent.client is new_client
+        assert mode.model == "new-model"
+        # The default model is unchanged (joshu use <model> changes it)
+        assert not mock_config.save_config.called
