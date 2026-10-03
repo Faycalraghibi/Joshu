@@ -1,0 +1,4 @@
+prompt: >-
+  Rename the function get_user to fetch_user everywhere in this project
+  (definition and every caller). Don't keep the old name.
+check: python -m pytest -q check_test.py

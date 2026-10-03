@@ -1,0 +1,4 @@
+prompt: >-
+  Orders with a discount code are charged the wrong total (python -m shop.checkout
+  shows it). Find the cause and fix it.
+check: python -m pytest -q check_test.py

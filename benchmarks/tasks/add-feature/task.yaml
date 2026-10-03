@@ -1,0 +1,6 @@
+prompt: >-
+  Add a function to_csv(rows, path) to report.py that writes a list of dicts to
+  a CSV file with a header row (columns in the order of the first row's keys),
+  and returns the number of data rows written. Add a test for it in
+  test_report.py.
+check: python -m pytest -q check_test.py test_report.py

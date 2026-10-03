@@ -1,0 +1,5 @@
+prompt: >-
+  paginate() in pagination.py should split items into pages of `size` items
+  (page numbers start at 1), but users report the last item is sometimes
+  missing and page 1 skips the first item. Fix it.
+check: python -m pytest -q check_test.py

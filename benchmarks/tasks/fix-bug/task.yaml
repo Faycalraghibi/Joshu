@@ -1,0 +1,2 @@
+prompt: The add() and average() functions in calc.py give wrong results. Fix them.
+check: python -m pytest -q check_test.py

@@ -1,0 +1,4 @@
+prompt: >-
+  Implement slugify() in text_utils.py so the tests in test_text_utils.py pass.
+  Use only the standard library.
+check: python -m pytest -q check_test.py test_text_utils.py
