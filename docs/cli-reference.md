@@ -125,6 +125,7 @@ joshu "list the largest files in this repo"     # same as `joshu run`
 - `-s, --sandbox` - Stricter shell safety check
 - `--continue`, `-c` - Continue the most recent session in this directory
 - `--resume <id>` - Continue a saved session
+- `--image <path>` - Attach an image (repeatable); `@path.png` in the prompt works too
 - `-i, --interactive` - Start interactive mode instead
 - `-v, --verbose` - Debug logging
 

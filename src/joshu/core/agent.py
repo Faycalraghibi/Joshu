@@ -19,6 +19,7 @@ from joshu.core.checkpoints import Checkpoint, CheckpointStore
 from joshu.core.compaction import compact_messages, estimate_tokens
 from joshu.core.config import get_config_manager
 from joshu.core.costs import CostTracker, request_cost
+from joshu.core.images import build_user_content
 from joshu.core.llm_client import (
     AssistantTurn,
     ChatClient,
@@ -202,7 +203,7 @@ class Agent:
         )
         return specs
 
-    def run(self, prompt: str) -> AgentResponse:
+    def run(self, prompt: str, images: Sequence[Path] = ()) -> AgentResponse:
         """
         Run one user request to completion.
 
@@ -213,7 +214,7 @@ class Agent:
         from joshu.hooks.dispatcher import dispatch_after_agent
 
         try:
-            response = self._run(prompt)
+            response = self._run(prompt, images)
             dispatch_after_agent(self.session_id, prompt, response.text)
             return response
         finally:
@@ -242,7 +243,7 @@ class Agent:
         except OSError as e:
             logger.warning(f"Could not save session {self.session_id}: {e}")
 
-    def _run(self, prompt: str) -> AgentResponse:
+    def _run(self, prompt: str, images: Sequence[Path] = ()) -> AgentResponse:
         from joshu.hooks.dispatcher import dispatch_before_agent
 
         hook = dispatch_before_agent(self.session_id, prompt)
@@ -255,7 +256,7 @@ class Agent:
         if self._pending_notes:
             content = "\n".join(self._pending_notes) + "\n\n" + prompt
             self._pending_notes = []
-        self.messages.append({"role": "user", "content": content})
+        self.messages.append({"role": "user", "content": build_user_content(content, images)})
         tool_calls_before = self.tool_call_count
 
         for turn_number in range(1, self.max_turns + 1):

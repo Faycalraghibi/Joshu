@@ -23,6 +23,21 @@ JSON object: `result`, `turns`, `tool_calls`, `usage`, `model`, `session_id`.
 Headless runs can't ask for approval, so tools that need it are denied unless
 the permission mode allows them.
 
+## Images
+
+Attach screenshots, diagrams or mockups by referencing them as `@path` in a
+request, or with `--image` (repeatable):
+
+```bash
+joshu run "why does the layout in @screenshots/home.png overflow on mobile?"
+joshu run --image error.png "explain this error dialog"
+```
+
+The same `@path` syntax works in interactive mode. PNG, JPEG, GIF and WebP
+files up to 5 MB are sent to the model with the request; references to other
+file types are left as text. The model must support images (most current
+OpenAI, Anthropic and Gemini models, and many models on OpenRouter, do).
+
 ## Model provider
 
 The agent works with any provider that has an OpenAI-compatible API and a

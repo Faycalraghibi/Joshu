@@ -15,6 +15,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 
+from joshu.core.images import message_text
 from joshu.core.paths import joshu_home  # noqa: F401  (re-exported)
 
 if TYPE_CHECKING:
@@ -50,7 +51,12 @@ def save_session(agent: "Agent") -> Path:
     """Write the agent's conversation (without the system prompt) to disk."""
     messages = agent.messages[1:]
     title = next(
-        (m["content"] for m in messages if m.get("role") == "user" and m.get("content")), ""
+        (
+            message_text(m["content"])
+            for m in messages
+            if m.get("role") == "user" and m.get("content")
+        ),
+        "",
     )
     data = {
         "version": SESSION_VERSION,
@@ -161,7 +167,7 @@ def recent_prompts(cwd: Optional[Path] = None, limit: int = 20) -> List[Tuple[st
         except SessionError:
             continue
         for message in reversed(messages):
-            text = message.get("content") or ""
+            text = message_text(message.get("content"))
             if message.get("role") != "user" or not text or text.startswith(SUMMARY_PREFIX):
                 continue
             if text.startswith("[Note:") and "\n\n" in text:
