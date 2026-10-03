@@ -186,12 +186,8 @@ def _bwrap_works():
 
 
 def _docker_works():
-    if shutil.which("docker") is None:
-        return False
-    try:
-        return subprocess.run(["docker", "info"], capture_output=True, timeout=20).returncode == 0
-    except (OSError, subprocess.SubprocessError):
-        return False
+    # Same rule as the product: a Docker engine running Linux containers
+    return sandbox_module._available("docker")
 
 
 @pytest.mark.skipif(not _bwrap_works(), reason="bubblewrap not usable here")

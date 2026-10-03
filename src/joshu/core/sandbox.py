@@ -207,17 +207,24 @@ def _available(name: str) -> bool:
     if name == "seatbelt":
         return system == "Darwin" and shutil.which("sandbox-exec") is not None
     if name == "docker":
-        return _runs(["docker", "info", "--format", "{{.ServerVersion}}"])
+        # Commands run in a Linux image; an engine in Windows-container mode can't run it
+        return _output(["docker", "info", "--format", "{{.OSType}}"]) == "linux"
     return False
 
 
 def _runs(argv: List[str]) -> bool:
+    return _output(argv) is not None
+
+
+def _output(argv: List[str]) -> Optional[str]:
+    """The command's stripped stdout if it exits 0, else None."""
     if shutil.which(argv[0]) is None:
-        return False
+        return None
     try:
-        return subprocess.run(argv, capture_output=True, timeout=20).returncode == 0
+        result = subprocess.run(argv, capture_output=True, text=True, timeout=20)
     except (OSError, subprocess.SubprocessError):
-        return False
+        return None
+    return result.stdout.strip() if result.returncode == 0 else None
 
 
 def configure_shell_sandbox(
