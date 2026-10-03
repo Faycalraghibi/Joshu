@@ -42,51 +42,53 @@ def test_commands_command_with_unknown_category():
     assert "Available Categories:" in result.output
 
 
+class _FakeClient:
+    model = "fake"
+
+    def __init__(self, answer):
+        self.answer = answer
+        self.requests = []
+
+    def complete(self, messages, tools=None, **kwargs):
+        from joshu.core.llm_client import AssistantTurn
+
+        self.requests.append(list(messages))
+        return AssistantTurn(content=self.answer)
+
+
 def test_explain_command():
-    """Test the explain command with a known command."""
+    """explain asks the agent, read-only, and prints its answer."""
     from unittest.mock import patch
 
-    with patch("joshu.ui.cli.print_banner"):  # Disable banner for cleaner test output
+    client = _FakeClient("tar creates and extracts archives; -c creates, -z gzips.")
+    with (
+        patch("joshu.ui.cli.print_banner"),
+        patch("joshu.core.agent.create_chat_client", return_value=client),
+    ):
+        result = runner.invoke(app, ["explain", "tar -czf out.tgz src"])
+
+    assert result.exit_code == 0
+    assert "tar creates and extracts archives" in result.output
+    system_prompt, prompt = client.requests[0][0]["content"], client.requests[0][-1]["content"]
+    assert "tar -czf out.tgz src" in prompt
+    assert "PLAN mode" in system_prompt  # read-only: nothing is run or changed
+
+
+def test_explain_command_without_provider():
+    """explain reports a missing provider instead of crashing."""
+    from unittest.mock import patch
+
+    from joshu.core.llm_client import LLMError
+
+    error = LLMError("Provider 'openrouter' needs an API key: set OPENROUTER_API_KEY.")
+    with (
+        patch("joshu.ui.cli.print_banner"),
+        patch("joshu.core.agent.create_chat_client", side_effect=error),
+    ):
         result = runner.invoke(app, ["explain", "tar"])
-        assert result.exit_code == 0
-        # Output should contain explanation
-        output_lower = result.output.lower()
-        assert "explanation of 'tar':" in output_lower or "tar" in output_lower
-        assert (
-            "tar command is used to create and manipulate tar archives" in output_lower
-            or "create and manipulate tar" in output_lower
-            or "create, extract, and manipulate archive files" in output_lower
-            or "tar archives" in output_lower
-            or "the tar command" in output_lower
-            or "tar is used" in output_lower
-            or "used in unix" in output_lower
-            or "used in linux" in output_lower
-            or "tape archive" in output_lower
-        )
 
-
-def test_explain_command_unknown():
-    """Test the explain command with an unknown command."""
-    from unittest.mock import patch
-
-    with patch("joshu.ui.cli.print_banner"):  # Disable banner for cleaner test output
-        result = runner.invoke(app, ["explain", "unknowncommand"])
-        assert result.exit_code == 0
-        # Output should contain the error message
-        output_lower = result.output.lower()
-        assert (
-            "no specific explanation available for 'unknowncommand'" in output_lower
-            or "no specific explanation" in output_lower
-            or "unknowncommand" in output_lower
-        )
-        assert (
-            "try asking about common commands" in output_lower
-            or "common commands" in output_lower
-            or "try asking" in output_lower
-            or "not a standard" in output_lower
-            or "not a recognized" in output_lower
-            or "unknowncommand" in output_lower
-        )
+    assert result.exit_code == 1
+    assert "OPENROUTER_API_KEY" in result.output
 
 
 def test_help_command():

@@ -84,6 +84,8 @@ In interactive mode: `/config`, `/config <key>`, `/config <key> <value>`;
 | `compact_threshold` | float | `0.8` | Fraction of the window that triggers compaction |
 | `tool_output_limit` | integer | `30000` | Max characters of one tool result sent to the model |
 | `sandbox_enabled` | boolean | `true` | Stricter shell safety check (flags all destructive commands) |
+| `save_sessions` | boolean | `true` | Save conversations for `--resume` / `--continue` |
+| `hooks` | dict | `{}` | Commands run on agent events (see [Hooks](hooks.md)) |
 
 ### Memory and context
 

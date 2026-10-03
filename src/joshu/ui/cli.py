@@ -51,6 +51,7 @@ def version_callback(value: bool) -> None:
 
 @app.callback()
 def main_callback(
+    ctx: typer.Context,
     version: Optional[bool] = typer.Option(
         None,
         "--version",
@@ -64,12 +65,9 @@ def main_callback(
     global context_provider, _current_model
 
     config_manager, context_provider, _current_model = initialize_context()
-    # Headless runs print only the result, so scripts can read stdout
-    if not _HEADLESS_FLAGS.intersection(sys.argv[1:]):
+    # `run` prints the banner itself: headless runs must print only the result
+    if ctx.invoked_subcommand != "run":
         print_banner(_current_model)
-
-
-_HEADLESS_FLAGS = {"-p", "--print", "--output-format"}
 
 
 def execute_agent_prompt(
@@ -80,6 +78,8 @@ def execute_agent_prompt(
     output_format: str,
     sandbox: bool,
     provider: Optional[str] = None,
+    resume: Optional[str] = None,
+    continue_last: bool = False,
 ) -> int:
     """
     Run a prompt through the tool-using agent.
@@ -111,6 +111,19 @@ def execute_agent_prompt(
             interactive=can_ask,
             quiet=headless,
         )
+        if not _restore_session(agent, resume, continue_last):
+            return 1
+        if prompt.startswith("/"):
+            from joshu.core.custom_commands import expand_slash_command
+
+            expanded = expand_slash_command(prompt, agent.permissions)
+            if expanded is None:
+                Console(stderr=True).print(
+                    f"[red]Unknown command {prompt.split()[0]}.[/red] "
+                    "Custom commands live in .joshu/commands/ or ~/.joshu/commands/."
+                )
+                return 2
+            prompt = expanded
         response = agent.run(prompt)
     except LLMError as e:
         Console(stderr=True).print(f"[red]Model error:[/red] {e}")
@@ -127,6 +140,68 @@ def execute_agent_prompt(
     else:
         ui.print_footer(response)
     return 0
+
+
+def _restore_session(agent, resume: Optional[str], continue_last: bool) -> bool:
+    """
+    Load a saved conversation into the agent, if one was requested.
+
+    Returns False (after printing why) when the requested session can't be loaded.
+    """
+    from joshu.core.sessions import SessionError, latest_session, load_session
+
+    err = Console(stderr=True)
+    if resume:
+        try:
+            agent.restore(load_session(resume))
+        except SessionError as e:
+            err.print(f"[red]{e}[/red]")
+            return False
+    elif continue_last:
+        latest = latest_session(agent.cwd)
+        if latest is None:
+            err.print("[yellow]No previous session in this directory; starting a new one.[/yellow]")
+        else:
+            agent.restore(load_session(latest.id))
+    return True
+
+
+@app.command()
+def sessions(
+    all_dirs: bool = typer.Option(
+        False, "--all", "-a", help="Show sessions from every directory, not just this one."
+    ),
+    limit: int = typer.Option(20, "--limit", "-n", help="Number of sessions to show."),
+) -> None:
+    """List saved agent sessions (resume one with `joshu run --resume <id>`)."""
+    from pathlib import Path
+
+    from rich.table import Table
+
+    from joshu.core.sessions import list_sessions
+
+    infos = list_sessions(None if all_dirs else Path.cwd(), limit=limit)
+    if not infos:
+        where = "" if all_dirs else " in this directory (try --all)"
+        console.print(f"[yellow]No saved sessions{where}.[/yellow]")
+        return
+
+    table = Table(title="Saved sessions")
+    table.add_column("Id")
+    table.add_column("Updated")
+    table.add_column("Messages", justify="right")
+    table.add_column("First request")
+    if all_dirs:
+        table.add_column("Directory")
+    for info in infos:
+        row = [info.id, info.updated_at.replace("T", " "), str(info.message_count), info.title]
+        if all_dirs:
+            row.append(info.cwd)
+        table.add_row(*row)
+    console.print(table)
+    console.print(
+        '[dim]Resume: joshu run --resume <id> "..."  or  joshu interactive --resume <id>[/dim]'
+    )
 
 
 @app.command()
@@ -234,13 +309,24 @@ def interactive(
         "--provider",
         help="Model provider (see `joshu providers`); overrides the config for this run.",
     ),
+    resume: Optional[str] = typer.Option(
+        None, "--resume", help="Continue a saved session by id (see `joshu sessions`)."
+    ),
+    continue_last: bool = typer.Option(
+        False, "--continue", "-c", help="Continue the most recent session in this directory."
+    ),
 ) -> None:
     """Start interactive chat mode directly."""
-    _start_interactive(model, sandbox, verbose, provider)
+    _start_interactive(model, sandbox, verbose, provider, resume, continue_last)
 
 
 def _start_interactive(
-    model: Optional[str], sandbox: Optional[bool], verbose: bool, provider: Optional[str]
+    model: Optional[str],
+    sandbox: Optional[bool],
+    verbose: bool,
+    provider: Optional[str],
+    resume: Optional[str] = None,
+    continue_last: bool = False,
 ) -> None:
     """Start the interactive REPL with CLI overrides applied."""
     global _current_model
@@ -259,7 +345,9 @@ def _start_interactive(
         sandbox = config_manager.get("sandbox_enabled", True)
 
     setup_logging(verbose)
-    start_interactive_mode(model, sandbox, verbose=verbose)
+    start_interactive_mode(
+        model, sandbox, verbose=verbose, resume=resume, continue_last=continue_last
+    )
 
 
 @app.command()
@@ -303,10 +391,20 @@ def run(
         "--provider",
         help="Model provider (see `joshu providers`); overrides the config for this run.",
     ),
+    resume: Optional[str] = typer.Option(
+        None, "--resume", help="Continue a saved session by id (see `joshu sessions`)."
+    ),
+    continue_last: bool = typer.Option(
+        False, "--continue", "-c", help="Continue the most recent session in this directory."
+    ),
 ) -> None:
     """Run a task with the agent, or start interactive mode."""
+    headless = print_mode or output_format == "json"
+    if not headless:
+        print_banner(_current_model)
+
     if interactive:
-        _start_interactive(model, sandbox, verbose, provider)
+        _start_interactive(model, sandbox, verbose, provider, resume, continue_last)
         return
 
     if not prompt:
@@ -331,10 +429,12 @@ def run(
         prompt,
         model=model,
         permission_mode=permission_mode,
-        headless=print_mode or output_format == "json",
+        headless=headless,
         output_format=output_format,
         sandbox=sandbox,
         provider=provider,
+        resume=resume,
+        continue_last=continue_last,
     )
     raise typer.Exit(code=exit_code)
 
@@ -491,6 +591,7 @@ def main() -> None:
             "interactive",
             "mcp",
             "providers",
+            "sessions",
             "--help",
             "-h",
             "--version",

@@ -11,9 +11,11 @@ from __future__ import annotations
 import logging
 import uuid
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
+from joshu.core.checkpoints import Checkpoint, CheckpointStore
 from joshu.core.compaction import compact_messages, estimate_tokens
 from joshu.core.config import get_config_manager
 from joshu.core.llm_client import (
@@ -22,8 +24,9 @@ from joshu.core.llm_client import (
     ToolCall,
     create_chat_client,
 )
-from joshu.core.permissions import PermissionManager, PermissionMode
-from joshu.core.system_prompt import build_system_prompt
+from joshu.core.permissions import EDIT_TOOLS, PermissionManager, PermissionMode
+from joshu.core.subagents import SubagentSpec, discover_subagents
+from joshu.core.system_prompt import build_subagent_prompt, build_system_prompt
 from joshu.core.tool_executor import ToolExecutor
 from joshu.core.tool_registry import ToolSpec, load_builtin_tools
 
@@ -80,6 +83,7 @@ class Agent:
         session_id: Optional[str] = None,
         is_subagent: bool = False,
         stream: bool = True,
+        persist: bool = False,
     ) -> None:
         """
         Args:
@@ -95,6 +99,8 @@ class Agent:
             system_prompt: Override the generated system prompt
             is_subagent: Sub-agents get the sub-agent prompt and no `task` tool
             stream: Stream text to events.on_text
+            persist: Save the conversation after every request (see
+                joshu.core.sessions) so it can be resumed
         """
         config = get_config_manager()
 
@@ -111,6 +117,8 @@ class Agent:
         self.tool_output_limit = tool_output_limit or config.get("tool_output_limit", 30000)
         self.cwd = cwd or Path.cwd()
         self.session_id = session_id or uuid.uuid4().hex[:12]
+        self.created_at = datetime.now().isoformat(timespec="seconds")
+        self.persist = persist and not is_subagent
         self.is_subagent = is_subagent
         self.stream = stream
 
@@ -118,7 +126,9 @@ class Agent:
         self._formatter = ToolExecutor(self._registry)
         self._tool_names = set(tool_names) if tool_names is not None else None
         self._local_tools: Dict[str, ToolSpec] = {}
+        self.subagents: Dict[str, SubagentSpec] = {}
         if not is_subagent:
+            self.subagents = discover_subagents(self.cwd)
             self._local_tools["task"] = self._make_task_tool()
 
         self._system_prompt_override = system_prompt
@@ -127,6 +137,9 @@ class Agent:
         ]
         self.usage: Dict[str, int] = {"prompt_tokens": 0, "completion_tokens": 0}
         self.tool_call_count = 0
+        self.checkpoints = CheckpointStore()
+        # Notes for the model about things that happened outside the loop (e.g. undo)
+        self._pending_notes: List[str] = []
 
     # ------------------------------------------------------------------ public
 
@@ -134,6 +147,25 @@ class Agent:
         """Switch permission mode; the system prompt is updated to match."""
         self.permissions.mode = mode
         self.messages[0] = {"role": "system", "content": self._build_system_prompt()}
+
+    def undo(self) -> Optional[Checkpoint]:
+        """
+        Revert the file edits made for the most recent request that edited files.
+
+        The model is told about it at the start of the next request.
+
+        Returns:
+            The undone checkpoint (its `files` are the restored paths), or None
+            when there is nothing to undo.
+        """
+        checkpoint = self.checkpoints.undo()
+        if checkpoint is not None:
+            paths = ", ".join(str(self._display_path(p)) for p in checkpoint.files)
+            self._pending_notes.append(
+                f"[Note: the user undid your file changes for the request "
+                f"{checkpoint.prompt!r}. Restored: {paths}. Re-read files before editing them.]"
+            )
+        return checkpoint
 
     def reset(self) -> None:
         """Start a new conversation (keeps settings and session approvals)."""
@@ -158,8 +190,41 @@ class Agent:
         Run one user request to completion.
 
         KeyboardInterrupt propagates to the caller, but the history is left
-        valid so the conversation can continue.
+        valid so the conversation can continue. With `persist`, the
+        conversation is saved afterwards, also when interrupted.
         """
+        from joshu.hooks.dispatcher import dispatch_after_agent
+
+        try:
+            response = self._run(prompt)
+            dispatch_after_agent(self.session_id, prompt, response.text)
+            return response
+        finally:
+            if self.persist and len(self.messages) > 1:
+                self._save()
+
+    def restore(self, session: Dict[str, Any]) -> None:
+        """
+        Continue a saved conversation (see joshu.core.sessions.load_session).
+
+        The system prompt is rebuilt for the current environment.
+        """
+        self.session_id = session["id"]
+        self.created_at = session.get("created_at", self.created_at)
+        self.messages = [self.messages[0]] + list(session["messages"])
+        for key, value in (session.get("usage") or {}).items():
+            if key in self.usage:
+                self.usage[key] = value
+
+    def _save(self) -> None:
+        from joshu.core.sessions import save_session
+
+        try:
+            save_session(self)
+        except OSError as e:
+            logger.warning(f"Could not save session {self.session_id}: {e}")
+
+    def _run(self, prompt: str) -> AgentResponse:
         from joshu.hooks.dispatcher import dispatch_before_agent
 
         hook = dispatch_before_agent(self.session_id, prompt)
@@ -167,7 +232,12 @@ class Agent:
             message = (hook.response.message if hook.response else None) or "Blocked by hook."
             return AgentResponse(text=message, metadata={"blocked": True})
 
-        self.messages.append({"role": "user", "content": prompt})
+        self.checkpoints.begin(prompt)
+        content = prompt
+        if self._pending_notes:
+            content = "\n".join(self._pending_notes) + "\n\n" + prompt
+            self._pending_notes = []
+        self.messages.append({"role": "user", "content": content})
         tool_calls_before = self.tool_call_count
 
         for turn_number in range(1, self.max_turns + 1):
@@ -256,6 +326,9 @@ class Agent:
             self.events.on_tool_end(call.name, output, False)
             return output
 
+        if call.name in EDIT_TOOLS:
+            self._snapshot_target(arguments)
+
         self.events.on_tool_start(call.name, arguments)
         success, output = self._invoke(spec, arguments, self._formatter)
         output = truncate_output(output, self.tool_output_limit)
@@ -263,6 +336,21 @@ class Agent:
         dispatch_after_tool(self.session_id, call.name, output, success)
         self.events.on_tool_end(call.name, output, success)
         return output
+
+    def _snapshot_target(self, arguments: Dict[str, Any]) -> None:
+        """Record the file an edit tool is about to change, for undo."""
+        from joshu.tools.filesystem_tools import resolve_path
+
+        try:
+            self.checkpoints.snapshot(resolve_path(str(arguments.get("path", ""))))
+        except ValueError:
+            pass  # outside the workspace: the tool itself will refuse
+
+    def _display_path(self, path: Path) -> Path:
+        try:
+            return path.relative_to(self.cwd.resolve())
+        except ValueError:
+            return path
 
     def _find_tool(self, name: str) -> Optional[ToolSpec]:
         if self._tool_names is not None and name not in self._tool_names:
@@ -327,49 +415,115 @@ class Agent:
         }
 
     def _make_task_tool(self) -> ToolSpec:
-        def task(description: str, prompt: str) -> str:
-            sub_agent = Agent(
-                client=self.client,
-                permissions=PermissionManager(PermissionMode.PLAN, approver=None),
-                events=_SubagentEvents(self.events, description),
-                max_turns=min(self.max_turns, SUBAGENT_MAX_TURNS),
-                max_tokens=self.max_tokens,
-                temperature=self.temperature,
-                context_window=self.context_window,
-                tool_output_limit=self.tool_output_limit,
-                cwd=self.cwd,
-                session_id=f"{self.session_id}-sub",
-                is_subagent=True,
-                stream=False,
-            )
+        def task(description: str, prompt: str, agent: Optional[str] = None) -> str:
+            if agent:
+                spec = self.subagents.get(agent)
+                if spec is None:
+                    known = ", ".join(sorted(self.subagents)) or "none defined"
+                    return f"Error: unknown agent '{agent}' (available: {known})"
+                sub_agent = self._make_defined_subagent(spec, description)
+            else:
+                sub_agent = self._make_subagent(
+                    PermissionManager(PermissionMode.PLAN, approver=None),
+                    description,
+                    max_turns=SUBAGENT_MAX_TURNS,
+                )
             response = sub_agent.run(prompt)
             self._add_usage(sub_agent.usage)
             return response.text or "(the sub-agent returned no answer)"
 
+        description = (
+            "Delegate a focused task to a sub-agent. Without `agent`, a general sub-agent "
+            "with read-only tools (read, list, glob, search, web search) handles it: use it "
+            "for broad searches across many files, so their contents don't fill this "
+            "conversation. The sub-agent sees only `prompt`, so make it self-contained; you "
+            "get back its final answer."
+        )
+        properties: Dict[str, Any] = {
+            "description": {
+                "type": "string",
+                "description": "Short (3-5 word) label for the task",
+            },
+            "prompt": {
+                "type": "string",
+                "description": "Complete instructions for the sub-agent",
+            },
+        }
+        if self.subagents:
+            listing = "\n".join(
+                f"- {spec.name}: {spec.description}" for spec in self.subagents.values()
+            )
+            description += f"\n\nSpecialized agents (pass their name as `agent`):\n{listing}"
+            properties["agent"] = {
+                "type": "string",
+                "enum": sorted(self.subagents),
+                "description": "Name of a specialized agent to use (optional)",
+            }
+
         return ToolSpec(
             name="task",
-            description=(
-                "Delegate a focused research task to a sub-agent with read-only tools "
-                "(read, list, glob, search, web search). Use it for broad searches across "
-                "many files, so their contents don't fill this conversation. The sub-agent "
-                "sees only `prompt`, so make it self-contained; you get back its final answer."
-            ),
+            description=description,
             parameters={
                 "type": "object",
-                "properties": {
-                    "description": {
-                        "type": "string",
-                        "description": "Short (3-5 word) label for the task",
-                    },
-                    "prompt": {
-                        "type": "string",
-                        "description": "Complete instructions for the sub-agent",
-                    },
-                },
+                "properties": properties,
                 "required": ["description", "prompt"],
             },
             function=task,
             requires_approval=False,
+        )
+
+    def _make_subagent(
+        self,
+        permissions: PermissionManager,
+        label: str,
+        max_turns: int,
+        client: Optional[ChatClient] = None,
+        tool_names: Optional[Sequence[str]] = None,
+        system_prompt: Optional[str] = None,
+    ) -> "Agent":
+        return Agent(
+            client=client or self.client,
+            permissions=permissions,
+            events=_SubagentEvents(self.events, label),
+            max_turns=min(self.max_turns, max_turns),
+            max_tokens=self.max_tokens,
+            temperature=self.temperature,
+            context_window=self.context_window,
+            tool_output_limit=self.tool_output_limit,
+            tool_names=tool_names,
+            system_prompt=system_prompt,
+            cwd=self.cwd,
+            session_id=f"{self.session_id}-sub",
+            is_subagent=True,
+            stream=False,
+        )
+
+    def _make_defined_subagent(self, spec: SubagentSpec, label: str) -> "Agent":
+        """
+        Sub-agent from a user definition.
+
+        With a `tools` list it gets exactly those tools and shares this agent's
+        permission gate (so edits and commands still need approval); without
+        one it is read-only.
+        """
+        if spec.tools is None:
+            permissions = PermissionManager(PermissionMode.PLAN, approver=None)
+            tool_names = None
+        else:
+            permissions = self.permissions
+            tool_names = spec.tools
+
+        client = self.client
+        if spec.model and spec.model != getattr(self.client, "model", None):
+            client = create_chat_client(spec.model)
+
+        return self._make_subagent(
+            permissions,
+            f"{spec.name}: {label}",
+            max_turns=spec.max_turns or SUBAGENT_MAX_TURNS,
+            client=client,
+            tool_names=tool_names,
+            system_prompt=build_subagent_prompt(spec.system_prompt, self.cwd),
         )
 
 

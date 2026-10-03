@@ -1,75 +1,54 @@
 # Hooks System
 
-The Joshu hooks system enables dynamic customization of the agentic loop by allowing external scripts to intercept, modify, and log CLI actions without altering core code.
+Hooks let external commands inspect, block or modify what the agent does,
+without changing Joshu's code.
 
 ## Overview
 
-Hooks operate synchronously, pausing the agent loop until all relevant scripts complete. Communication between Joshu and hooks is via JSON payloads on stdin/stdout. Exit codes determine behavior:
+A hook is a shell command. When its event fires, Joshu runs it with a JSON
+payload on stdin and waits for it to finish. The exit code decides what happens:
 
 | Exit Code | Result |
 |-----------|--------|
-| 0 | Success - continue execution |
-| 2 | Block - abort execution |
-| Other | Warning - log and continue |
+| 0 | Continue (stdout may carry a JSON response, see below) |
+| 2 | Block; stderr (or the JSON `message`) is the reason given to the model |
+| Other | Log a warning and continue |
+
+Hooks fail open: a hook that crashes or times out does not block the agent.
 
 ## Hook Events
 
-| Event | Description |
-|-------|-------------|
-| `session_start` | Beginning of a new session |
-| `session_end` | End of a session |
-| `before_agent` | Before agent processes a prompt |
-| `after_agent` | After agent generates a response |
-| `before_model` | Before sending request to LLM |
-| `after_model` | After receiving response from LLM |
-| `before_tool_selection` | Before LLM selects tools |
-| `before_tool` | Before executing a tool |
-| `after_tool` | After tool execution |
-| `pre_compress` | Before context compression |
-| `notification` | When a notification fires |
+Events fired by the agent:
+
+| Event | When | `data` in the payload |
+|-------|------|------------------------|
+| `before_agent` | A request is about to be handled | `prompt` |
+| `after_agent` | The agent finished a request | `prompt`, `response` |
+| `before_tool` | A tool call is about to run (before the permission prompt) | `tool_name`, `arguments` |
+| `after_tool` | A tool call finished | `tool_name`, `result`, `success` |
+
+Blocking `before_agent` skips the request; blocking `before_tool` skips the call
+and tells the model why. Other event names (`session_start`, `before_model`,
+`pre_compress`, ...) are accepted but not fired yet.
 
 ## Configuration
 
-Add hooks to `~/.joshu/settings.json`:
+Declare hooks in `config/config.yaml`:
 
-```json
-{
-  "hooks": {
-    "before_tool": [
-      {
-        "name": "security-check",
-        "type": "command",
-        "command": "python ~/.joshu/hooks/security.py",
-        "description": "Block sensitive file writes",
-        "timeout": 5000,
-        "matcher": "write_file|replace"
-      }
-    ]
-  }
-}
+```yaml
+hooks:
+  before_tool:
+    - python .joshu/hooks/protect_secrets.py
+    - command: ./scripts/audit.sh
+      timeout: 30          # seconds (default 10)
+  after_agent: python .joshu/hooks/notify.py
 ```
 
-### Configuration Options
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `name` | string | Unique identifier |
-| `type` | string | Currently only `"command"` |
-| `command` | string | Path to script/command |
-| `description` | string | Human-readable purpose |
-| `timeout` | int | Max execution time (ms) |
-| `matcher` | string | Pattern to filter triggers |
-
-## Matcher Patterns
-
-Control which tools/events trigger a hook:
-
-| Pattern | Matches |
-|---------|---------|
-| `write_file` | Exact match |
-| `write_*` | Wildcard match |
-| `write_file\|replace` | Multiple matches |
-| `/^search.*/` | Regex match |
+Each event takes one command or a list. An entry is either a command string or
+a mapping with `command` and an optional `timeout`. Commands run through the
+shell from the current directory. Unknown events and malformed entries are
+reported when the agent starts. To act only on some tools, check
+`data.tool_name` in the hook.
 
 ## Writing Hooks
 
@@ -180,17 +159,6 @@ if ".env" in path or "credentials" in path:
     sys.exit(2)  # Block
 ```
 
-### Context Injection
-
-Add git context before agent planning:
-
-```python
-if event == "before_agent":
-    git_log = subprocess.check_output(["git", "log", "-3", "--oneline"])
-    data["context"] += f"\n\nRecent commits:\n{git_log}"
-    print(json.dumps({"action": "modify", "modified_data": data}))
-```
-
 ### Logging and Monitoring
 
 Log all tool executions:
@@ -206,31 +174,17 @@ if event == "after_tool":
         f.write(json.dumps(log_entry) + "\n")
 ```
 
-### Tool Filtering (RAG)
+### Rewriting Tool Arguments
 
-Dynamically filter available tools:
+A `before_tool` hook can change a call's arguments by returning `modify`:
 
 ```python
-if event == "before_tool_selection":
-    prompt = data["prompt"].lower()
-    # Only include relevant tools
-    filtered_tools = [t for t in data["available_tools"]
-                      if matches_prompt(t, prompt)]
-    print(json.dumps({
-        "action": "modify",
-        "modified_data": {"available_tools": filtered_tools}
-    }))
+if event == "before_tool" and data["tool_name"] == "run_shell_command":
+    command = data["arguments"]["command"]
+    if command.startswith("pytest") and "-q" not in command:
+        data["arguments"]["command"] = command + " -q"
+        print(json.dumps({"action": "modify", "modified_data": {"arguments": data["arguments"]}}))
 ```
-
-## Environment Variables
-
-Available in hook scripts:
-
-| Variable | Description |
-|----------|-------------|
-| `JOSHU_SESSION_ID` | Current session ID |
-| `JOSHU_PROJECT_DIR` | Workspace path |
-| `JOSHU_CONFIG_DIR` | Config directory |
 
 ## Best Practices
 

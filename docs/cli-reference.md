@@ -123,6 +123,8 @@ joshu "list the largest files in this repo"     # same as `joshu run`
 - `-p, --print` - Headless: print only the final answer
 - `--output-format json` - Print one JSON object (implies `--print`)
 - `-s, --sandbox` - Stricter shell safety check
+- `--continue`, `-c` - Continue the most recent session in this directory
+- `--resume <id>` - Continue a saved session
 - `-i, --interactive` - Start interactive mode instead
 - `-v, --verbose` - Debug logging
 
@@ -140,7 +142,7 @@ joshu interactive --provider ollama --model qwen3-coder
 ```
 
 Starts a persistent session with conversation history, slash commands
-(`/agent`, `/plan`, `/ask`, `/permissions`, `/reset`, ...) and tab completion.
+(`/agent`, `/plan`, `/ask`, `/permissions`, `/undo`, `/resume`, `/commands`, `/agents`, `/reset`, ...) and tab completion.
 See [Interactive Mode](interactive-mode.md).
 
 ---
@@ -178,6 +180,17 @@ joshu search "Python async best practices"
 ```
 
 See [Web Search](web-search.md).
+
+---
+
+### sessions
+
+List saved agent sessions (resume with `--resume <id>` or `--continue`):
+
+```bash
+joshu sessions
+joshu sessions --all
+```
 
 ---
 

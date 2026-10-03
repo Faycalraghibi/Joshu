@@ -68,6 +68,12 @@ def _env_defaults(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _isolated_joshu_home(monkeypatch, tmp_path):
+    """Keep sessions and other per-user data out of the real ~/.joshu."""
+    monkeypatch.setenv("JOSHU_HOME", str(tmp_path / "joshu_home"))
+
+
+@pytest.fixture(autouse=True)
 def _isolated_config(monkeypatch, tmp_path):
     """Point the global config manager at a temp file so tests never write config/config.yaml."""
     from joshu.core import config as config_module

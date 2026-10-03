@@ -29,3 +29,5 @@ compact_threshold: 0.8
 tool_output_limit: 30000
 providers: {}
 fallback_providers: []
+save_sessions: true
+hooks: {}

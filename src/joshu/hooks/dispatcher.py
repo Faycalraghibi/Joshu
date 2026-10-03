@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import logging
 import subprocess
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
@@ -40,6 +41,8 @@ class RegisteredHook:
     script_path: Path
     enabled: bool = True
     priority: int = 0  # Lower = runs first
+    command: Optional[str] = None  # shell command; used instead of script_path when set
+    timeout: Optional[int] = None  # seconds; falls back to the dispatcher timeout
 
 
 class HookDispatcher:
@@ -119,6 +122,20 @@ class HookDispatcher:
 
         logger.info(f"Registered hook for {event.value}: {script_path}")
         return True
+
+    def register_command_hook(
+        self, event: HookEvent, command: str, timeout: Optional[int] = None
+    ) -> None:
+        """Register a shell command as a hook (payload JSON on stdin)."""
+        hook = RegisteredHook(
+            event=event, script_path=Path(command), command=command, timeout=timeout
+        )
+        self._hooks.setdefault(event, []).append(hook)
+        logger.info(f"Registered hook for {event.value}: {command}")
+
+    def clear_script_hooks(self) -> None:
+        """Remove all script and command hooks (Python hooks are kept)."""
+        self._hooks.clear()
 
     def register_python_hook(
         self,
@@ -233,12 +250,21 @@ class HookDispatcher:
         try:
             payload_json = json.dumps(payload.to_dict())
 
+            if hook.command:
+                argv: Any = hook.command
+            elif hook.script_path.suffix == ".py":
+                # .py files aren't directly executable on Windows
+                argv = [sys.executable, str(hook.script_path)]
+            else:
+                argv = [str(hook.script_path)]
+
             result = subprocess.run(
-                [str(hook.script_path)],
+                argv,
+                shell=bool(hook.command),
                 input=payload_json,
                 capture_output=True,
                 text=True,
-                timeout=self._config.timeout,
+                timeout=hook.timeout or self._config.timeout,
             )
 
             exit_code = result.returncode
@@ -252,6 +278,10 @@ class HookDispatcher:
                     logger.warning(f"Invalid JSON from hook: {result.stdout[:100]}")
 
             allowed = exit_code != HookExitCode.BLOCK
+            if not allowed and (response is None or not response.message):
+                # Exit code 2 without a JSON reason: stderr explains the block
+                reason = result.stderr.strip()[:500] or None
+                response = HookResponse(action="block", message=reason)
 
             if exit_code not in (HookExitCode.ALLOW, HookExitCode.BLOCK):
                 logger.warning(f"Hook {hook.script_path} exited with code {exit_code}")
@@ -348,6 +378,16 @@ def dispatch_before_agent(
     return get_hook_dispatcher().dispatch(HookEvent.BEFORE_AGENT, payload)
 
 
+def dispatch_after_agent(session_id: str, prompt: str, response: str) -> HookResult:
+    """Dispatch AFTER_AGENT event (the agent finished a request)."""
+    payload = HookPayload(
+        event=HookEvent.AFTER_AGENT,
+        session_id=session_id,
+        data={"prompt": prompt, "response": response},
+    )
+    return get_hook_dispatcher().dispatch(HookEvent.AFTER_AGENT, payload)
+
+
 def dispatch_before_tool(
     session_id: str,
     tool_name: str,
@@ -389,3 +429,56 @@ def dispatch_session_end(session_id: str, data: Dict[str, Any]) -> HookResult:
         data=data,
     )
     return get_hook_dispatcher().dispatch(HookEvent.SESSION_END, payload)
+
+
+def configure_hooks_from_settings(settings: Dict[str, Any]) -> List[str]:
+    """
+    Register the hooks declared under `hooks:` in config.yaml.
+
+    Replaces previously configured script/command hooks, so it is safe to call
+    again after the configuration changes.
+
+        hooks:
+          before_tool:
+            - python .joshu/hooks/check_tool.py
+            - command: ./scripts/audit.sh
+              timeout: 30
+
+    Returns:
+        Problems found (unknown events, malformed entries); valid entries are
+        registered regardless.
+    """
+    dispatcher = get_hook_dispatcher()
+    dispatcher.clear_script_hooks()
+    problems: List[str] = []
+
+    for event_name, entries in (settings or {}).items():
+        try:
+            event = HookEvent.from_string(str(event_name))
+        except ValueError:
+            valid = ", ".join(e.value for e in HookEvent)
+            problems.append(f"unknown hook event '{event_name}' (valid: {valid})")
+            continue
+
+        if isinstance(entries, (str, dict)):
+            entries = [entries]
+        if not isinstance(entries, list):
+            problems.append(f"hooks.{event_name} must be a list of commands")
+            continue
+
+        for entry in entries:
+            if isinstance(entry, str) and entry.strip():
+                dispatcher.register_command_hook(event, entry.strip())
+            elif isinstance(entry, dict) and str(entry.get("command", "")).strip():
+                timeout = entry.get("timeout")
+                dispatcher.register_command_hook(
+                    event,
+                    str(entry["command"]).strip(),
+                    timeout=timeout if isinstance(timeout, int) and timeout > 0 else None,
+                )
+            else:
+                problems.append(f"hooks.{event_name}: invalid entry {entry!r}")
+
+    for problem in problems:
+        logger.warning(f"Hook configuration: {problem}")
+    return problems

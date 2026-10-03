@@ -58,6 +58,8 @@ DEFAULT_CONFIG = {
     "context_window": 128000,
     "compact_threshold": 0.8,
     "tool_output_limit": 30000,
+    "save_sessions": True,
+    "hooks": {},
 }
 
 
@@ -142,6 +144,8 @@ class JoshuConfig:
     context_window: int = 128000
     compact_threshold: float = 0.8
     tool_output_limit: int = 30000
+    save_sessions: bool = True
+    hooks: Dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, config_dict: Dict[str, Any]) -> "JoshuConfig":

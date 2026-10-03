@@ -39,8 +39,7 @@ repos:
         entry: |
           python -c "
           import os
-          files = ['./cache/translation_cache.json',
-                   './cache/joshu_data.json', './cache/joshu_sessions.json']
+          files = ['./cache/joshu_data.json', './cache/joshu_sessions.json']
           for f in files:
               if os.path.exists(f) and f.endswith('.json'):
                   open(f, 'w').write('{}\\n')

@@ -346,6 +346,12 @@ class CommandHandler:
             self.interactive_mode._show_message("Agent conversation reset.")
             return True
 
+        if command == "/resume" or command.startswith("/resume "):
+            return self.handle_resume_command(command)
+
+        if command == "/undo":
+            return self.handle_undo_command()
+
         if command.startswith("/permissions"):
             return self.handle_permissions_command(command)
 
@@ -404,9 +410,97 @@ class CommandHandler:
             )
             return True
 
+        elif command == "/commands":
+            return self.handle_commands_list()
+
+        elif command == "/agents":
+            return self.handle_agents_list()
+
         else:
-            self.interactive_mode._show_message(f"Unknown command: {command}")
+            return self.handle_custom_command(command)
+
+    def handle_custom_command(self, command: str) -> bool:
+        """Run a custom command from .joshu/commands or ~/.joshu/commands."""
+        from joshu.core.custom_commands import discover_commands, split_command
+
+        parsed = split_command(command)
+        if parsed is None or parsed[0] not in discover_commands():
+            self.interactive_mode._show_message(
+                f"Unknown command: {command.split()[0]} (see /help and /commands)"
+            )
             return True
+        return self.interactive_mode.run_custom_command(command)
+
+    def handle_agents_list(self) -> bool:
+        """List user-defined sub-agents."""
+        from joshu.core.subagents import agent_dirs, discover_subagents
+
+        specs = discover_subagents()
+        if not specs:
+            dirs = " or ".join(str(d) for d in reversed(agent_dirs()))
+            self.interactive_mode._show_message(f"No sub-agents defined. Add .md files to {dirs}.")
+            return True
+        lines = ["Sub-agents (the agent delegates to them with its task tool):"]
+        for name, spec in sorted(specs.items()):
+            tools = ", ".join(spec.tools) if spec.tools else "read-only"
+            lines.append(f"  {name:<16} {spec.description}  [tools: {tools}]")
+        self.interactive_mode._show_message("\n".join(lines))
+        return True
+
+    def handle_commands_list(self) -> bool:
+        """List custom commands."""
+        from joshu.core.custom_commands import command_dirs, discover_commands
+
+        commands = discover_commands()
+        if not commands:
+            dirs = " or ".join(str(d) for d in reversed(command_dirs()))
+            self.interactive_mode._show_message(
+                f"No custom commands. Add .md or .toml files to {dirs}."
+            )
+            return True
+        lines = ["Custom commands:"]
+        for name, cmd in sorted(commands.items()):
+            lines.append(f"  /{name:<16} {cmd.description}")
+        self.interactive_mode._show_message("\n".join(lines))
+        return True
+
+    def handle_resume_command(self, command: str) -> bool:
+        """/resume lists recent sessions here; /resume <id> continues one."""
+        from pathlib import Path
+
+        from joshu.core.sessions import list_sessions
+
+        parts = command.split(maxsplit=1)
+        if len(parts) == 2:
+            self.interactive_mode.resume_session(parts[1].strip())
+            return True
+
+        infos = list_sessions(Path.cwd(), limit=10)
+        if not infos:
+            self.interactive_mode._show_message("No saved sessions in this directory.")
+            return True
+        lines = ["Recent sessions (resume with /resume <id>):"]
+        for info in infos:
+            updated = info.updated_at.replace("T", " ")
+            lines.append(f"  {info.id}  {updated}  {info.message_count:>3} msgs  {info.title[:60]}")
+        self.interactive_mode._show_message("\n".join(lines))
+        return True
+
+    def handle_undo_command(self) -> bool:
+        """Revert the agent's file edits from its most recent request that edited files."""
+        agent = self.interactive_mode.agent
+        checkpoint = agent.undo() if agent is not None else None
+        if checkpoint is None:
+            self.interactive_mode._show_message("Nothing to undo.")
+            return True
+
+        lines = [f"Undid file changes for: {checkpoint.prompt}"]
+        for path, original in checkpoint.files.items():
+            action = "deleted (was created)" if original is None else "restored"
+            lines.append(f"  {agent._display_path(path)} - {action}")
+        lines.append("Changes made by shell commands are not undone.")
+        self.interactive_mode._show_message("\n".join(lines))
+        return True
 
     def handle_permissions_command(self, command: str) -> bool:
         """Show or set the agent permission mode: /permissions [default|accept_edits|bypass]."""
@@ -497,6 +591,10 @@ Special Commands:
   /history     - Show command history
   /help        - Show this help
   /reset       - Start a new agent conversation
+  /undo        - Revert the agent's file edits from its last request
+  /resume [id] - List saved sessions, or continue one
+  /commands    - List custom commands (.joshu/commands/*.md|toml)
+  /agents      - List sub-agents (.joshu/agents/*.md)
   /permissions - Show or set the agent permission mode
   /config   - Show/set configuration
   /model    - Switch AI model
