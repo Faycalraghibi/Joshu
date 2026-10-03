@@ -11,7 +11,7 @@
 ### 1. Clone Repository
 
 ```bash
-git clone https://github.com/Faycalraghibi/OpenCLI.git joshu
+git clone https://github.com/Faycalraghibi/Joshu.git joshu
 cd joshu
 ```
 
