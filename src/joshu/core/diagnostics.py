@@ -160,7 +160,10 @@ def _check_toml(path: Path) -> Optional[str]:
     try:
         import tomllib
     except ImportError:  # Python < 3.11
-        return None
+        try:
+            import tomli as tomllib  # type: ignore[no-redef]
+        except ImportError:
+            return None
     try:
         tomllib.loads(path.read_text(encoding="utf-8"))
     except tomllib.TOMLDecodeError as e:

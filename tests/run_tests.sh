@@ -25,4 +25,4 @@ if ! python -c "import joshu" 2>/dev/null; then
 fi
 
 # Run tests
-pytest tests/ -q --tb=short
+pytest tests/ -q --tb=short --durations=10

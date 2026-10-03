@@ -7,6 +7,7 @@ Run with: pytest tests/test_web_fetch.py -v
 
 from __future__ import annotations
 
+import importlib
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -297,7 +298,10 @@ class TestWebFetchTool:
         assert tool is not None
         assert tool.requires_approval is True
 
-    @patch("joshu.tools.implementations.web_fetch_tool.process_url_content")
+    @patch.object(
+        importlib.import_module("joshu.tools.implementations.web_fetch_tool"),
+        "process_url_content",
+    )
     def test_web_fetch_tool_execution(self, mock_process):
         """Test web fetch tool execution."""
         from joshu.core.tool_executor import ToolExecutor
@@ -321,7 +325,10 @@ class TestWebFetchTool:
         assert result["result"]["url"] == "https://example.com"
         assert result["result"]["content"] is not None
 
-    @patch("joshu.tools.implementations.web_fetch_tool.process_url_content")
+    @patch.object(
+        importlib.import_module("joshu.tools.implementations.web_fetch_tool"),
+        "process_url_content",
+    )
     def test_web_fetch_tool_with_instruction(self, mock_process):
         """Test web fetch tool with processing instruction."""
         from joshu.core.tool_executor import ToolExecutor

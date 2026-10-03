@@ -156,7 +156,7 @@ class TestFindProjectRoot:
 
             # Test from project root
             result = find_project_root(project_root)
-            assert result == project_root
+            assert result.resolve() == project_root.resolve()
 
     def test_find_project_root_from_subdirectory(self):
         """Should find project root when starting from subdirectory."""
@@ -171,7 +171,7 @@ class TestFindProjectRoot:
 
             # Test from subdirectory
             result = find_project_root(sub_dir)
-            assert result == project_root
+            assert result.resolve() == project_root.resolve()
 
     def test_find_project_root_no_joshu_md(self):
         """Should return None when no joshu.md exists."""

@@ -4,6 +4,7 @@ Basic tests for tool calling framework.
 Run with: pytest tests/test_tool_calling_basic.py -v
 """
 
+import importlib
 import json
 from unittest.mock import patch
 
@@ -190,7 +191,9 @@ class TestWebSearchTool:
         assert tool.name == "web_search"
         assert "search" in tool.description.lower()
 
-    @patch("joshu.tools.implementations.web_search_tool.search_web")
+    @patch.object(
+        importlib.import_module("joshu.tools.implementations.web_search_tool"), "search_web"
+    )
     def test_web_search_tool_execution(self, mock_search):
         """Test web search tool execution."""
         import importlib

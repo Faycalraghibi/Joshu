@@ -1,21 +1,25 @@
 name: CI
 
 on:
+  push:
+    branches: [main]
+  pull_request:
   workflow_dispatch:
+
+# A newer push to the same branch or PR cancels the run in progress
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   PYTHONUNBUFFERED: "1"
   PYTHONDONTWRITEBYTECODE: "1"
+  # Tests never call a real model in CI
   SKIP_LLM_TESTS: "1"
 
-  # API Keys (from GitHub Secrets); LLM tests are skipped above
-  OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-  TESTSPRITE_API_KEY: ${{ secrets.TESTSPRITE_API_KEY }}
-  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
 jobs:
-  ci:
-    name: Build, Lint & Test
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -44,6 +48,32 @@ jobs:
         run: python scripts/check_build_status.py
         continue-on-error: true
 
+  test:
+    name: Test (${{ matrix.os }}, Python ${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        include:
+          - os: windows-latest
+            python: "3.13"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install -e ".[dev]"
+
       - name: Install sandbox tools (Linux)
         if: runner.os == 'Linux'
         run: |
@@ -54,6 +84,7 @@ jobs:
 
       - name: Run tests (Windows)
         if: runner.os == 'Windows'
+        shell: pwsh
         run: .\tests\run_tests.ps1
 
       - name: Run tests (Linux)
