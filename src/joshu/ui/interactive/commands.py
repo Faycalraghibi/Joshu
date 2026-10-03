@@ -2,6 +2,22 @@
 
 import json
 
+INIT_PROMPT = """Create or update AGENTS.md at the root of this repository: instructions for AI coding agents working here.
+
+First explore: the README, build and dependency files (pyproject.toml, package.json, Makefile, ...), CI configuration, the source layout and a few representative files. Then write a concise AGENTS.md (under about 150 lines) covering:
+- What the project is, in two or three sentences
+- How to install dependencies, build, run the tests (including a single test) and lint
+- The layout: main directories and what lives where
+- Conventions that aren't obvious from the code: style, naming, patterns to follow, things to avoid
+- Anything a newcomer would likely get wrong
+
+Only include facts you verified in the repository; don't invent commands. If AGENTS.md (or JOSHU.md / CLAUDE.md) already exists, read it and improve it rather than starting over, keeping what is still accurate."""
+
+
+def _shorten(text: str, limit: int = 80) -> str:
+    text = " ".join(text.split())
+    return text if len(text) <= limit else text[: limit - 3] + "..."
+
 
 class CommandHandler:
     """Handler for slash commands."""
@@ -286,6 +302,15 @@ class CommandHandler:
         if command == "/undo":
             return self.handle_undo_command()
 
+        if command == "/rewind" or command.startswith("/rewind "):
+            return self.handle_rewind_command(command)
+
+        if command == "/compact" or command.startswith("/compact "):
+            return self.handle_compact_command(command)
+
+        if command == "/init" or command.startswith("/init "):
+            return self.handle_init_command(command)
+
         if command.startswith("/permissions"):
             return self.handle_permissions_command(command)
 
@@ -457,6 +482,60 @@ class CommandHandler:
         self.interactive_mode._show_message("\n".join(lines))
         return True
 
+    def handle_rewind_command(self, command: str) -> bool:
+        """/rewind [n]: drop the last n requests and restore the files they changed."""
+        agent = self.interactive_mode.agent
+        arg = command[len("/rewind") :].strip() or "1"
+        if not arg.isdigit() or int(arg) < 1:
+            self.interactive_mode._show_message("Usage: /rewind [n]  (n requests, default 1)")
+            return True
+        rewind = agent.rewind(int(arg)) if agent is not None else None
+        if rewind is None:
+            self.interactive_mode._show_message("Nothing to rewind.")
+            return True
+
+        lines = [f"Rewound {len(rewind.prompts)} request(s):"]
+        lines += [f"  - {_shorten(p)}" for p in rewind.prompts]
+        if rewind.files:
+            lines.append("Restored files:")
+            lines += [f"  {agent._display_path(p)}" for p in rewind.files]
+        lines.append("Changes made by shell commands are not undone.")
+        self.interactive_mode._show_message("\n".join(lines))
+        # Offer the first dropped request for editing and resending
+        self.interactive_mode.type_ahead = rewind.prompts[0] if rewind.prompts else ""
+        return True
+
+    def handle_compact_command(self, command: str) -> bool:
+        """/compact [focus]: summarize the conversation now to free context."""
+        from joshu.core.llm_client import LLMError
+
+        agent = self.interactive_mode.agent
+        if agent is None:
+            self.interactive_mode._show_message("Nothing to compact yet.")
+            return True
+        focus = command[len("/compact") :].strip()
+        try:
+            result = agent.compact(focus)
+        except LLMError as e:
+            self.interactive_mode._show_message(f"Model error: {e}")
+            return True
+        if result is None:
+            self.interactive_mode._show_message("Nothing to compact yet.")
+        else:
+            before, after = result
+            self.interactive_mode._show_message(
+                f"Compacted the conversation: ~{before:,} -> ~{after:,} tokens."
+            )
+        return True
+
+    def handle_init_command(self, command: str) -> bool:
+        """/init [notes]: have the agent write or update AGENTS.md for this project."""
+        notes = command[len("/init") :].strip()
+        prompt = INIT_PROMPT + (f"\n\nThe user adds: {notes}" if notes else "")
+        if not self.interactive_mode._ensure_agent():
+            return True
+        return self.interactive_mode._run_agent(prompt)
+
     def handle_permissions_command(self, command: str) -> bool:
         """Show or set the agent permission mode: /permissions [default|accept_edits|bypass]."""
         from joshu.core.permissions import PermissionMode
@@ -579,6 +658,9 @@ Special Commands:
   /help        - Show this help
   /reset       - Start a new conversation (same as /session new)
   /undo        - Revert the agent's file edits from its last request
+  /rewind [n]  - Drop the last n requests and restore the files they changed
+  /compact [focus] - Summarize the conversation now (optionally what to keep)
+  /init [notes] - Write or update AGENTS.md for this project
   /cost        - Tokens and cost of this conversation
   /model [id]  - Show or switch the model for this conversation
   /models [q]  - List the provider's models
@@ -587,7 +669,7 @@ Special Commands:
   /agents      - List sub-agents (.joshu/agents/*.md)
   /permissions - Show or set the agent permission mode
   /config   - Show/set configuration
-  /model    - Switch AI model
+  Esc       - Interrupt the agent (typing while it works prepares your next message)
 """
 
         mode_help = {

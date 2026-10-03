@@ -324,11 +324,15 @@ sub-agents are included.
 - `/agent`, `/plan`, `/ask`: switch mode (`ask` answers without tools)
 - `/permissions [mode]`: show or set the permission mode
 - `/undo`: revert the agent's file edits from its last request
+- `/rewind [n]`: drop the last n requests and restore the files they changed
+- `/compact [focus]`: summarize the conversation now
+- `/init [notes]`: write or update AGENTS.md for this project
 - `/cost`: tokens and cost of the conversation
 - `/resume [id]`: list saved sessions, or continue one
 - `/commands`, `/agents`: list custom commands and sub-agents
 - `/reset`: start a new agent conversation
-- Ctrl+C: interrupt the current task; the conversation stays usable
+- Esc or Ctrl+C: interrupt the current task; the conversation stays usable.
+  Text typed while the agent works becomes the next prompt.
 
 ## Hooks
 

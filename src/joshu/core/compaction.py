@@ -60,6 +60,7 @@ def compact_messages(
     client: ChatClient,
     keep_recent: int = 2,
     max_summary_tokens: int = 2048,
+    focus: str = "",
 ) -> List[Dict[str, Any]]:
     """
     Replace older turns with a summary.
@@ -68,6 +69,7 @@ def compact_messages(
         messages: Full history; messages[0] must be the system prompt
         client: Model used to write the summary
         keep_recent: Number of most recent user turns kept verbatim
+        focus: What the summary should concentrate on (from `/compact <focus>`)
 
     Returns:
         New message list: [system, summary, *recent]. The input is returned
@@ -80,9 +82,12 @@ def compact_messages(
     old = messages[1:split]
     transcript = _render_transcript(old)
 
+    instructions = SUMMARY_INSTRUCTIONS
+    if focus.strip():
+        instructions += f"\nThe user asked the summary to focus on: {focus.strip()}"
     turn = client.complete(
         [
-            {"role": "system", "content": SUMMARY_INSTRUCTIONS},
+            {"role": "system", "content": instructions},
             {"role": "user", "content": transcript},
         ],
         tools=None,

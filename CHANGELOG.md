@@ -19,6 +19,9 @@ All notable changes to the Joshu project will be documented in this file.
 - Tool-call recovery for weaker models: arguments that aren't quite JSON (code fences, trailing commas, Python literals, truncated output) are repaired, near-miss tool names (`ReadFile`, `bash`, `functions.read_file`) resolve to the right tool, and errors list the available tools or the tool's parameters (`joshu.core.tool_repair`).
 - Loop detection: the same tool call returning the same result 3 times in a row gets a warning; at 5 the request stops (`stopped: loop`).
 - `replace` shows the closest matching lines when `old_string` isn't found.
+- Esc interrupts the agent in interactive mode, and text typed while it works is kept as the next prompt (`joshu.ui.key_listener`).
+- `/rewind [n]` drops the last n requests and restores the files the agent changed for them; `/compact [focus]` summarizes the conversation on demand; `/init` has the agent write or update AGENTS.md.
+- Tab completes slash commands (built-in and custom) instead of shell command names.
 - Benchmark tasks and runner (`benchmarks/`): pass rate, turns and tokens per model on small real coding tasks, graded by hidden tests.
 
 ### Fixed
