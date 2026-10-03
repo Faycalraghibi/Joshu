@@ -4,6 +4,8 @@ All notable changes to the Joshu project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-03
+
 ### Added
 - A2A server runs the tool-using agent for each task: streamed thoughts, tool calls and the final answer, approvals as confirmation requests, cancellation; `approval_mode` per task; `joshu serve`; `a2a` extra (FastAPI, uvicorn).
 - Prompt caching: cache breakpoints on the system prompt and latest message for models that need them (Anthropic models on OpenRouter; `cache_control_models` for custom providers); cached input tokens shown in `/cost` (`joshu.core.prompt_cache`).
@@ -54,11 +56,6 @@ All notable changes to the Joshu project will be documented in this file.
 - LLM errors are reported instead of being swallowed.
 - CLI crashed on Windows when output was piped (cp1252 console encoding).
 - `SKIP_LLM_TESTS` guarded the removed providers only, and `SKIP_LLM_TESTS=0` still skipped; it now guards every real model request and honors `0`/`false`.
-
-
-### Dependencies
-
-### Technical Details
 
 ## Contributing
 

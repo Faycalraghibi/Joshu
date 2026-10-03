@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 
+from joshu import __version__
 from joshu.mcp.exceptions import (
     MCPConnectionError,
     MCPTimeoutError,
@@ -85,7 +86,7 @@ class HTTPTransport(MCPTransport):
                     "capabilities": {},
                     "clientInfo": {
                         "name": "joshu",
-                        "version": "0.1.0",
+                        "version": __version__,
                     },
                 },
             )
