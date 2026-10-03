@@ -62,6 +62,7 @@ DEFAULT_CONFIG = {
     "hooks": {},
     "model_pricing": {},
     "trusted_projects": [],
+    "models": {},
     "permissions": {"allow": [], "deny": []},
     "diagnostics_enabled": True,
     "diagnostics": {},
@@ -154,6 +155,7 @@ class JoshuConfig:
     hooks: Dict[str, Any] = field(default_factory=dict)
     model_pricing: Dict[str, Any] = field(default_factory=dict)
     trusted_projects: List[str] = field(default_factory=list)
+    models: Dict[str, Any] = field(default_factory=dict)
     permissions: Dict[str, Any] = field(default_factory=lambda: {"allow": [], "deny": []})
     diagnostics_enabled: bool = True
     diagnostics: Dict[str, Any] = field(default_factory=dict)
