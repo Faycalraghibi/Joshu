@@ -421,6 +421,7 @@ def test_streaming_accumulates_text_and_tool_call_fragments():
     client.model = "m"
     client.extra_headers = {}
     client.extra_body = {}
+    client.cache_breakpoints = False
     client._client = SimpleNamespace(
         chat=SimpleNamespace(completions=SimpleNamespace(create=lambda **kw: iter(chunks)))
     )

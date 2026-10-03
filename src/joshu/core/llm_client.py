@@ -99,6 +99,7 @@ class OpenAIChatClient:
         model: str,
         extra_headers: Optional[Dict[str, str]] = None,
         extra_body: Optional[Dict[str, Any]] = None,
+        cache_breakpoints: bool = False,
         timeout: float = 120.0,
     ) -> None:
         from openai import OpenAI
@@ -108,6 +109,8 @@ class OpenAIChatClient:
         self.extra_headers = {k: v for k, v in (extra_headers or {}).items() if v}
         # Provider-specific request fields, e.g. OpenRouter's usage accounting
         self.extra_body = dict(extra_body or {})
+        # Mark the cacheable prompt prefix (see joshu.core.prompt_cache)
+        self.cache_breakpoints = cache_breakpoints
         import httpx
 
         # Short connect timeout: an unreachable endpoint should fail fast so the
@@ -129,6 +132,10 @@ class OpenAIChatClient:
         on_text: Optional[Callable[[str], None]] = None,
     ) -> AssistantTurn:
         """Run one completion, streaming text to `on_text` when given."""
+        if self.cache_breakpoints:
+            from joshu.core.prompt_cache import add_cache_breakpoints
+
+            messages = add_cache_breakpoints(messages)
         request: Dict[str, Any] = {
             "model": self.model,
             "messages": messages,
@@ -247,6 +254,13 @@ def _usage_dict(usage: Any) -> Dict[str, Any]:
         cost = (getattr(usage, "model_extra", None) or {}).get("cost")
     if isinstance(cost, (int, float)) and not isinstance(cost, bool):
         result["cost"] = float(cost)
+    # Input tokens served from the provider's prompt cache
+    details = getattr(usage, "prompt_tokens_details", None)
+    cached = getattr(details, "cached_tokens", None) if details is not None else None
+    if isinstance(details, dict):
+        cached = details.get("cached_tokens")
+    if isinstance(cached, int) and cached > 0:
+        result["cached_tokens"] = cached
     return result
 
 
@@ -350,6 +364,8 @@ def create_chat_client(model: Optional[str] = None, provider: Optional[str] = No
 
 def _client_for_provider(provider: Any, model: Optional[str]) -> OpenAIChatClient:
     """OpenAI-compatible client for one provider."""
+    from joshu.core.prompt_cache import model_wants_breakpoints
+
     model = model or provider.default_model
     if not model:
         raise LLMError(
@@ -368,4 +384,5 @@ def _client_for_provider(provider: Any, model: Optional[str]) -> OpenAIChatClien
         model=model,
         extra_headers=dict(provider.headers),
         extra_body=dict(provider.request_options),
+        cache_breakpoints=model_wants_breakpoints(model, provider.cache_control_models),
     )
