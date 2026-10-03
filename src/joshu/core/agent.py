@@ -139,6 +139,11 @@ class Agent:
         self.usage: Dict[str, int] = {"prompt_tokens": 0, "completion_tokens": 0}
         self.cost = CostTracker()
         self._pricing: Dict[str, Any] = config.get("model_pricing") or {}
+        self.diagnostics_enabled = bool(config.get("diagnostics_enabled", True))
+        self._diagnostic_commands: Dict[str, str] = {
+            str(ext).lower() if str(ext).startswith(".") else f".{str(ext).lower()}": str(cmd)
+            for ext, cmd in (config.get("diagnostics") or {}).items()
+        }
         self.tool_call_count = 0
         self.checkpoints = CheckpointStore()
         # Notes for the model about things that happened outside the loop (e.g. undo)
@@ -338,11 +343,30 @@ class Agent:
 
         self.events.on_tool_start(call.name, arguments)
         success, output = self._invoke(spec, arguments, self._formatter)
+        if success and call.name in EDIT_TOOLS and self.diagnostics_enabled:
+            output += self._diagnose(arguments)
         output = truncate_output(output, self.tool_output_limit)
 
         dispatch_after_tool(self.session_id, call.name, output, success)
         self.events.on_tool_end(call.name, output, success)
         return output
+
+    def _diagnose(self, arguments: Dict[str, Any]) -> str:
+        """Problems in the file an edit tool just wrote, formatted for the model."""
+        from joshu.core.diagnostics import check_file
+        from joshu.tools.filesystem_tools import resolve_path
+
+        try:
+            path = resolve_path(str(arguments.get("path", "")))
+        except ValueError:
+            return ""
+        problems = check_file(path, self._diagnostic_commands)
+        if not problems:
+            return ""
+        return (
+            f"\n\nThe edit was applied, but {self._display_path(path)} now has problems. "
+            f"Fix them before moving on:\n{problems}"
+        )
 
     def _snapshot_target(self, arguments: Dict[str, Any]) -> None:
         """Record the file an edit tool is about to change, for undo."""

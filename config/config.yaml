@@ -32,3 +32,5 @@ fallback_providers: []
 save_sessions: true
 hooks: {}
 model_pricing: {}
+diagnostics_enabled: true
+diagnostics: {}

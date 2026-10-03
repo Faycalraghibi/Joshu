@@ -88,6 +88,10 @@ class ConsoleAgentUI(AgentEvents):
                 else ""
             )
             self.console.print(f"  [dim]└ {first_line}[/dim]{more}")
+            if "now has problems. Fix them" in output:
+                self.console.print(
+                    "  [yellow]└ problems found after the edit; the agent will fix them[/yellow]"
+                )
         else:
             self.console.print(f"  [red]└ {escape(name)}: {first_line}[/red]")
 
@@ -177,10 +181,12 @@ def _first_line(text: str, limit: int) -> str:
 
 def _json_summary(text: str) -> Optional[str]:
     """Short description of a JSON tool result, e.g. "12 matches" or its error."""
-    if not text.lstrip().startswith("{"):
+    text = text.lstrip()
+    if not text.startswith("{"):
         return None
     try:
-        data = json.loads(text)
+        # Text may follow the JSON object (e.g. diagnostics after an edit)
+        data, _ = json.JSONDecoder().raw_decode(text)
     except ValueError:
         return None
     if not isinstance(data, dict):

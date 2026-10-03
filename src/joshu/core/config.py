@@ -61,6 +61,8 @@ DEFAULT_CONFIG = {
     "save_sessions": True,
     "hooks": {},
     "model_pricing": {},
+    "diagnostics_enabled": True,
+    "diagnostics": {},
 }
 
 
@@ -148,6 +150,8 @@ class JoshuConfig:
     save_sessions: bool = True
     hooks: Dict[str, Any] = field(default_factory=dict)
     model_pricing: Dict[str, Any] = field(default_factory=dict)
+    diagnostics_enabled: bool = True
+    diagnostics: Dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, config_dict: Dict[str, Any]) -> "JoshuConfig":
