@@ -296,18 +296,91 @@ class FallbackChatClient:
         )
 
 
-def create_chat_client(model: Optional[str] = None) -> ChatClient:
+def create_chat_client(model: Optional[str] = None, provider: Optional[str] = None) -> ChatClient:
     """
-    Build a chat client over every configured endpoint.
+    Build the chat client for the configured provider.
+
+    The provider comes from `provider` or the `provider` config value; the model
+    from `model`, else the `model` config value, else the provider's default.
+    Providers listed in `fallback_providers` are tried (with their default
+    models) when the main one can't be reached.
+
+    With provider "auto" (the default), endpoints are detected from environment
+    variables instead; see _create_auto_client.
+
+    Raises:
+        LLMError: for an unknown provider, a missing API key, or no model.
+    """
+    from joshu.core.config import get_config_manager
+    from joshu.core.providers import AUTO_PROVIDER, ProviderError, get_providers
+
+    config = get_config_manager()
+    name = provider or config.get("provider", AUTO_PROVIDER) or AUTO_PROVIDER
+    if provider is None or provider == config.get("provider"):
+        model = model or config.get("model")
+
+    if name == AUTO_PROVIDER:
+        return _create_auto_client(model)
+
+    try:
+        providers = get_providers(config.get("providers") or {})
+    except ProviderError as e:
+        raise LLMError(f"Invalid provider configuration: {e}") from e
+
+    if name not in providers:
+        raise LLMError(
+            f"Unknown provider '{name}'. Known providers: {', '.join(sorted(providers))}. "
+            "Add custom ones under `providers:` in config.yaml."
+        )
+
+    clients = [_client_for_provider(providers[name], model)]
+    for fallback in config.get("fallback_providers") or []:
+        if fallback == name or fallback not in providers:
+            continue
+        try:
+            clients.append(_client_for_provider(providers[fallback], None))
+        except LLMError as e:
+            logger.debug(f"Skipping fallback provider {fallback}: {e}")
+
+    return clients[0] if len(clients) == 1 else FallbackChatClient(clients)
+
+
+def _client_for_provider(provider: Any, model: Optional[str]) -> OpenAIChatClient:
+    """OpenAI-compatible client for one provider."""
+    model = model or provider.default_model
+    if not model:
+        raise LLMError(
+            f"No model set for provider '{provider.name}'. "
+            "Pass --model or set `model` in config.yaml."
+        )
+
+    api_key = provider.resolve_api_key()
+    headers = dict(provider.headers)
+    if provider.name == "openrouter":
+        # Keys stored per model family (GLM_API_KEY, ...) also work for OpenRouter
+        api_key = api_key or ModelConfig.get_openrouter_api_key(model)
+        headers.update({k: v for k, v in ModelConfig.get_openrouter_headers().items() if v})
+
+    if provider.requires_key and not api_key:
+        where = f"set {provider.api_key_env}" if provider.api_key_env else "set api_key"
+        raise LLMError(f"Provider '{provider.name}' needs an API key: {where}.")
+
+    return OpenAIChatClient(
+        base_url=provider.base_url,
+        api_key=api_key or "not-needed",
+        model=model,
+        extra_headers=headers,
+    )
+
+
+def _create_auto_client(model: Optional[str] = None) -> ChatClient:
+    """
+    Detect endpoints from environment variables (provider: auto).
 
     Endpoints: vLLM server (VLLM_SERVER_URL), local model API (LOCAL_MODEL_URL),
     OpenRouter (OPENROUTER_API_KEY or a model-specific key). The endpoint serving
     the requested model is tried first; unreachable endpoints fall through to
     the next one.
-
-    Args:
-        model: Requested model, e.g. "z-ai/glm-4.5-air:free" (OpenRouter) or
-            the VLLM_MODEL / LOCAL_MODEL_IDENTIFIER of a local server.
 
     Raises:
         LLMError: if no endpoint is configured.
@@ -354,9 +427,9 @@ def create_chat_client(model: Optional[str] = None) -> ChatClient:
 
     if not candidates:
         raise LLMError(
-            "No model endpoint configured. Set OPENROUTER_API_KEY (and optionally "
-            "OPENROUTER_MODEL), or LOCAL_MODEL_URL / VLLM_SERVER_URL for a local "
-            "OpenAI-compatible server."
+            "No model endpoint configured. Choose a provider with `joshu providers` "
+            "and set its API key (e.g. OPENROUTER_API_KEY), or set `provider` in "
+            "config.yaml."
         )
 
     if preferred is not None:

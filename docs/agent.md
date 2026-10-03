@@ -26,19 +26,13 @@ the permission mode allows them.
 `joshu run --legacy "..."` keeps the old behavior: translate the request into a
 single shell command and run it after confirmation.
 
-## Model endpoint
+## Model provider
 
-The agent needs an OpenAI-compatible endpoint that supports tool calling:
-
-| Variable | Endpoint |
-|---|---|
-| `OPENROUTER_API_KEY` (or a model-specific key such as `GLM_API_KEY`) | OpenRouter; model from `--model`, the `model` config value, or `OPENROUTER_MODEL` |
-| `VLLM_SERVER_URL` + `VLLM_MODEL` | vLLM server |
-| `LOCAL_MODEL_URL` + `LOCAL_MODEL_IDENTIFIER` | Any local OpenAI-compatible server (LM Studio, Ollama, llama.cpp server) |
-
-When several are configured, the one serving the requested model is tried
-first; an endpoint that can't be reached falls through to the next. Request
-errors (bad key, unknown model, rate limit) are shown as they are.
+The agent works with any provider that has an OpenAI-compatible API and a
+model with tool calling: OpenRouter, OpenAI, Anthropic, Gemini, Groq, Mistral,
+local servers like Ollama or LM Studio, or a custom endpoint. Pick one with
+`provider` and `model` in config, or `--provider` / `--model` per run; list
+them with `joshu providers`. See [Models & Providers](models-and-providers.md).
 
 ## Permissions
 
@@ -95,6 +89,9 @@ plan mode.
 | `compact_threshold` | `0.8` | Fraction of the window that triggers compaction |
 | `tool_output_limit` | `30000` | Max characters of one tool result sent to the model |
 | `max_tokens` | `4096` | Max tokens per model response |
+| `provider` | `auto` | Model provider (see `joshu providers`) |
+| `providers` | `{}` | Custom providers and overrides |
+| `fallback_providers` | `[]` | Tried when the provider can't be reached |
 
 ## Interactive commands
 

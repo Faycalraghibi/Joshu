@@ -193,6 +193,7 @@ def _json_summary(text: str) -> Optional[str]:
 def create_console_agent(
     model: Optional[str] = None,
     mode: Optional[PermissionMode] = None,
+    provider: Optional[str] = None,
     sandbox: bool = False,
     interactive: bool = True,
     console: Optional[Console] = None,
@@ -219,7 +220,8 @@ def create_console_agent(
     agent = Agent(
         permissions=permissions,
         events=ui,
-        model=model or config.get("model"),
+        model=model,
+        provider=provider,
         stream=not quiet,
     )
     return agent, ui

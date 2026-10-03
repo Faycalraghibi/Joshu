@@ -1,3 +1,4 @@
+provider: openrouter
 model: poolside/laguna-s-2.1:free
 safety_mode: false
 auto_execute: false
@@ -38,3 +39,5 @@ permission_mode: default
 context_window: 128000
 compact_threshold: 0.8
 tool_output_limit: 30000
+providers: {}
+fallback_providers: []

@@ -491,7 +491,7 @@ def _invoke_run(args, client=None, error=None):
 
     from joshu.ui.cli import app
 
-    def fake_create(model=None):
+    def fake_create(model=None, provider=None):
         if error:
             raise error
         return client

@@ -9,7 +9,7 @@ import copy
 import logging
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
 
@@ -63,6 +63,10 @@ DEFAULT_CONFIG = {
     "mcp_enabled": True,
     "mcp_discovery_on_startup": True,
     "mcp_servers": {},
+    # Model provider settings (see joshu.core.providers)
+    "provider": "auto",
+    "providers": {},
+    "fallback_providers": [],
     # Agent loop settings
     "agent_max_turns": 50,
     "permission_mode": "default",
@@ -158,6 +162,10 @@ class JoshuConfig:
     mcp_enabled: bool = True
     mcp_discovery_on_startup: bool = True
     mcp_servers: Dict[str, Any] = field(default_factory=dict)
+    # Model provider settings (see joshu.core.providers)
+    provider: str = "auto"
+    providers: Dict[str, Any] = field(default_factory=dict)
+    fallback_providers: List[str] = field(default_factory=list)
     # Agent loop settings
     agent_max_turns: int = 50
     permission_mode: str = "default"
@@ -275,6 +283,12 @@ class JoshuConfig:
                 "mcp_discovery_on_startup", DEFAULT_CONFIG["mcp_discovery_on_startup"]
             ),
             mcp_servers=config_dict.get("mcp_servers", DEFAULT_CONFIG["mcp_servers"]),
+            # Model provider settings
+            provider=config_dict.get("provider", DEFAULT_CONFIG["provider"]),
+            providers=config_dict.get("providers", DEFAULT_CONFIG["providers"]),
+            fallback_providers=config_dict.get(
+                "fallback_providers", DEFAULT_CONFIG["fallback_providers"]
+            ),
             # Agent loop settings
             agent_max_turns=config_dict.get("agent_max_turns", DEFAULT_CONFIG["agent_max_turns"]),
             permission_mode=config_dict.get("permission_mode", DEFAULT_CONFIG["permission_mode"]),

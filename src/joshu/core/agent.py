@@ -67,6 +67,7 @@ class Agent:
         events: Optional[AgentEvents] = None,
         *,
         model: Optional[str] = None,
+        provider: Optional[str] = None,
         max_turns: Optional[int] = None,
         max_tokens: Optional[int] = None,
         temperature: Optional[float] = None,
@@ -88,6 +89,8 @@ class Agent:
                 no approver (approval-required tools are denied)
             events: UI callbacks
             model: Model id used when creating the client
+            provider: Provider name used when creating the client (see
+                joshu.core.providers); defaults to the configured one
             tool_names: Restrict the agent to these tools (default: all enabled)
             system_prompt: Override the generated system prompt
             is_subagent: Sub-agents get the sub-agent prompt and no `task` tool
@@ -95,7 +98,7 @@ class Agent:
         """
         config = get_config_manager()
 
-        self.client = client or create_chat_client(model or config.get("model"))
+        self.client = client or create_chat_client(model, provider)
         self.permissions = permissions or PermissionManager(
             PermissionMode.from_string(config.get("permission_mode", "default"))
         )

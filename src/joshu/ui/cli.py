@@ -94,6 +94,7 @@ def execute_agent_prompt(
     headless: bool,
     output_format: str,
     sandbox: bool,
+    provider: Optional[str] = None,
 ) -> int:
     """
     Run a prompt through the tool-using agent.
@@ -119,6 +120,7 @@ def execute_agent_prompt(
     try:
         agent, ui = create_console_agent(
             model=model,
+            provider=provider,
             mode=mode,
             sandbox=sandbox,
             interactive=can_ask,
@@ -187,6 +189,83 @@ def config(
     handle_config(list_config, get, set, reset, edit)
 
 
+def _use_provider(provider: str, model: Optional[str]) -> str:
+    """
+    Switch provider for this process (the config file is not changed).
+
+    Returns the model to use: the given one, else the provider's default.
+    Exits with an error for an unknown provider or one without a default model.
+    """
+    from joshu.core.config import get_config_manager
+    from joshu.core.providers import ProviderError, get_providers
+
+    config_manager = get_config_manager()
+    try:
+        providers = get_providers(config_manager.get("providers") or {})
+    except ProviderError as e:
+        console.print(f"[red]Invalid provider configuration: {e}[/red]")
+        raise typer.Exit(code=2)
+
+    if provider not in providers:
+        console.print(
+            f"[red]Unknown provider '{provider}'.[/red] Run `joshu providers` to list them."
+        )
+        raise typer.Exit(code=2)
+
+    model = model or providers[provider].default_model
+    if not model:
+        console.print(f"[red]Provider '{provider}' has no default model; pass --model.[/red]")
+        raise typer.Exit(code=2)
+
+    config_manager.set("provider", provider)
+    config_manager.set("model", model)
+    return model
+
+
+@app.command()
+def providers() -> None:
+    """List model providers and whether each one is ready to use."""
+    from rich.table import Table
+
+    from joshu.core.config import get_config_manager
+    from joshu.core.providers import AUTO_PROVIDER, ProviderError, get_providers
+
+    config_manager = get_config_manager()
+    try:
+        all_providers = get_providers(config_manager.get("providers") or {})
+    except ProviderError as e:
+        console.print(f"[red]Invalid provider configuration: {e}[/red]")
+        raise typer.Exit(code=2)
+
+    active = config_manager.get("provider", AUTO_PROVIDER)
+    table = Table(title="Model providers")
+    table.add_column("Provider")
+    table.add_column("API key")
+    table.add_column("Base URL")
+    table.add_column("Default model")
+
+    for name, p in all_providers.items():
+        label = f"[bold]{name}[/bold] (active)" if name == active else name
+        if not p.requires_key:
+            key = "[dim]not needed[/dim]"
+        else:
+            source = p.api_key_env or "api_key in config"
+            status = "[green]set[/green]" if p.is_configured() else "[dim]missing[/dim]"
+            key = f"{status} ({source})"
+        table.add_row(label, key, p.base_url, p.default_model or "-")
+
+    console.print(table)
+    if active == AUTO_PROVIDER:
+        console.print(
+            "[dim]provider: auto - endpoints are detected from VLLM_SERVER_URL, "
+            "LOCAL_MODEL_URL and OpenRouter keys.[/dim]"
+        )
+    console.print(
+        "[dim]Use one: joshu config --set provider=<name> (and model=<id>), "
+        "or --provider on run/interactive. Add others under `providers:` in config.yaml.[/dim]"
+    )
+
+
 @app.command()
 def interactive(
     model: str = typer.Option(None, "--model", "-m", help="LLM model to use."),
@@ -199,6 +278,11 @@ def interactive(
     verbose: bool = typer.Option(
         False, "--verbose", "-v", help="Enable verbose output (show debug logs)."
     ),
+    provider: Optional[str] = typer.Option(
+        None,
+        "--provider",
+        help="Model provider (see `joshu providers`); overrides the config for this run.",
+    ),
 ) -> None:
     """Start interactive chat mode directly."""
     global _current_model
@@ -207,6 +291,8 @@ def interactive(
 
     config_manager = get_config_manager()
 
+    if provider:
+        model = _use_provider(provider, model)
     if model is None:
         model = config_manager.get("model", "llama-3-8b")
     _current_model = model
@@ -276,6 +362,11 @@ def run(
     legacy: bool = typer.Option(
         False, "--legacy", help="Translate the prompt into a single shell command instead."
     ),
+    provider: Optional[str] = typer.Option(
+        None,
+        "--provider",
+        help="Model provider (see `joshu providers`); overrides the config for this run.",
+    ),
 ) -> None:
     """Run a task with the agent, or start interactive mode."""
     global _current_model
@@ -285,6 +376,8 @@ def run(
 
         config_manager = get_config_manager()
 
+        if provider:
+            model = _use_provider(provider, model)
         if model is None:
             model = config_manager.get("model", "llama-3-8b")
         _current_model = model
@@ -338,6 +431,7 @@ def run(
         headless=print_mode or output_format == "json",
         output_format=output_format,
         sandbox=sandbox,
+        provider=provider,
     )
     raise typer.Exit(code=exit_code)
 
@@ -583,6 +677,7 @@ def main() -> None:
             "cache-clear",
             "interactive",
             "mcp",
+            "providers",
             "--help",
             "-h",
             "--version",
@@ -596,13 +691,16 @@ def main() -> None:
             config_manager, context_provider, _current_model = initialize_context()
             print_banner(_current_model)
 
-            try:
-                execute_prompt(prompt)
-            except Exception as e:
-                console.print(f"[red]Error: {e}[/red]")
-                sys.exit(1)
-
-            sys.exit(0)
+            sys.exit(
+                execute_agent_prompt(
+                    prompt,
+                    model=None,
+                    permission_mode=None,
+                    headless=False,
+                    output_format="text",
+                    sandbox=config_manager.get("sandbox_enabled", True),
+                )
+            )
 
     app()
 
