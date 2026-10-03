@@ -22,6 +22,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
+from joshu import __version__
 from joshu.a2a.event_bus import get_event_bus
 from joshu.a2a.events import AgentExecutionEvent
 from joshu.a2a.executor import TaskNotFoundError, get_agent_executor
@@ -156,7 +157,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Joshu A2A Server",
     description="Agent-to-Agent Communication Server for Joshu",
-    version="0.1.0",
+    version=__version__,
     lifespan=lifespan,
 )
 
@@ -504,7 +505,7 @@ async def agent_card() -> AgentCard:
     """
     return AgentCard(
         name="Joshu",
-        version="0.1.0",
+        version=__version__,
         description="AI-powered CLI assistant with tool execution capabilities",
         capabilities=[
             "code_generation",

@@ -13,6 +13,7 @@ import logging
 import os
 from typing import Any, Dict, List, Optional
 
+from joshu import __version__
 from joshu.mcp.exceptions import (
     MCPConnectionError,
     MCPTimeoutError,
@@ -106,7 +107,7 @@ class StdioTransport(MCPTransport):
                     "capabilities": {},
                     "clientInfo": {
                         "name": "joshu",
-                        "version": "0.1.0",
+                        "version": __version__,
                     },
                 },
             )
