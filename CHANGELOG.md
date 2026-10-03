@@ -45,6 +45,9 @@ All notable changes to the Joshu project will be documented in this file.
 - Unused modules `joshu.core.hooks` (duplicated `joshu.hooks`), `joshu.core.credentials`, `joshu.tools.filesystem`.
 
 ### Fixed
+- Web search never worked: the code used the `ddgs` package but the dependency was the old `duckduckgo-search`; the dependency is now `ddgs`.
+- MCP tools were only loaded in interactive mode; `joshu run`, `joshu "<prompt>"` and A2A tasks now get them too.
+- Startup no longer warns about the optional web-search and semantic-memory packages on every run.
 - A2A server: CORS allowed every origin with credentials and no authentication was required; it now needs a bearer token and allows no cross-origin access by default.
 - A2A server: `GET /tasks/metadata` returned 404 because `/tasks/{task_id}` was declared first.
 - `/reset` kept the same session id, so the next request overwrote the previous conversation's saved session.

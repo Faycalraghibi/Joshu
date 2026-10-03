@@ -137,6 +137,10 @@ class AgentTaskRunner:
             set_workspace_root(cwd)
             get_shell_config().working_directory = str(cwd)
 
+            from joshu.mcp.startup import load_mcp_tools
+
+            load_mcp_tools()  # in this worker thread: no event loop running here
+
             mode = APPROVAL_MODES.get(self.settings.approval_mode, PermissionMode.DEFAULT)
             agent = Agent(
                 client=self.client_factory(self.settings),

@@ -15,9 +15,14 @@ try:
 
     DDGS_AVAILABLE = True
 except ImportError:
-    DDGS = None
-    DDGS_AVAILABLE = False
-    logger.warning("ddgs not available. Install with: pip install ddgs")
+    try:  # the package's name before version 9
+        from duckduckgo_search import DDGS  # type: ignore[no-redef]
+
+        DDGS_AVAILABLE = True
+    except ImportError:
+        DDGS = None
+        DDGS_AVAILABLE = False
+        logger.debug("Web search unavailable: install it with `pip install ddgs`")
 
 
 def search_web(query: str, max_results: int = 5, timeout: int = 10) -> Dict[str, Any]:

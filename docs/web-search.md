@@ -12,12 +12,12 @@ Joshu includes built-in web search functionality that allows you to search the i
 
 ## Installation
 
-Web search requires the `duckduckgo-search` package:
+Web search uses the `ddgs` package (installed with Joshu):
 
 ```bash
 pip install -e .
 # or specifically
-pip install duckduckgo-search
+pip install ddgs
 ```
 
 ## Basic Usage
@@ -233,7 +233,7 @@ handle_search_command(
 
 **Solution**:
 ```bash
-pip install duckduckgo-search
+pip install ddgs
 # or
 pip install -e .
 ```
