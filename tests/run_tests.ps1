@@ -26,4 +26,4 @@ catch {
 }
 
 # Run tests
-pytest tests/ -q --tb=short
+pytest tests/ -q --tb=short --durations=10

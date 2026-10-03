@@ -58,8 +58,6 @@ def test_python_undefined_name_is_reported_but_style_is_not(tmp_path):
     ],
 )
 def test_data_files_must_parse(tmp_path, name, text, expected):
-    if name.endswith(".toml") and sys.version_info < (3, 11):
-        pytest.skip("tomllib needs Python 3.11")
     assert expected in check_file(write(tmp_path / name, text))
 
 
