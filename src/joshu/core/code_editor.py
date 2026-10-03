@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -42,6 +43,20 @@ def _clean_code_block_markdown(text: Optional[str]) -> str:
 
     # If no code blocks found, return the text as-is (may already be clean code)
     return text.strip()
+
+
+def _looks_truncated(original: str, modified: str, instruction: str) -> bool:
+    """
+    True when a whole-file rewrite lost most of the file without being asked to.
+
+    Guards against writing a response cut off by the token limit.
+    """
+    original_lines = original.count("\n") + 1
+    if original_lines < 20:
+        return False
+    if re.search(r"\b(delete|remove|strip|shorten|trim|drop|empty|clear)\b", instruction, re.I):
+        return False
+    return modified.count("\n") + 1 < original_lines * 0.5
 
 
 @dataclass
@@ -825,16 +840,23 @@ Modified code (complete file content):"""
 
             # Get model from pool
             from joshu.models.pool import get_model_pool
+            from joshu.models.providers import EchoProvider
 
             pool = get_model_pool()
-            available_providers = pool.get_available_providers()
+            # The echo model is a pattern matcher: it must never rewrite real files
+            available_providers = [
+                p for p in pool.get_available_providers() if not isinstance(p, EchoProvider)
+            ]
             if not available_providers:
-                raise ValueError("No model providers are available")
+                raise ValueError("No LLM is configured; set OPENROUTER_API_KEY or LOCAL_MODEL_URL")
 
             model_provider = available_providers[0]
 
+            # The whole file is regenerated, so leave room for all of it (~3 chars/token)
+            max_tokens = min(len(original_content) // 3 + 1024, 32000)
+
             modified_response = model_provider.generate(
-                system_prompt, temperature=0.7, max_tokens=2048
+                system_prompt, temperature=0.2, max_tokens=max_tokens
             )
 
             if not modified_response or not isinstance(modified_response, str):
@@ -848,10 +870,21 @@ Modified code (complete file content):"""
                 # Retry with more explicit instruction
                 retry_prompt = f"Modify this {language} code: {instruction}. Apply actual changes and return the complete modified file:\n\n{original_content}"
                 modified_response = model_provider.generate(
-                    retry_prompt, temperature=0.7, max_tokens=2048
+                    retry_prompt, temperature=0.2, max_tokens=max_tokens
                 )
                 if modified_response and isinstance(modified_response, str):
                     modified_content = _clean_code_block_markdown(modified_response)
+
+            if _looks_truncated(original_content, modified_content, instruction):
+                Path(backup_path).unlink(missing_ok=True)
+                return {
+                    "success": False,
+                    "message": (
+                        f"Refused to write {filepath}: the model's output is much shorter than "
+                        "the original and looks truncated. The file was not changed."
+                    ),
+                    "backup_path": None,
+                }
 
             # Write the modified content
             if self.write_file(filepath, modified_content, backup=False):

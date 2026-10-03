@@ -11,7 +11,7 @@ env:
   # Model configuration
   GLM_Identifier: "z-ai/glm-4.5-air:free"
   GLM_AUTO_EXEC: "false"
-  OPENROUTER_MODEL: "z-ai/glm-4.5-air:free"
+  OPENROUTER_MODEL: "poolside/laguna-s-2.1:free"
 
   # API Keys (from GitHub Secrets)
   GLM_API_KEY: ${{ secrets.GLM_API_KEY }}

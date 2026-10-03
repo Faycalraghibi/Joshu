@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import subprocess
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -103,7 +104,7 @@ def is_command_allowed(command: str) -> Tuple[bool, str]:
     config = get_shell_config()
 
     for blocked in config.blocklist:
-        if blocked.lower() in command.lower():
+        if _matches_blocked(command, blocked):
             return False, f"Command contains blocked pattern: {blocked}"
 
     if not config.allowlist:
@@ -115,6 +116,42 @@ def is_command_allowed(command: str) -> Tuple[bool, str]:
             return True, f"Matched allowlist: {allowed}"
 
     return False, "Command not in allowlist"
+
+
+def _command_names(command: str) -> List[str]:
+    """Program name of each segment of a command line (split on ; & | and newlines)."""
+    names = []
+    for segment in re.split(r"[;&|\n]+", command):
+        tokens = segment.strip().lstrip("(").split()
+        while tokens and tokens[0].lower() in ("sudo", "exec", "nohup", "time"):
+            tokens = tokens[1:]
+        if tokens:
+            name = re.split(r"[\\/]", tokens[0])[-1].lower()
+            names.append(name[:-4] if name.endswith(".exe") else name)
+    return names
+
+
+def _matches_blocked(command: str, blocked: str) -> bool:
+    """
+    Match a blocklist entry against a command line.
+
+    Single words ("format", "shutdown") match only as the program being run, so
+    `ruff format` and `git log --format=...` are allowed. Phrases ("rm -rf /")
+    match at word boundaries, so `rm -rf /tmp/build` is not caught by "rm -rf /".
+    """
+    blocked = blocked.strip().lower()
+    if not blocked:
+        return False
+
+    if " " not in blocked and re.fullmatch(r"[\w.-]+", blocked):
+        return any(
+            name == blocked or name.startswith(blocked + ".") for name in _command_names(command)
+        )
+
+    pattern = r"(?:^|(?<=[\s;&|(]))" + re.escape(blocked)
+    if blocked[-1].isalnum() or blocked[-1] == "/":
+        pattern += r"(?=$|[\s;&|)])"
+    return re.search(pattern, command.lower()) is not None
 
 
 def strip_ansi_codes(text: str) -> str:

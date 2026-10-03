@@ -113,6 +113,39 @@ class TestConfig(unittest.TestCase):
         # Test setting invalid key
         self.assertFalse(config_manager.set("nonexistent", "value"))
 
+    def test_config_manager_set_rejects_wrong_type(self):
+        """Test that set rejects values whose type does not match the field."""
+        config_manager = ConfigManager(str(self.test_config_path))
+
+        # Fractional value for an int field is rejected
+        self.assertFalse(config_manager.set("max_tokens", 0.8))
+        self.assertEqual(config_manager.get("max_tokens"), 4096)
+
+        # Strings and bools for numeric fields are rejected
+        self.assertFalse(config_manager.set("max_tokens", "lots"))
+        self.assertFalse(config_manager.set("max_tokens", True))
+
+        # Whole-number floats are accepted for int fields
+        self.assertTrue(config_manager.set("max_tokens", 2048.0))
+        self.assertEqual(config_manager.get("max_tokens"), 2048)
+        self.assertIsInstance(config_manager.get("max_tokens"), int)
+
+        # Ints are accepted for float fields
+        self.assertTrue(config_manager.set("temperature", 1))
+        self.assertEqual(config_manager.get("temperature"), 1.0)
+
+        # Optional fields accept None
+        self.assertTrue(config_manager.set("auto_fix_require_approval", None))
+
+    def test_load_config_replaces_invalid_values_with_defaults(self):
+        """Test that invalid values in the config file fall back to defaults."""
+        with open(self.test_config_path, "w") as f:
+            f.write("max_tokens: 0.8\ntemperature: 0.5\n")
+
+        config_manager = ConfigManager(str(self.test_config_path))
+        self.assertEqual(config_manager.get("max_tokens"), 4096)
+        self.assertEqual(config_manager.get("temperature"), 0.5)
+
     def test_config_manager_reset_to_defaults(self):
         """Test resetting configuration to defaults."""
         config_manager = ConfigManager(str(self.test_config_path))
@@ -332,34 +365,34 @@ class TestConfig(unittest.TestCase):
     def test_config_set_numeric_values(self):
         """Test the config --set command with numeric values."""
         test_cases = [
-            ("4096", 4096),  # integer
-            ("0.8", 0.8),  # float
+            ("max_tokens", "4096", 4096),  # integer
+            ("temperature", "0.8", 0.8),  # float
         ]
 
-        for input_val, expected in test_cases:
-            with self.subTest(input_val=input_val):
+        for key, input_val, expected in test_cases:
+            with self.subTest(key=key, input_val=input_val):
                 # Capture output
                 stdout = io.StringIO()
                 with patch("sys.stdout", stdout), patch("sys.stderr", self.stderr):
                     try:
-                        app(["config", "--set", f"max_tokens={input_val}"], standalone_mode=False)
+                        app(["config", "--set", f"{key}={input_val}"], standalone_mode=False)
                     except SystemExit:
                         pass  # Typer raises SystemExit, which is expected
 
                 output = stdout.getvalue()
                 # Check that output confirms the setting
-                self.assertIn(f"Set max_tokens = {expected}", output)
+                self.assertIn(f"Set {key} = {expected}", output)
 
                 # Verify the value was actually set by getting it
                 stdout_get = io.StringIO()
                 with patch("sys.stdout", stdout_get), patch("sys.stderr", self.stderr):
                     try:
-                        app(["config", "--get", "max_tokens"], standalone_mode=False)
+                        app(["config", "--get", key], standalone_mode=False)
                     except SystemExit:
                         pass  # Typer raises SystemExit, which is expected
 
                 output_get = stdout_get.getvalue()
-                self.assertIn(f"max_tokens: {expected}", output_get)
+                self.assertIn(f"{key}: {expected}", output_get)
 
     def test_config_set_invalid_key(self):
         """Test the config --set command with invalid key."""
@@ -373,7 +406,7 @@ class TestConfig(unittest.TestCase):
 
         output = self.stdout.getvalue()
         # Check that output contains error message
-        self.assertIn("Invalid configuration key: invalid_key", output)
+        self.assertIn("Invalid configuration key or value type: invalid_key", output)
 
 
 if __name__ == "__main__":

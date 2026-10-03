@@ -31,7 +31,7 @@ class TestCLISafety(unittest.TestCase):
         mock_assess_safety.return_value = mock_safety_report
 
         # Run the command
-        result = self.runner.invoke(app, ["run", "delete everything"])
+        result = self.runner.invoke(app, ["run", "--legacy", "delete everything"])
 
         # Check that the command was blocked
         assert result.exit_code == 3
@@ -64,7 +64,7 @@ class TestCLISafety(unittest.TestCase):
         )
         mock_assess_safety.return_value = mock_safety_report
 
-        result = self.runner.invoke(app, ["run", "--sandbox", "delete a file"])
+        result = self.runner.invoke(app, ["run", "--legacy", "--sandbox", "delete a file"])
 
         assert result.exit_code == 3
         assert (

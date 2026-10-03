@@ -31,7 +31,7 @@ def test_cli_run_success(mock_execute_prompt):
 
     # Run the CLI command
     with patch("joshu.ui.cli.print_banner"):
-        runner.invoke(app, ["run", "say hello"], input="y\n")
+        runner.invoke(app, ["run", "--legacy", "say hello"], input="y\n")
 
     # Should call execute_prompt which internally calls translate_to_command
     mock_execute_prompt.assert_called_once_with("say hello")
@@ -54,7 +54,7 @@ def test_cli_run_no_translation(mock_init, mock_translate):
     mock_translate.return_value = None
 
     with patch("joshu.ui.cli.print_banner"):
-        result = runner.invoke(app, ["run", "unknown command"])
+        result = runner.invoke(app, ["run", "--legacy", "unknown command"])
 
     # May exit with code 2 or different code based on new handler structure
     # If API errors occur (429), it might exit with 0, so check for expected messages

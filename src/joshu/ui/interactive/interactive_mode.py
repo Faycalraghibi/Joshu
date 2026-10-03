@@ -23,7 +23,7 @@ from .commands import CommandHandler
 from .completers import get_command_completer, get_path_completer
 from .history import JsonHistory
 from .keybindings import create_key_bindings
-from .modes import AgentModeHandler, AskModeHandler, PlanModeHandler
+from .modes import AskModeHandler, PlanModeHandler
 from .prompt import get_prompt, get_style
 from .utils import (
     copy_to_clipboard,
@@ -77,7 +77,10 @@ class InteractiveMode:
 
         self.ask_handler = AskModeHandler(self)
         self.plan_handler = PlanModeHandler(self)
-        self.agent_handler = AgentModeHandler(self)
+        # Tool-using agent for agent and plan modes, created on first use
+        self.agent = None
+        self.agent_ui = None
+        self._agent_unavailable_reason = None
         self.command_handler = CommandHandler(self)
 
         self.deepseek_client = None
@@ -393,83 +396,136 @@ class InteractiveMode:
 
         if self.interaction_mode == "ask":
             return self.ask_handler.handle(user_input)
-        elif self.interaction_mode == "plan":
+
+        if self._ensure_agent():
+            return self._run_agent(user_input)
+
+        if self.interaction_mode == "plan":
             return self.plan_handler.handle(user_input)
-        elif self.interaction_mode == "agent":
-            return self.agent_handler.handle(user_input)
+        return self._legacy_translate(user_input)
+
+    def _ensure_agent(self) -> bool:
+        """Create the agent on first use; False when no model endpoint is configured."""
+        if self.agent is not None:
+            return True
+        if self._agent_unavailable_reason is not None:
+            return False
+
+        from joshu.core.llm_client import LLMError
+        from joshu.ui.agent_ui import create_console_agent
+
+        try:
+            self.agent, self.agent_ui = create_console_agent(model=self.model, sandbox=self.sandbox)
+            return True
+        except LLMError as e:
+            self._agent_unavailable_reason = str(e)
+            self._show_message(f"Agent unavailable: {e}")
+            self._show_message("Falling back to single-command translation.")
+            return False
+
+    def _run_agent(self, user_input: str) -> bool:
+        """Run one request through the tool-using agent."""
+        from joshu.core.llm_client import LLMError
+        from joshu.core.permissions import PermissionMode
+
+        if self.interaction_mode == "plan":
+            mode = PermissionMode.PLAN
         else:
-            # Fallback to original behavior
-            processed_input = process_command_substitution(user_input)
-            translation = translate_to_command(processed_input, self.context_provider, self.model)
+            mode = PermissionMode.from_string(self.config_manager.get("permission_mode", "default"))
+        if self.agent.permissions.mode != mode:
+            self.agent.set_mode(mode)
 
-            if not translation:
-                self._show_message("No translation found. Try rephrasing.")
-                return True
+        try:
+            response = self.agent.run(user_input)
+        except KeyboardInterrupt:
+            self._show_message("\nInterrupted.")
+            return True
+        except LLMError as e:
+            self._show_message(f"Model error: {e}")
+            return True
 
-            self._show_message(f"Proposed command: {translation.command}")
-            self._show_message(f"Explanation: {translation.explanation}")
-
-            needs_execution = getattr(translation, "needs_execution", True)
-            explanation_lower = translation.explanation.lower()
-            command_normalized = translation.command.replace('\\"', '"').replace("\\'", "'")
-
-            conversational_keywords = [
-                "conversational response",
-                "direct response",
-                "direct answer",
-                "to user's query",
-                "to user's question",
-                "user's query",
-                "user's question",
-                "answering",
-                "providing answer",
-                "providing response",
-            ]
-
-            is_conversational_explanation = any(
-                keyword in explanation_lower for keyword in conversational_keywords
+        self.agent_ui.print_footer(response)
+        if self.context_provider and response.text:
+            self.context_provider.add_to_history(
+                "assistant",
+                response.text,
+                metadata={"mode": self.interaction_mode, "timestamp": time.time()},
             )
-            is_conversational_command = '"""' in command_normalized or (
-                command_normalized.startswith('echo "') and len(translation.command) > 100
+        return True
+
+    def _legacy_translate(self, user_input: str) -> bool:
+        """Translate the request into one shell command and run it after confirmation."""
+        processed_input = process_command_substitution(user_input)
+        translation = translate_to_command(processed_input, self.context_provider, self.model)
+
+        if not translation:
+            self._show_message("No translation found. Try rephrasing.")
+            return True
+
+        self._show_message(f"Proposed command: {translation.command}")
+        self._show_message(f"Explanation: {translation.explanation}")
+
+        needs_execution = getattr(translation, "needs_execution", True)
+        explanation_lower = translation.explanation.lower()
+        command_normalized = translation.command.replace('\\"', '"').replace("\\'", "'")
+
+        conversational_keywords = [
+            "conversational response",
+            "direct response",
+            "direct answer",
+            "to user's query",
+            "to user's question",
+            "user's query",
+            "user's question",
+            "answering",
+            "providing answer",
+            "providing response",
+        ]
+
+        is_conversational_explanation = any(
+            keyword in explanation_lower for keyword in conversational_keywords
+        )
+        is_conversational_command = '"""' in command_normalized or (
+            command_normalized.startswith('echo "') and len(translation.command) > 100
+        )
+
+        if is_conversational_explanation or is_conversational_command:
+            needs_execution = False
+
+        if not needs_execution:
+            self._execute_command(translation.command)
+            return True
+
+        if (
+            "code command" in translation.explanation.lower()
+            or "code' command" in translation.explanation.lower()
+        ):
+            self._show_message("💡 Tip: For code generation requests, use the 'code' command:")
+            self._show_message(f'   joshu code "{processed_input}"')
+            self._show_message(
+                "This will generate the code directly instead of trying to translate to a shell command."
             )
+            return True
 
-            if is_conversational_explanation or is_conversational_command:
-                needs_execution = False
+        report = assess_command_safety(translation.command, self.sandbox)
+        if not report.safe:
+            self._show_message(f"⚠️  Command blocked for safety: {report.danger_level}")
+            for reason in report.reasons:
+                self._show_message(f"  - {reason}")
+            if report.suggested_alternative:
+                self._show_message(f"Suggested alternative: {report.suggested_alternative}")
+            return True
 
-            if not needs_execution:
-                self._execute_command(translation.command)
-                return True
-
-            if (
-                "code command" in translation.explanation.lower()
-                or "code' command" in translation.explanation.lower()
-            ):
-                self._show_message("💡 Tip: For code generation requests, use the 'code' command:")
-                self._show_message(f'   joshu code "{processed_input}"')
-                self._show_message(
-                    "This will generate the code directly instead of trying to translate to a shell command."
-                )
-                return True
-
-            report = assess_command_safety(translation.command, self.sandbox)
-            if not report.safe:
-                self._show_message(f"⚠️  Command blocked for safety: {report.danger_level}")
-                for reason in report.reasons:
-                    self._show_message(f"  - {reason}")
-                if report.suggested_alternative:
-                    self._show_message(f"Suggested alternative: {report.suggested_alternative}")
-                return True
-
-            auto_execute = self.config_manager.get("auto_execute", False)
-            if auto_execute:
-                self._execute_command(translation.command)
-            else:
-                try:
-                    confirm = input("Execute this command? [y/N]: ")
-                    if confirm.lower() in ["y", "yes"]:
-                        self._execute_command(translation.command)
-                except EOFError:
-                    pass
+        auto_execute = self.config_manager.get("auto_execute", False)
+        if auto_execute:
+            self._execute_command(translation.command)
+        else:
+            try:
+                confirm = input("Execute this command? [y/N]: ")
+                if confirm.lower() in ["y", "yes"]:
+                    self._execute_command(translation.command)
+            except EOFError:
+                pass
 
         return True
 

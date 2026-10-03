@@ -233,3 +233,14 @@ precommit.txt
 
 # Personal utility scripts
 fix_joshu_glm.ps1
+
+# LaTeX build artifacts
+*.aux
+*.out
+*.toc
+*.log
+*.synctex.gz
+*.fdb_latexmk
+*.fls
+joshu_technical_report.tex
+joshu_technical_report.pdf

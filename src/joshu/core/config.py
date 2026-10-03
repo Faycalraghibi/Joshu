@@ -5,10 +5,11 @@ Handles user preferences, model settings, and other configurable options.
 
 from __future__ import annotations
 
+import copy
 import logging
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 import yaml
 
@@ -62,7 +63,49 @@ DEFAULT_CONFIG = {
     "mcp_enabled": True,
     "mcp_discovery_on_startup": True,
     "mcp_servers": {},
+    # Agent loop settings
+    "agent_max_turns": 50,
+    "permission_mode": "default",
+    "context_window": 128000,
+    "compact_threshold": 0.8,
+    "tool_output_limit": 30000,
 }
+
+
+def _coerce_config_value(key: str, value: Any) -> Tuple[bool, Any]:
+    """
+    Check a value against the type of its default and coerce compatible numbers.
+
+    Returns:
+        (is_valid, coerced_value). Keys without a known default pass through unchanged.
+    """
+    if key not in DEFAULT_CONFIG:
+        return True, value
+
+    default = DEFAULT_CONFIG[key]
+
+    # Optional[bool] settings (default None)
+    if default is None:
+        return value is None or isinstance(value, bool), value
+
+    if isinstance(default, bool):
+        return isinstance(value, bool), value
+
+    if isinstance(default, int):
+        if isinstance(value, bool):
+            return False, value
+        if isinstance(value, int):
+            return True, value
+        if isinstance(value, float) and value.is_integer():
+            return True, int(value)
+        return False, value
+
+    if isinstance(default, float):
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return True, float(value)
+        return False, value
+
+    return isinstance(value, type(default)), value
 
 
 @dataclass
@@ -114,7 +157,13 @@ class JoshuConfig:
     # MCP Server settings
     mcp_enabled: bool = True
     mcp_discovery_on_startup: bool = True
-    mcp_servers: Dict[str, Any] = None  # type: ignore  # Will use default_factory in post_init
+    mcp_servers: Dict[str, Any] = field(default_factory=dict)
+    # Agent loop settings
+    agent_max_turns: int = 50
+    permission_mode: str = "default"
+    context_window: int = 128000
+    compact_threshold: float = 0.8
+    tool_output_limit: int = 30000
 
     @classmethod
     def from_dict(cls, config_dict: Dict[str, Any]) -> "JoshuConfig":
@@ -122,7 +171,18 @@ class JoshuConfig:
         # Use defaults for missing keys
         for key, default_value in DEFAULT_CONFIG.items():
             if key not in config_dict:
-                config_dict[key] = default_value
+                config_dict[key] = copy.deepcopy(default_value)
+                continue
+
+            is_valid, coerced = _coerce_config_value(key, config_dict[key])
+            if is_valid:
+                config_dict[key] = coerced
+            else:
+                logger.warning(
+                    f"Invalid value for '{key}': {config_dict[key]!r}; "
+                    f"using default {default_value!r}"
+                )
+                config_dict[key] = copy.deepcopy(default_value)
 
         return cls(
             model=config_dict.get("model", DEFAULT_CONFIG["model"]),
@@ -215,6 +275,16 @@ class JoshuConfig:
                 "mcp_discovery_on_startup", DEFAULT_CONFIG["mcp_discovery_on_startup"]
             ),
             mcp_servers=config_dict.get("mcp_servers", DEFAULT_CONFIG["mcp_servers"]),
+            # Agent loop settings
+            agent_max_turns=config_dict.get("agent_max_turns", DEFAULT_CONFIG["agent_max_turns"]),
+            permission_mode=config_dict.get("permission_mode", DEFAULT_CONFIG["permission_mode"]),
+            context_window=config_dict.get("context_window", DEFAULT_CONFIG["context_window"]),
+            compact_threshold=config_dict.get(
+                "compact_threshold", DEFAULT_CONFIG["compact_threshold"]
+            ),
+            tool_output_limit=config_dict.get(
+                "tool_output_limit", DEFAULT_CONFIG["tool_output_limit"]
+            ),
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -318,12 +388,18 @@ class ConfigManager:
             value: Configuration value
 
         Returns:
-            True if value was set successfully, False otherwise.
+            True if value was set successfully, False if the key is unknown
+            or the value has the wrong type.
         """
-        if hasattr(self.config, key):
-            setattr(self.config, key, value)
-            return True
-        return False
+        if not hasattr(self.config, key):
+            return False
+
+        is_valid, coerced = _coerce_config_value(key, value)
+        if not is_valid:
+            return False
+
+        setattr(self.config, key, coerced)
+        return True
 
     def reset_to_defaults(self) -> None:
         """Reset configuration to default values."""

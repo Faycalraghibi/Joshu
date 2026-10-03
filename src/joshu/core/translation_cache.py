@@ -49,6 +49,7 @@ class TranslationCache:
         cache_dir: Optional[str] = None,
         similarity_threshold: float = 0.85,
         max_entries: int = 1000,
+        semantic_matching: bool = True,
     ):
         """
         Initialize the translation cache.
@@ -57,6 +58,9 @@ class TranslationCache:
             cache_dir: Directory to store cache file. Defaults to current directory
             similarity_threshold: Minimum similarity score for semantic matches (0.0-1.0)
             max_entries: Maximum number of entries before eviction occurs
+            semantic_matching: Return entries for similar (not identical) queries.
+                Unsafe for shell commands, where "delete a.txt" and "delete b.txt"
+                are similar but need different commands.
         """
         if cache_dir is None:
             cache_dir = "./cache"
@@ -68,7 +72,7 @@ class TranslationCache:
         self.entries: Dict[str, CacheEntry] = {}
 
         self.embedding_model = None
-        if SENTENCE_TRANSFORMERS_AVAILABLE:
+        if semantic_matching and SENTENCE_TRANSFORMERS_AVAILABLE:
             try:
                 self.embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
                 logger.debug("Initialized sentence transformer for translation cache")

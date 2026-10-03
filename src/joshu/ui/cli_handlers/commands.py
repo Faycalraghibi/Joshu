@@ -56,7 +56,7 @@ def handle_config(
             config_manager.save_config()
             console.print(f"[green]Set {key} = {value}[/green]")
         else:
-            console.print(f"[red]Invalid configuration key: {key}[/red]")
+            console.print(f"[red]Invalid configuration key or value type: {key}={value!r}[/red]")
             raise typer.Exit(code=1)
         return
 

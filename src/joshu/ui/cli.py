@@ -79,7 +79,67 @@ def main_callback(
     global context_provider, _current_model
 
     config_manager, context_provider, _current_model = initialize_context()
-    print_banner(_current_model)
+    # Headless runs print only the result, so scripts can read stdout
+    if not _HEADLESS_FLAGS.intersection(sys.argv[1:]):
+        print_banner(_current_model)
+
+
+_HEADLESS_FLAGS = {"-p", "--print", "--output-format"}
+
+
+def execute_agent_prompt(
+    prompt: str,
+    model: Optional[str],
+    permission_mode: Optional[str],
+    headless: bool,
+    output_format: str,
+    sandbox: bool,
+) -> int:
+    """
+    Run a prompt through the tool-using agent.
+
+    Returns:
+        Exit code: 0 on success, 1 on model/config errors, 130 when interrupted.
+    """
+    import json
+
+    from joshu.core.llm_client import LLMError
+    from joshu.core.permissions import PermissionMode
+
+    from .agent_ui import create_console_agent
+
+    try:
+        mode = PermissionMode.from_string(permission_mode) if permission_mode else None
+    except ValueError as e:
+        console.print(f"[red]{e}[/red]")
+        return 2
+
+    # Approvals need a person at the terminal
+    can_ask = not headless and sys.stdin.isatty()
+    try:
+        agent, ui = create_console_agent(
+            model=model,
+            mode=mode,
+            sandbox=sandbox,
+            interactive=can_ask,
+            quiet=headless,
+        )
+        response = agent.run(prompt)
+    except LLMError as e:
+        Console(stderr=True).print(f"[red]Model error:[/red] {e}")
+        return 1
+    except KeyboardInterrupt:
+        Console(stderr=True).print("\nInterrupted.")
+        return 130
+
+    if output_format == "json":
+        payload = {"result": response.text, **response.metadata}
+        print(json.dumps(payload, ensure_ascii=False))
+    elif headless:
+        print(response.text)
+    else:
+        ui.print_footer(response)
+    return 0
 
 
 def execute_prompt(prompt: str) -> None:
@@ -183,7 +243,12 @@ def run(
     interactive: bool = typer.Option(
         False, "--interactive", "-i", help="Start interactive chat mode."
     ),
-    yes: bool = typer.Option(False, "--yes", "-y", help="Execute without confirmation if safe."),
+    yes: bool = typer.Option(
+        False,
+        "--yes",
+        "-y",
+        help="Run tools without asking (bypass mode); commands flagged unsafe still ask.",
+    ),
     model: str = typer.Option(None, "--model", "-m", help="LLM model to use."),
     sandbox: bool = typer.Option(
         None,
@@ -194,8 +259,25 @@ def run(
     verbose: bool = typer.Option(
         False, "--verbose", "-v", help="Enable verbose output (show debug logs)."
     ),
+    permission_mode: Optional[str] = typer.Option(
+        None,
+        "--permission-mode",
+        help="Agent permissions: default, accept_edits, plan (read-only) or bypass.",
+    ),
+    print_mode: bool = typer.Option(
+        False,
+        "--print",
+        "-p",
+        help="Headless: print only the final answer; tools needing approval are denied.",
+    ),
+    output_format: str = typer.Option(
+        "text", "--output-format", help="Output format: text or json (implies --print)."
+    ),
+    legacy: bool = typer.Option(
+        False, "--legacy", help="Translate the prompt into a single shell command instead."
+    ),
 ) -> None:
-    """Execute a one-off prompt or start interactive mode."""
+    """Run a task with the agent, or start interactive mode."""
     global _current_model
 
     if interactive:
@@ -232,7 +314,32 @@ def run(
         console.print("[dim]Use --interactive or -i for interactive mode without a prompt.[/dim]")
         raise typer.Exit(code=1)
 
-    execute_prompt(prompt)
+    if legacy:
+        execute_prompt(prompt)
+        return
+
+    if output_format not in ("text", "json"):
+        console.print(f"[red]Unknown output format '{output_format}'. Use text or json.[/red]")
+        raise typer.Exit(code=2)
+
+    from joshu.core.config import get_config_manager
+
+    config_manager = get_config_manager()
+    if sandbox is None:
+        sandbox = config_manager.get("sandbox_enabled", True)
+    if yes and permission_mode is None:
+        permission_mode = "bypass"
+
+    setup_logging(verbose)
+    exit_code = execute_agent_prompt(
+        prompt,
+        model=model,
+        permission_mode=permission_mode,
+        headless=print_mode or output_format == "json",
+        output_format=output_format,
+        sandbox=sandbox,
+    )
+    raise typer.Exit(code=exit_code)
 
 
 @app.command()
@@ -440,8 +547,25 @@ def mcp_discover_cmd() -> None:
     mcp_discover()
 
 
+def _ensure_utf8_output() -> None:
+    """
+    Use UTF-8 for stdout/stderr when the console encoding can't print Unicode.
+
+    Windows consoles and pipes often default to cp1252, which crashes on the
+    banner and status symbols; unencodable characters are replaced instead.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        encoding = (getattr(stream, "encoding", None) or "").lower().replace("-", "")
+        if encoding != "utf8" and hasattr(stream, "reconfigure"):
+            try:
+                stream.reconfigure(encoding="utf-8", errors="replace")
+            except (ValueError, OSError):
+                pass
+
+
 def main() -> None:
     """Main entry point."""
+    _ensure_utf8_output()
     if len(sys.argv) > 1:
         first_arg = sys.argv[1]
         known_commands = [

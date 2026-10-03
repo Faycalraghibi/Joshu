@@ -340,6 +340,15 @@ class CommandHandler:
         if command == "/new-session":
             return self.handle_session_command("/session new")
 
+        if command == "/reset":
+            if self.interactive_mode.agent is not None:
+                self.interactive_mode.agent.reset()
+            self.interactive_mode._show_message("Agent conversation reset.")
+            return True
+
+        if command.startswith("/permissions"):
+            return self.handle_permissions_command(command)
+
         elif command == "/history":
             self.display_history()
             return True
@@ -375,7 +384,8 @@ class CommandHandler:
         elif command == "/agent":
             self.interactive_mode.interaction_mode = "agent"
             self.interactive_mode._show_message(
-                "Switched to agent mode. I can now execute tasks from A to Z."
+                "Switched to agent mode. I read, edit and run commands to finish tasks, "
+                "asking before edits and shell commands."
             )
             return True
 
@@ -389,13 +399,46 @@ class CommandHandler:
         elif command == "/plan":
             self.interactive_mode.interaction_mode = "plan"
             self.interactive_mode._show_message(
-                "Switched to plan mode. I will break down tasks into actionable steps without executing them."
+                "Switched to plan mode. I investigate with read-only tools and propose a plan "
+                "without changing anything."
             )
             return True
 
         else:
             self.interactive_mode._show_message(f"Unknown command: {command}")
             return True
+
+    def handle_permissions_command(self, command: str) -> bool:
+        """Show or set the agent permission mode: /permissions [default|accept_edits|bypass]."""
+        from joshu.core.permissions import PermissionMode
+
+        parts = command.split()
+        if len(parts) == 1:
+            current = self.config_manager.get("permission_mode", "default")
+            self.interactive_mode._show_message(
+                f"Permission mode: {current}\n"
+                "  default      - ask before edits, shell commands and other risky tools\n"
+                "  accept_edits - file edits run without asking; shell still asks\n"
+                "  bypass       - everything runs; commands flagged unsafe still ask\n"
+                "Use /plan for read-only mode."
+            )
+            return True
+
+        try:
+            mode = PermissionMode.from_string(parts[1])
+        except ValueError as e:
+            self.interactive_mode._show_message(str(e))
+            return True
+        if mode == PermissionMode.PLAN:
+            self.interactive_mode._show_message("Use /plan to switch to read-only plan mode.")
+            return True
+
+        self.config_manager.set("permission_mode", mode.value)
+        agent = self.interactive_mode.agent
+        if agent is not None and self.interactive_mode.interaction_mode != "plan":
+            agent.set_mode(mode)
+        self.interactive_mode._show_message(f"Permission mode set to {mode.value}.")
+        return True
 
     def display_history(self):
         """Display command history."""
@@ -453,6 +496,8 @@ Special Commands:
   /memory clear - Clear all semantic memories
   /history     - Show command history
   /help        - Show this help
+  /reset       - Start a new agent conversation
+  /permissions - Show or set the agent permission mode
   /config   - Show/set configuration
   /model    - Switch AI model
 """
@@ -460,15 +505,14 @@ Special Commands:
         mode_help = {
             "agent": """
 Current Mode: AGENT
-  Description: Autonomous task execution mode. I can understand high-level goals and execute them from start to finish.
+  Description: I work on your task with tools - reading and searching files, editing them,
+  and running commands - and see each result before deciding the next step.
 
   Usage:
-    - Simply describe your goal (e.g., "set up a Flask project")
-    - I will automatically:
-      1. Generate a step-by-step plan
-      2. Execute each command safely
-      3. Handle errors and ask for confirmation when needed
-      4. Provide a final execution summary
+    - Describe your goal (e.g., "add a --verbose flag to the CLI and test it")
+    - Edits and shell commands show a preview and ask first
+      ([y]es / [a]lways this session / [n]o); change this with /permissions
+    - Ctrl+C interrupts the current task; /reset starts a new conversation
 
   Example: "create a Python virtual environment and install requests"
 
@@ -493,12 +537,13 @@ Current Mode: ASK
 """,
             "plan": """
 Current Mode: PLAN
-  Description: Task planning mode. I break down tasks into actionable steps without executing them.
+  Description: Read-only planning mode. I investigate the codebase with read-only tools
+  and propose a plan; edits and commands are not allowed.
 
   Usage:
     - Describe a task or goal
-    - I generate a numbered list of steps
-    - You can review and execute the steps manually
+    - I explore the relevant files and return a numbered plan
+    - Switch to /agent to carry it out
 
   Example: "plan how to set up a Flask project"
 
@@ -535,7 +580,9 @@ Current Mode: PLAN
                 self.config_manager.save_config()
                 self.interactive_mode._show_message(f"Set {key} = {value}")
             else:
-                self.interactive_mode._show_message(f"Invalid configuration key: {key}")
+                self.interactive_mode._show_message(
+                    f"Invalid configuration key or value type: {key}={value!r}"
+                )
 
     def handle_model_command(self, command: str):
         """Handle model switching commands."""

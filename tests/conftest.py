@@ -77,6 +77,18 @@ def _env_defaults(monkeypatch):
             monkeypatch.setenv("EDITOR", "nano")
 
 
+@pytest.fixture(autouse=True)
+def _isolated_config(monkeypatch, tmp_path):
+    """Point the global config manager at a temp file so tests never write config/config.yaml."""
+    from joshu.core import config as config_module
+
+    monkeypatch.setattr(
+        config_module,
+        "_config_manager_instance",
+        config_module.ConfigManager(str(tmp_path / "config.yaml")),
+    )
+
+
 # Model configuration fixtures based on .env file
 @pytest.fixture(scope="session")
 def llama_cpp_model_llama3_8b() -> str:

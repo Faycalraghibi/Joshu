@@ -73,7 +73,7 @@ fi
 # Create default user config if it doesn't exist
 USER_CONFIG_PATH="$JOSHU_CONFIG_DIR/config.yaml"
 if [ ! -f "$USER_CONFIG_PATH" ]; then
-    echo "model: z-ai/glm-4.5-air:free" > "$USER_CONFIG_PATH"
+    echo "model: poolside/laguna-s-2.1:free" > "$USER_CONFIG_PATH"
     echo "  Created: $USER_CONFIG_PATH"
 fi
 
@@ -93,7 +93,7 @@ echo "  1) Set OpenRouter API key (required):"
 echo "     export OPENROUTER_API_KEY=\"sk-or-v1-...\""
 echo "     # Or add to .env file: OPENROUTER_API_KEY=sk-or-v1-..."
 echo ""
-echo "  2) Optional: Configure model (default: z-ai/glm-4.5-air:free):"
+echo "  2) Optional: Configure model (default: poolside/laguna-s-2.1:free):"
 echo "     Edit $USER_CONFIG_PATH"
 echo ""
 echo "  3) Optional: Install all features (semantic memory, local LLMs):"

@@ -239,3 +239,37 @@ _registry = ToolRegistry()
 def get_tool_registry() -> ToolRegistry:
     """Get the global tool registry instance."""
     return _registry
+
+
+# Modules whose @register_tool decorators define the built-in tools
+BUILTIN_TOOL_MODULES = (
+    "joshu.tools.filesystem_tools",
+    "joshu.tools.shell_tool",
+    "joshu.tools.todos",
+    "joshu.tools.memory",
+    "joshu.tools.implementations.web_search_tool",
+    "joshu.tools.implementations.web_fetch_tool",
+)
+
+
+def load_builtin_tools() -> ToolRegistry:
+    """
+    Import the built-in tool modules so their tools are registered.
+
+    Safe to call repeatedly; a module that fails to import is logged and skipped.
+    """
+    import importlib
+    import sys
+
+    # After clear() the modules are still cached, so re-run their decorators
+    reload_needed = not _registry.list_tools()
+
+    for module_name in BUILTIN_TOOL_MODULES:
+        try:
+            if reload_needed and module_name in sys.modules:
+                importlib.reload(sys.modules[module_name])
+            else:
+                importlib.import_module(module_name)
+        except Exception as e:
+            logger.warning(f"Failed to load tools from {module_name}: {e}")
+    return _registry

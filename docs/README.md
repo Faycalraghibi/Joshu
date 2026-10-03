@@ -10,6 +10,7 @@ Complete documentation for Joshu AI-powered command-line assistant.
 
 ## Features
 
+- **[Agent](agent.md)** - Tool-using agent loop, permissions, headless mode
 - **[Interactive Mode](interactive-mode.md)** - Complete guide to interactive features
 - **[Advanced Interactive Mode](interactive-mode-advanced.md)** - Advanced interactive features
 - **[Tool Calling](tool-calling.md)** - Automatic tool invocation for enhanced responses

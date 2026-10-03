@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
@@ -374,6 +375,13 @@ def _is_conversational_query(text: str) -> bool:
     return False
 
 
+def _cache_key(text: str) -> str:
+    """Cache key: the same request means a different command on another OS or directory."""
+    import platform
+
+    return f"{platform.system()}|{os.getcwd()}|{text}"
+
+
 def translate_to_command(
     prompt: str,
     context_provider: Optional[ContextProvider] = None,
@@ -403,6 +411,7 @@ def translate_to_command(
                     cache_dir=cache_dir,
                     similarity_threshold=similarity_threshold,
                     max_entries=max_entries,
+                    semantic_matching=False,
                 )
                 logger.debug("Translation cache initialized")
         except Exception as e:
@@ -412,7 +421,7 @@ def translate_to_command(
     # Check cache first if enabled
     if use_cache and _translation_cache is not None:
         try:
-            cached_result = _translation_cache.get(text)
+            cached_result = _translation_cache.get(_cache_key(text))
             if cached_result:
                 command, explanation = cached_result
                 logger.debug(f"Using cached translation for: {text}")
@@ -580,7 +589,7 @@ def translate_to_command(
         # Store in cache if enabled
         if use_cache and _translation_cache is not None:
             try:
-                _translation_cache.put(text, command, explanation)
+                _translation_cache.put(_cache_key(text), command, explanation)
             except Exception as e:
                 logger.warning(f"Failed to cache translation: {e}")
 
@@ -677,7 +686,7 @@ def translate_with_llm(
             # Store in cache if it's an actual command (not conversational)
             if use_cache and not is_conversational and _translation_cache is not None:
                 try:
-                    _translation_cache.put(prompt, command, explanation)
+                    _translation_cache.put(_cache_key(prompt.strip()), command, explanation)
                 except Exception as e:
                     logger.warning(f"Failed to cache translation: {e}")
 
