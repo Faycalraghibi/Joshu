@@ -67,6 +67,19 @@ def build_system_prompt(
     return "\n\n".join(parts)
 
 
+CUSTOM_SUBAGENT_NOTE = """You are running as a sub-agent of Joshu, given one task by the main agent. Only your final message is returned to it, so make that message complete and self-contained, with file paths and line numbers where relevant."""
+
+
+def build_subagent_prompt(instructions: str, cwd: Optional[Path] = None) -> str:
+    """System prompt for a user-defined sub-agent: its instructions plus context."""
+    cwd = cwd or Path.cwd()
+    parts = [instructions.strip(), CUSTOM_SUBAGENT_NOTE, environment_block(cwd)]
+    project_context = _load_project_context(cwd)
+    if project_context:
+        parts.append("Project instructions and user memory:\n\n" + project_context)
+    return "\n\n".join(parts)
+
+
 def environment_block(cwd: Path) -> str:
     """Describe the machine and working directory."""
     system = platform.system() or "Unknown"

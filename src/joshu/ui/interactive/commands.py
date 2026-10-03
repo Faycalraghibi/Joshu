@@ -413,6 +413,9 @@ class CommandHandler:
         elif command == "/commands":
             return self.handle_commands_list()
 
+        elif command == "/agents":
+            return self.handle_agents_list()
+
         else:
             return self.handle_custom_command(command)
 
@@ -427,6 +430,22 @@ class CommandHandler:
             )
             return True
         return self.interactive_mode.run_custom_command(command)
+
+    def handle_agents_list(self) -> bool:
+        """List user-defined sub-agents."""
+        from joshu.core.subagents import agent_dirs, discover_subagents
+
+        specs = discover_subagents()
+        if not specs:
+            dirs = " or ".join(str(d) for d in reversed(agent_dirs()))
+            self.interactive_mode._show_message(f"No sub-agents defined. Add .md files to {dirs}.")
+            return True
+        lines = ["Sub-agents (the agent delegates to them with its task tool):"]
+        for name, spec in sorted(specs.items()):
+            tools = ", ".join(spec.tools) if spec.tools else "read-only"
+            lines.append(f"  {name:<16} {spec.description}  [tools: {tools}]")
+        self.interactive_mode._show_message("\n".join(lines))
+        return True
 
     def handle_commands_list(self) -> bool:
         """List custom commands."""
@@ -575,6 +594,7 @@ Special Commands:
   /undo        - Revert the agent's file edits from its last request
   /resume [id] - List saved sessions, or continue one
   /commands    - List custom commands (.joshu/commands/*.md|toml)
+  /agents      - List sub-agents (.joshu/agents/*.md)
   /permissions - Show or set the agent permission mode
   /config   - Show/set configuration
   /model    - Switch AI model

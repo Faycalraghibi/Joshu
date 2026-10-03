@@ -25,7 +25,8 @@ from joshu.core.llm_client import (
     create_chat_client,
 )
 from joshu.core.permissions import EDIT_TOOLS, PermissionManager, PermissionMode
-from joshu.core.system_prompt import build_system_prompt
+from joshu.core.subagents import SubagentSpec, discover_subagents
+from joshu.core.system_prompt import build_subagent_prompt, build_system_prompt
 from joshu.core.tool_executor import ToolExecutor
 from joshu.core.tool_registry import ToolSpec, load_builtin_tools
 
@@ -125,7 +126,9 @@ class Agent:
         self._formatter = ToolExecutor(self._registry)
         self._tool_names = set(tool_names) if tool_names is not None else None
         self._local_tools: Dict[str, ToolSpec] = {}
+        self.subagents: Dict[str, SubagentSpec] = {}
         if not is_subagent:
+            self.subagents = discover_subagents(self.cwd)
             self._local_tools["task"] = self._make_task_tool()
 
         self._system_prompt_override = system_prompt
@@ -412,49 +415,115 @@ class Agent:
         }
 
     def _make_task_tool(self) -> ToolSpec:
-        def task(description: str, prompt: str) -> str:
-            sub_agent = Agent(
-                client=self.client,
-                permissions=PermissionManager(PermissionMode.PLAN, approver=None),
-                events=_SubagentEvents(self.events, description),
-                max_turns=min(self.max_turns, SUBAGENT_MAX_TURNS),
-                max_tokens=self.max_tokens,
-                temperature=self.temperature,
-                context_window=self.context_window,
-                tool_output_limit=self.tool_output_limit,
-                cwd=self.cwd,
-                session_id=f"{self.session_id}-sub",
-                is_subagent=True,
-                stream=False,
-            )
+        def task(description: str, prompt: str, agent: Optional[str] = None) -> str:
+            if agent:
+                spec = self.subagents.get(agent)
+                if spec is None:
+                    known = ", ".join(sorted(self.subagents)) or "none defined"
+                    return f"Error: unknown agent '{agent}' (available: {known})"
+                sub_agent = self._make_defined_subagent(spec, description)
+            else:
+                sub_agent = self._make_subagent(
+                    PermissionManager(PermissionMode.PLAN, approver=None),
+                    description,
+                    max_turns=SUBAGENT_MAX_TURNS,
+                )
             response = sub_agent.run(prompt)
             self._add_usage(sub_agent.usage)
             return response.text or "(the sub-agent returned no answer)"
 
+        description = (
+            "Delegate a focused task to a sub-agent. Without `agent`, a general sub-agent "
+            "with read-only tools (read, list, glob, search, web search) handles it: use it "
+            "for broad searches across many files, so their contents don't fill this "
+            "conversation. The sub-agent sees only `prompt`, so make it self-contained; you "
+            "get back its final answer."
+        )
+        properties: Dict[str, Any] = {
+            "description": {
+                "type": "string",
+                "description": "Short (3-5 word) label for the task",
+            },
+            "prompt": {
+                "type": "string",
+                "description": "Complete instructions for the sub-agent",
+            },
+        }
+        if self.subagents:
+            listing = "\n".join(
+                f"- {spec.name}: {spec.description}" for spec in self.subagents.values()
+            )
+            description += f"\n\nSpecialized agents (pass their name as `agent`):\n{listing}"
+            properties["agent"] = {
+                "type": "string",
+                "enum": sorted(self.subagents),
+                "description": "Name of a specialized agent to use (optional)",
+            }
+
         return ToolSpec(
             name="task",
-            description=(
-                "Delegate a focused research task to a sub-agent with read-only tools "
-                "(read, list, glob, search, web search). Use it for broad searches across "
-                "many files, so their contents don't fill this conversation. The sub-agent "
-                "sees only `prompt`, so make it self-contained; you get back its final answer."
-            ),
+            description=description,
             parameters={
                 "type": "object",
-                "properties": {
-                    "description": {
-                        "type": "string",
-                        "description": "Short (3-5 word) label for the task",
-                    },
-                    "prompt": {
-                        "type": "string",
-                        "description": "Complete instructions for the sub-agent",
-                    },
-                },
+                "properties": properties,
                 "required": ["description", "prompt"],
             },
             function=task,
             requires_approval=False,
+        )
+
+    def _make_subagent(
+        self,
+        permissions: PermissionManager,
+        label: str,
+        max_turns: int,
+        client: Optional[ChatClient] = None,
+        tool_names: Optional[Sequence[str]] = None,
+        system_prompt: Optional[str] = None,
+    ) -> "Agent":
+        return Agent(
+            client=client or self.client,
+            permissions=permissions,
+            events=_SubagentEvents(self.events, label),
+            max_turns=min(self.max_turns, max_turns),
+            max_tokens=self.max_tokens,
+            temperature=self.temperature,
+            context_window=self.context_window,
+            tool_output_limit=self.tool_output_limit,
+            tool_names=tool_names,
+            system_prompt=system_prompt,
+            cwd=self.cwd,
+            session_id=f"{self.session_id}-sub",
+            is_subagent=True,
+            stream=False,
+        )
+
+    def _make_defined_subagent(self, spec: SubagentSpec, label: str) -> "Agent":
+        """
+        Sub-agent from a user definition.
+
+        With a `tools` list it gets exactly those tools and shares this agent's
+        permission gate (so edits and commands still need approval); without
+        one it is read-only.
+        """
+        if spec.tools is None:
+            permissions = PermissionManager(PermissionMode.PLAN, approver=None)
+            tool_names = None
+        else:
+            permissions = self.permissions
+            tool_names = spec.tools
+
+        client = self.client
+        if spec.model and spec.model != getattr(self.client, "model", None):
+            client = create_chat_client(spec.model)
+
+        return self._make_subagent(
+            permissions,
+            f"{spec.name}: {label}",
+            max_turns=spec.max_turns or SUBAGENT_MAX_TURNS,
+            client=client,
+            tool_names=tool_names,
+            system_prompt=build_subagent_prompt(spec.system_prompt, self.cwd),
         )
 
 
