@@ -84,41 +84,21 @@ def handle_config(
 
 
 def handle_history(limit: int, context_provider: Optional[ContextProvider] = None) -> None:
-    """Show command execution history."""
+    """Show your most recent requests to the agent in this directory."""
     from pathlib import Path
 
-    from joshu.core.storage import EntryType, JsonFileStorage, QueryFilter
+    from joshu.core.sessions import recent_prompts
 
-    # Try to get history from context provider first
-    if context_provider and context_provider.conversation_context.messages:
-        history_messages = context_provider.conversation_context.messages
-        user_commands = [msg for msg in history_messages if msg["role"] == "user"]
+    prompts = recent_prompts(Path.cwd(), limit=limit)
+    if not prompts:
+        console.print("[yellow]No saved requests in this directory.[/yellow]")
+        return
 
-        if user_commands:
-            user_commands = user_commands[-limit:]
-            console.print(f"[bold]Command History (last {len(user_commands)} entries):[/bold]")
-            for i, msg in enumerate(user_commands, 1):
-                console.print(f"  {i}. {msg['content']}")
-            return
-
-    # Fallback: Read from JSON storage
-    try:
-        storage = JsonFileStorage(Path.cwd() / "cache" / "joshu_data.json")
-        filter = QueryFilter(entry_type=EntryType.CONVERSATION, role="user", limit=limit)
-        entries = storage.query_entries(filter)
-
-        if not entries:
-            console.print("[yellow]No command history available.[/yellow]")
-            return
-
-        console.print(f"[bold]Command History (last {len(entries)} entries):[/bold]")
-        for i, entry in enumerate(entries, 1):
-            content = entry.data.get("content", "")
-            console.print(f"  {i}. {content}")
-
-    except Exception as e:
-        console.print(f"[red]Error reading history from storage: {e}[/red]")
-        console.print("[yellow]No history available.[/yellow]")
+    console.print(f"[bold]Recent requests (last {len(prompts)}):[/bold]")
+    for i, (session_id, text) in enumerate(prompts, 1):
+        first_line = text.strip().splitlines()[0] if text.strip() else ""
+        console.print(f"  {i}. {first_line}  [dim]({session_id})[/dim]")
+    console.print('[dim]Continue one with: joshu run --resume <session id> "..."[/dim]')
 
 
 def handle_examples() -> None:

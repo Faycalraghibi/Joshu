@@ -15,6 +15,7 @@ except ImportError:
     PTHistory = object
     PROMPT_TOOLKIT_AVAILABLE = False
 
+from joshu.core.paths import joshu_home
 from joshu.core.storage import EntryType, JsonFileStorage, QueryFilter, StorageEntry
 
 logger = logging.getLogger(__name__)
@@ -30,11 +31,12 @@ if PROMPT_TOOLKIT_AVAILABLE:
             Initialize JSON-backed prompt history.
 
             Args:
-                storage_path: Path to JSON storage file. If None, uses .joshu_data.json
+                storage_path: Path to JSON storage file. If None, uses
+                    ~/.joshu/input_history.json
             """
             super().__init__()
             if storage_path is None:
-                storage_path = Path.cwd() / "cache" / "joshu_data.json"
+                storage_path = joshu_home() / "input_history.json"
 
             self.storage = JsonFileStorage(storage_path)
             self._history_strings: List[str] = []
@@ -74,6 +76,11 @@ if PROMPT_TOOLKIT_AVAILABLE:
             """Load all history strings."""
             return list(self._history_strings)
 
+        def clear(self) -> None:
+            """Forget all stored input."""
+            self.storage.delete_entries(QueryFilter(entry_type=EntryType.PROMPT_HISTORY))
+            self._history_strings = []
+
         def store_string(self, string: str) -> None:
             """Store a string in the history."""
             if string and string.strip():
@@ -93,7 +100,7 @@ else:
 
         def __init__(self, storage_path: Optional[Path] = None):
             if storage_path is None:
-                storage_path = Path.cwd() / "cache" / "joshu_data.json"
+                storage_path = joshu_home() / "input_history.json"
             self.storage = JsonFileStorage(storage_path)
             self._history_strings: List[str] = []
             self._load_history()

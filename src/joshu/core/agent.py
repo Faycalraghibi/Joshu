@@ -176,8 +176,17 @@ class Agent:
         return checkpoint
 
     def reset(self) -> None:
-        """Start a new conversation (keeps settings and session approvals)."""
+        """
+        Start a new conversation in a new session (keeps settings and session
+        approvals). The previous conversation stays saved under its own id.
+        """
+        self.session_id = uuid.uuid4().hex[:12]
+        self.created_at = datetime.now().isoformat(timespec="seconds")
         self.messages = [{"role": "system", "content": self._build_system_prompt()}]
+        self.usage = {"prompt_tokens": 0, "completion_tokens": 0}
+        self.cost = CostTracker()
+        self.checkpoints = CheckpointStore()
+        self._pending_notes = []
 
     def tool_specs(self) -> List[ToolSpec]:
         """Tools offered to the model."""

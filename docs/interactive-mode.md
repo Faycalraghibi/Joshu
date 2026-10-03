@@ -102,15 +102,19 @@ Mode: AGENT
 
 ### Session Management
 
+Sessions are the saved agent conversations: the same ones `joshu sessions`,
+`--resume` / `--continue` and `/resume` use (see [Agent](agent.md#sessions)).
+
 ```
-/session              # Current session ID
-/session list         # All sessions
-/session new          # Start new session
-/session end          # End and create new
-/session switch <id>  # Switch to session
-/session delete <id>  # Delete session
+/session              # Current session id
+/session list         # Saved sessions in this directory
+/session new          # Start a new conversation (also /reset, /new-session)
+/session switch <id>  # Continue a saved session (also /resume <id>)
+/session delete <id>  # Delete a saved session
 /session help         # Session help
 ```
+
+An id prefix is enough.
 
 ### Memory Commands
 
@@ -284,13 +288,13 @@ Set model = llama-3-70b
 
 ```
 > /session new
-🆕 New session: 7f3a2b1c...
+New session: 7f3a2b1c9d0e
 
 > /session list
-[Shows all sessions with timestamps]
+[Saved sessions in this directory, newest first]
 
-> /session switch 7f3a2b1c
-✅ Switched to session: 7f3a2b1c...
+> /session switch 7f3a2b
+Resumed session 7f3a2b1c9d0e (12 messages): set up development environment
 ```
 
 ## Examples

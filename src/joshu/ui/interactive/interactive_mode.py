@@ -42,8 +42,7 @@ class InteractiveMode:
 
         self.context_provider = ContextProvider()
 
-        storage_path = Path.cwd() / "cache" / "joshu_data.json"
-        self.prompt_history = JsonHistory(storage_path=storage_path)
+        self.prompt_history = JsonHistory()
 
         self.vim_mode = "INSERT"
         self.multiline_mode = False

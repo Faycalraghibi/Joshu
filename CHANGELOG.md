@@ -23,6 +23,9 @@ All notable changes to the Joshu project will be documented in this file.
 - Docs: `docs/agent.md`; plan: `docs/plans/2026-10-02-agent-core.md`.
 
 ### Changed
+- One session store: `/session` (list, new, switch, delete) now manages the saved agent sessions, the same ones as `joshu sessions`, `--resume` and `/resume`; `joshu history` lists recent requests from them.
+- Per-user data (input history, memory, semantic-memory database) moved from `./cache` and `./.joshu_chromadb` in the working directory to `~/.joshu` (`$JOSHU_HOME`).
+- CI runs on every pull request and push to `main`, on Linux with Python 3.10-3.14 and on Windows.
 - `joshu run`, `joshu "<prompt>"`, `joshu explain` and interactive agent/plan modes use the agent; ask mode uses the configured provider.
 - Removed the open-loop interactive agent mode, which ran generated commands without confirmation.
 - MCP tools require approval.
@@ -37,6 +40,8 @@ All notable changes to the Joshu project will be documented in this file.
 - Unused modules `joshu.core.hooks` (duplicated `joshu.hooks`), `joshu.core.credentials`, `joshu.tools.filesystem`.
 
 ### Fixed
+- `/reset` kept the same session id, so the next request overwrote the previous conversation's saved session.
+- The Docker sandbox was used with Docker engines in Windows-container mode, which can't run its Linux image.
 - Starting Joshu in a directory without `./cache` printed "Could not save sessions".
 - Hook scripts written in Python could not run on Windows; a hook blocking with exit code 2 gave the model no reason.
 - `max_tokens: 0.8` in `config/config.yaml`; tests no longer write the real config file.

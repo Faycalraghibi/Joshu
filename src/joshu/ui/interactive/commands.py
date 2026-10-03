@@ -2,9 +2,6 @@
 
 import json
 
-from rich.console import Console
-from rich.table import Table
-
 
 class CommandHandler:
     """Handler for slash commands."""
@@ -15,148 +12,89 @@ class CommandHandler:
         self.config_manager = interactive_mode.config_manager
 
     def handle_session_command(self, command: str) -> bool:
-        """Handle session management commands."""
-        if not self.context_provider:
-            self.interactive_mode._show_message("❌ Context provider not available.")
-            return True
+        """
+        Agent sessions: /session [list | new | switch <id> | delete <id> | help].
 
+        Sessions are the saved agent conversations (see joshu.core.sessions),
+        the same ones `joshu sessions`, --resume and /resume use.
+        """
+        from pathlib import Path
+
+        from joshu.core.sessions import SessionError, delete_session, list_sessions
+
+        show = self.interactive_mode._show_message
         parts = command.split()
+        subcommand = parts[1].lower() if len(parts) > 1 else ""
+        agent = self.interactive_mode.agent
 
-        if len(parts) == 1:
-            session_id = self.context_provider.session_id
-            session_short = session_id[:8]
-            self.interactive_mode._show_message(
-                f"📋 Current session: {session_short}... (Full ID: {session_id})"
-            )
+        if subcommand == "":
+            if agent is None:
+                show("No agent session yet; it starts with your first request.")
+            else:
+                show(f"Current session: {agent.session_id}")
             return True
-
-        subcommand = parts[1].lower()
 
         if subcommand == "help":
-            self.interactive_mode._show_message("📚 Session Management Commands:")
-            self.interactive_mode._show_message("")
-            self.interactive_mode._show_message("  /session           - Show current session ID")
-            self.interactive_mode._show_message("  /session list      - List all sessions")
-            self.interactive_mode._show_message("  /session new       - Start a new session")
-            self.interactive_mode._show_message(
-                "  /session end       - End current session and start a new one"
-            )
-            self.interactive_mode._show_message(
-                "  /session switch <id> - Switch to a session by ID (full or short)"
-            )
-            self.interactive_mode._show_message(
-                "  /session delete <id> - Delete a session by ID (full or short)"
-            )
-            self.interactive_mode._show_message("  /session help      - Show this help message")
-            self.interactive_mode._show_message("")
-            self.interactive_mode._show_message(
-                "💡 Tip: Use short IDs (first 8 characters) or full IDs"
+            show(
+                "Session commands:\n"
+                "  /session              - Show the current session\n"
+                "  /session list         - Saved sessions in this directory\n"
+                "  /session new          - Start a new conversation (also /reset, /new-session)\n"
+                "  /session switch <id>  - Continue a saved session (also /resume <id>)\n"
+                "  /session delete <id>  - Delete a saved session\n"
+                "An id prefix is enough."
             )
             return True
 
         if subcommand == "list":
-            sessions = self.context_provider.list_sessions()
-            if not sessions:
-                self.interactive_mode._show_message("📭 No sessions found.")
+            infos = list_sessions(Path.cwd(), limit=20)
+            if not infos:
+                show("No saved sessions in this directory.")
                 return True
-
-            console = Console()
-            table = Table(title="Available Sessions", show_header=True, header_style="bold magenta")
-            table.add_column("Short ID", style="cyan", width=12)
-            table.add_column("Full ID", style="dim", width=40)
-            table.add_column("Start Time", style="green", width=20)
-            table.add_column("Status", style="yellow", width=10)
-
-            current_session_id = self.context_provider.session_id
-            for session in sessions:
-                short_id = session["short_id"]
-                full_id = session["id"]
-                start_time = session["start_time"]
-                is_active = session.get("active", False)
-                is_current = full_id == current_session_id
-
-                status = "🟢 Active"
-                if is_current:
-                    status = "⭐ Current"
-                    short_id = f"→ {short_id}"
-                elif not is_active:
-                    status = "⚫ Inactive"
-
-                table.add_row(short_id, full_id, start_time, status)
-
-            console.print(table)
+            current = agent.session_id if agent is not None else None
+            lines = ["Saved sessions (newest first):"]
+            for info in infos:
+                marker = "*" if info.id == current else " "
+                updated = info.updated_at.replace("T", " ")
+                lines.append(
+                    f" {marker} {info.id}  {updated}  {info.message_count:>3} msgs  "
+                    f"{info.title[:60]}"
+                )
+            show("\n".join(lines))
             return True
 
-        elif subcommand == "new":
-            new_session_id = self.context_provider.new_session()
-            self.interactive_mode._show_message(f"🆕 New session started: {new_session_id[:8]}...")
+        if subcommand in ("new", "end"):
+            if agent is not None:
+                agent.reset()
+                show(f"New session: {agent.session_id}")
+            else:
+                show("A new session starts with your next request.")
             return True
 
-        elif subcommand == "switch":
+        if subcommand == "switch":
             if len(parts) < 3:
-                self.interactive_mode._show_message("❌ Usage: /session switch <session_id>")
-                self.interactive_mode._show_message(
-                    "💡 Tip: Use /session list to see available sessions"
-                )
+                show("Usage: /session switch <id>   (see /session list)")
                 return True
-
-            session_id = parts[2]
-            if self.context_provider.switch_session(session_id):
-                self.interactive_mode._show_message(f"✅ Switched to session: {session_id[:8]}...")
-            else:
-                self.interactive_mode._show_message(f"❌ Session not found: {session_id}")
-                self.interactive_mode._show_message(
-                    "💡 Use /session list to see available sessions"
-                )
+            self.interactive_mode.resume_session(parts[2])
             return True
 
-        elif subcommand == "delete":
+        if subcommand == "delete":
             if len(parts) < 3:
-                self.interactive_mode._show_message("❌ Usage: /session delete <session_id>")
-                self.interactive_mode._show_message(
-                    "💡 Tip: Use /session list to see available sessions"
-                )
+                show("Usage: /session delete <id>   (see /session list)")
                 return True
-
-            session_id = parts[2]
-            current_session_id = self.context_provider.session_id
-
-            if session_id == current_session_id or current_session_id.startswith(session_id):
-                self.interactive_mode._show_message(
-                    "❌ Cannot delete current session. Switch to another session first."
-                )
+            if agent is not None and agent.session_id.startswith(parts[2]):
+                show("That is the current session; start a new one first (/session new).")
                 return True
-
-            if self.context_provider.delete_session(session_id):
-                self.interactive_mode._show_message(f"✅ Deleted session: {session_id[:8]}...")
-            else:
-                self.interactive_mode._show_message(f"❌ Session not found: {session_id}")
-                self.interactive_mode._show_message(
-                    "💡 Use /session list to see available sessions"
-                )
+            try:
+                deleted = delete_session(parts[2])
+            except SessionError as e:
+                show(str(e))
+                return True
+            show(f"Deleted session {deleted}")
             return True
 
-        elif subcommand == "end":
-            current_session_id = self.context_provider.session_id
-            if self.context_provider.end_session():
-                self.interactive_mode._show_message(
-                    f"✅ Ended and deleted session: {current_session_id[:8]}..."
-                )
-                new_session_id = self.context_provider.new_session()
-                self.interactive_mode._show_message(
-                    f"🆕 Started new session: {new_session_id[:8]}..."
-                )
-            else:
-                self.interactive_mode._show_message("❌ Failed to end current session")
-            return True
-
-        else:
-            self.interactive_mode._show_message(f"❌ Unknown session command: {subcommand}")
-            self.interactive_mode._show_message(
-                "💡 Available commands: list, new, switch, delete, end, help"
-            )
-            self.interactive_mode._show_message("💡 Type '/session help' for detailed information")
-            return True
+        show(f"Unknown session command: {subcommand} (see /session help)")
+        return True
 
     def handle_memory_command(self, command: str) -> bool:
         """Handle semantic memory commands."""
@@ -328,23 +266,16 @@ class CommandHandler:
             return self.handle_memory_command(command)
 
         if command == "/clear":
-            from joshu.core.storage import EntryType, QueryFilter
-
-            filter = QueryFilter(entry_type=EntryType.PROMPT_HISTORY)
-            self.interactive_mode.context_provider.storage.delete_entries(filter)
-            self.interactive_mode.prompt_history._load_history()
+            self.interactive_mode.prompt_history.clear()
             self.interactive_mode.command_history = []
-            self.interactive_mode._show_message("✅ Command history cleared.")
+            self.interactive_mode._show_message("Input history cleared.")
             return True
 
         if command == "/new-session":
             return self.handle_session_command("/session new")
 
         if command == "/reset":
-            if self.interactive_mode.agent is not None:
-                self.interactive_mode.agent.reset()
-            self.interactive_mode._show_message("Agent conversation reset.")
-            return True
+            return self.handle_session_command("/session new")
 
         if command == "/resume" or command.startswith("/resume "):
             return self.handle_resume_command(command)
@@ -595,22 +526,20 @@ Special Commands:
   @file     - Inject file content
   @@file    - Inject and execute file content
   @file:n-m - Inject lines n to m from file
-  /clear       - Clear command history
+  /clear       - Clear input history (up-arrow recall)
   /search \u003cquery\u003e - Search the web for information
-  /session     - Show current session
-  /session help - Show session management help
-  /session list - List all sessions
-  /session new - Start a new session
-  /session end - End current session and start a new one
-  /session switch <id> - Switch to a session
-  /session delete <id> - Delete a session
+  /session     - Show the current agent session (/session help for more)
+  /session list - Saved sessions in this directory
+  /session new - Start a new conversation
+  /session switch <id> - Continue a saved session
+  /session delete <id> - Delete a saved session
   /memory      - Show memory commands help
   /memory status - Show semantic memory statistics
   /memory search <query> - Search for similar conversations
   /memory clear - Clear all semantic memories
-  /history     - Show command history
+  /history     - Show your recent input
   /help        - Show this help
-  /reset       - Start a new agent conversation
+  /reset       - Start a new conversation (same as /session new)
   /undo        - Revert the agent's file edits from its last request
   /cost        - Tokens and cost of this conversation
   /resume [id] - List saved sessions, or continue one

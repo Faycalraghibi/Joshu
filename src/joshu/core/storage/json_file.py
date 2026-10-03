@@ -22,10 +22,12 @@ class JsonFileStorage(StorageBackend):
         Initialize JSON file storage.
 
         Args:
-            storage_path: Path to the JSON storage file. If None, uses .joshu_data.json in current directory.
+            storage_path: Path to the JSON storage file. If None, uses ~/.joshu/data.json.
         """
         if storage_path is None:
-            storage_path = Path.cwd() / "cache" / "joshu_data.json"
+            from joshu.core.paths import joshu_home
+
+            storage_path = joshu_home() / "data.json"
 
         self.storage_path = Path(storage_path)
         self._entries: List[StorageEntry] = []

@@ -10,72 +10,69 @@ from joshu.ui.cli import app
 runner = CliRunner()
 
 
-def test_history_command():
-    """Test the history command shows command history."""
-    from joshu.core.storage import JsonFileStorage
+class _FakeClient:
+    model = "fake"
 
-    # Use temporary storage for isolation
-    with tempfile.TemporaryDirectory() as tmpdir:
-        storage = JsonFileStorage(Path(tmpdir) / "test_data.json")
-        context_provider = ContextProvider(storage_backend=storage)
-        context_provider.add_to_history("user", "show disk usage")
-        context_provider.add_to_history("assistant", "Executed: dir")
-        context_provider.add_to_history("user", "list python files")
-        context_provider.add_to_history("assistant", "Executed: dir *.py")
+    def complete(self, messages, tools=None, **kwargs):
+        from joshu.core.llm_client import AssistantTurn
 
-        # Patch the global context_provider in cli module and disable banner
-        with (
-            patch("joshu.ui.cli.context_provider", context_provider),
-            patch("joshu.ui.cli.print_banner"),
-            patch("joshu.ui.cli_handlers.init.initialize_context") as mock_init,
-        ):
-            mock_init.return_value = None
-            result = runner.invoke(app, ["history"])
-            assert result.exit_code == 0
-            # Check that the command history is in the output
-            # Note: history may show from storage which might include other entries
-            output_lower = result.output.lower()
-            # Either our entries are present, or the output shows some history
-            assert (
-                "show disk usage" in output_lower
-                or "list python files" in output_lower
-                or ("command history" in output_lower and "no history" not in output_lower)
-            )
+        return AssistantTurn(content="ok")
 
 
-def test_history_command_with_limit():
-    """Test the history command with limit option."""
-    from joshu.core.storage import JsonFileStorage
+def _save_requests(cwd, prompts):
+    """Run requests through a persisting agent so they are saved as a session."""
+    from joshu.core.agent import Agent
+    from joshu.core.permissions import PermissionManager
 
-    # Use temporary storage
-    with tempfile.TemporaryDirectory() as tmpdir:
-        storage = JsonFileStorage(Path(tmpdir) / "test_data.json")
-        context_provider = ContextProvider(storage_backend=storage)
-        context_provider.add_to_history("user", "command 1")
-        context_provider.add_to_history("assistant", "response 1")
-        context_provider.add_to_history("user", "command 2")
-        context_provider.add_to_history("assistant", "response 2")
-        context_provider.add_to_history("user", "command 3")
-        context_provider.add_to_history("assistant", "response 3")
+    agent = Agent(
+        client=_FakeClient(),
+        permissions=PermissionManager(),
+        system_prompt="s",
+        cwd=cwd,
+        persist=True,
+    )
+    for prompt in prompts:
+        agent.run(prompt)
+    return agent.session_id
 
-        # Patch the global context_provider in cli module and disable banner
-        with (
-            patch("joshu.ui.cli.context_provider", context_provider),
-            patch("joshu.ui.cli.print_banner"),
-            patch("joshu.ui.cli_handlers.init.initialize_context") as mock_init,
-        ):
-            mock_init.return_value = None
-            result = runner.invoke(app, ["history", "--limit", "2"])
-            assert result.exit_code == 0
-            # Check that limit is applied (last 2 commands should be shown)
-            # Note: history may show from storage which might include other entries
-            output_lower = result.output.lower()
-            # Either our entries are present, or the output shows limited history
-            assert (
-                "command 2" in output_lower
-                or "command 3" in output_lower
-                or ("command history" in output_lower and "no history" not in output_lower)
-            )
+
+def test_history_command(tmp_path, monkeypatch):
+    """history lists the requests saved in this directory's sessions."""
+    monkeypatch.chdir(tmp_path)
+    session_id = _save_requests(tmp_path, ["show disk usage", "list python files"])
+
+    with patch("joshu.ui.cli.print_banner"):
+        result = runner.invoke(app, ["history"])
+
+    assert result.exit_code == 0
+    assert "show disk usage" in result.output and "list python files" in result.output
+    assert session_id in result.output
+
+
+def test_history_command_with_limit(tmp_path, monkeypatch):
+    """--limit keeps only the most recent requests."""
+    monkeypatch.chdir(tmp_path)
+    _save_requests(tmp_path, ["command 1", "command 2", "command 3"])
+
+    with patch("joshu.ui.cli.print_banner"):
+        result = runner.invoke(app, ["history", "--limit", "2"])
+
+    assert result.exit_code == 0
+    assert "command 1" not in result.output
+    assert "command 2" in result.output and "command 3" in result.output
+
+
+def test_history_command_ignores_other_directories(tmp_path, monkeypatch):
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    _save_requests(elsewhere, ["not here"])
+    monkeypatch.chdir(tmp_path)
+
+    with patch("joshu.ui.cli.print_banner"):
+        result = runner.invoke(app, ["history"])
+
+    assert "not here" not in result.output
+    assert "No saved requests" in result.output
 
 
 def test_history_command_no_history():

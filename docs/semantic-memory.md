@@ -152,7 +152,7 @@ Set semantic_memory_similarity_threshold = 0.5
 Semantic memories are stored in:
 
 ```
-./.joshu_chromadb/
+~/.joshu/.joshu_chromadb/      ($JOSHU_HOME/.joshu_chromadb/ when JOSHU_HOME is set)
 ```
 
 This directory contains the ChromaDB database with all vector embeddings.
@@ -262,7 +262,7 @@ If memory database is corrupted:
 ```bash
 # Stop Joshu
 # Delete database
-rm -rf .joshu_chromadb/
+rm -rf ~/.joshu/.joshu_chromadb/
 
 # Restart Joshu
 joshu interactive
