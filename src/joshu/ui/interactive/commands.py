@@ -346,6 +346,9 @@ class CommandHandler:
             self.interactive_mode._show_message("Agent conversation reset.")
             return True
 
+        if command == "/resume" or command.startswith("/resume "):
+            return self.handle_resume_command(command)
+
         if command == "/undo":
             return self.handle_undo_command()
 
@@ -410,6 +413,28 @@ class CommandHandler:
         else:
             self.interactive_mode._show_message(f"Unknown command: {command}")
             return True
+
+    def handle_resume_command(self, command: str) -> bool:
+        """/resume lists recent sessions here; /resume <id> continues one."""
+        from pathlib import Path
+
+        from joshu.core.sessions import list_sessions
+
+        parts = command.split(maxsplit=1)
+        if len(parts) == 2:
+            self.interactive_mode.resume_session(parts[1].strip())
+            return True
+
+        infos = list_sessions(Path.cwd(), limit=10)
+        if not infos:
+            self.interactive_mode._show_message("No saved sessions in this directory.")
+            return True
+        lines = ["Recent sessions (resume with /resume <id>):"]
+        for info in infos:
+            updated = info.updated_at.replace("T", " ")
+            lines.append(f"  {info.id}  {updated}  {info.message_count:>3} msgs  {info.title[:60]}")
+        self.interactive_mode._show_message("\n".join(lines))
+        return True
 
     def handle_undo_command(self) -> bool:
         """Revert the agent's file edits from its most recent request that edited files."""
@@ -517,6 +542,7 @@ Special Commands:
   /help        - Show this help
   /reset       - Start a new agent conversation
   /undo        - Revert the agent's file edits from its last request
+  /resume [id] - List saved sessions, or continue one
   /permissions - Show or set the agent permission mode
   /config   - Show/set configuration
   /model    - Switch AI model

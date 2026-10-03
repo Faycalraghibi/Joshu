@@ -223,5 +223,6 @@ def create_console_agent(
         model=model,
         provider=provider,
         stream=not quiet,
+        persist=config.get("save_sessions", True),
     )
     return agent, ui

@@ -3,6 +3,7 @@
 import subprocess
 import time
 from pathlib import Path
+from typing import Optional
 
 try:
     from prompt_toolkit.shortcuts import prompt
@@ -368,6 +369,37 @@ class InteractiveMode:
             self._show_message("Run `joshu providers` to pick a provider and set its API key.")
             return False
 
+    def resume_session(self, session_id: Optional[str] = None) -> bool:
+        """
+        Continue a saved agent session: the given id, or the latest one here.
+
+        Returns False (after explaining why) when nothing was resumed.
+        """
+        from joshu.core.sessions import SessionError, latest_session, load_session
+
+        if not self._ensure_agent():
+            return False
+
+        if session_id is None:
+            latest = latest_session(self.agent.cwd)
+            if latest is None:
+                self._show_message("No previous session in this directory.")
+                return False
+            session_id = latest.id
+
+        try:
+            session = load_session(session_id)
+        except SessionError as e:
+            self._show_message(str(e))
+            return False
+
+        self.agent.restore(session)
+        self._show_message(
+            f"Resumed session {session['id']} ({len(session['messages'])} messages): "
+            f"{session.get('title', '')}"
+        )
+        return True
+
     def _run_agent(self, user_input: str) -> bool:
         """Run one request through the tool-using agent."""
         from joshu.core.llm_client import LLMError
@@ -434,8 +466,14 @@ class InteractiveMode:
         self._show_message("Goodbye!")
 
 
-def start_interactive_mode(model: str, sandbox: bool = False, verbose: bool = False):
-    """Start the interactive mode."""
+def start_interactive_mode(
+    model: str,
+    sandbox: bool = False,
+    verbose: bool = False,
+    resume: Optional[str] = None,
+    continue_last: bool = False,
+):
+    """Start the interactive mode, optionally continuing a saved session."""
     try:
         from joshu.core.config import get_config_manager
 
@@ -462,4 +500,6 @@ def start_interactive_mode(model: str, sandbox: bool = False, verbose: bool = Fa
             print(f"[MCP] Initialization skipped: {e}")
 
     interactive_mode = InteractiveMode(model, sandbox, verbose=verbose)
+    if resume or continue_last:
+        interactive_mode.resume_session(resume)
     interactive_mode.start()

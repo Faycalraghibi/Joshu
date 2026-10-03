@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 import uuid
 from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
@@ -81,6 +82,7 @@ class Agent:
         session_id: Optional[str] = None,
         is_subagent: bool = False,
         stream: bool = True,
+        persist: bool = False,
     ) -> None:
         """
         Args:
@@ -96,6 +98,8 @@ class Agent:
             system_prompt: Override the generated system prompt
             is_subagent: Sub-agents get the sub-agent prompt and no `task` tool
             stream: Stream text to events.on_text
+            persist: Save the conversation after every request (see
+                joshu.core.sessions) so it can be resumed
         """
         config = get_config_manager()
 
@@ -112,6 +116,8 @@ class Agent:
         self.tool_output_limit = tool_output_limit or config.get("tool_output_limit", 30000)
         self.cwd = cwd or Path.cwd()
         self.session_id = session_id or uuid.uuid4().hex[:12]
+        self.created_at = datetime.now().isoformat(timespec="seconds")
+        self.persist = persist and not is_subagent
         self.is_subagent = is_subagent
         self.stream = stream
 
@@ -181,8 +187,37 @@ class Agent:
         Run one user request to completion.
 
         KeyboardInterrupt propagates to the caller, but the history is left
-        valid so the conversation can continue.
+        valid so the conversation can continue. With `persist`, the
+        conversation is saved afterwards, also when interrupted.
         """
+        try:
+            return self._run(prompt)
+        finally:
+            if self.persist and len(self.messages) > 1:
+                self._save()
+
+    def restore(self, session: Dict[str, Any]) -> None:
+        """
+        Continue a saved conversation (see joshu.core.sessions.load_session).
+
+        The system prompt is rebuilt for the current environment.
+        """
+        self.session_id = session["id"]
+        self.created_at = session.get("created_at", self.created_at)
+        self.messages = [self.messages[0]] + list(session["messages"])
+        for key, value in (session.get("usage") or {}).items():
+            if key in self.usage:
+                self.usage[key] = value
+
+    def _save(self) -> None:
+        from joshu.core.sessions import save_session
+
+        try:
+            save_session(self)
+        except OSError as e:
+            logger.warning(f"Could not save session {self.session_id}: {e}")
+
+    def _run(self, prompt: str) -> AgentResponse:
         from joshu.hooks.dispatcher import dispatch_before_agent
 
         hook = dispatch_before_agent(self.session_id, prompt)
