@@ -190,6 +190,9 @@ def models_add(
     context_window: Optional[int] = typer.Option(
         None, "--context-window", help="The model's context size in tokens."
     ),
+    check: bool = typer.Option(
+        False, "--check", help="Send one small request to make sure the model works."
+    ),
 ) -> None:
     """Save a named model; use it with --model <name>, joshu use <name> or /model <name>."""
     from joshu.core.providers import DEFAULT_PROVIDER
@@ -200,6 +203,8 @@ def models_add(
         console.print(f"[red]Unknown provider '{provider}'.[/red] See joshu providers.")
         raise typer.Exit(code=2)
     _warn_if_missing(provider, model)
+    if check and not _check(provider, model):
+        raise typer.Exit(code=1)
 
     entry = {"provider": provider, "model": model}
     if context_window:
@@ -225,10 +230,35 @@ def models_remove(name: str = typer.Argument(..., help="Named model to remove.")
     console.print(f"Removed {name}.")
 
 
+@models_app.command("check")
+def models_check(
+    model: str = typer.Argument(..., help="Model id, or a named model."),
+    provider: Optional[str] = typer.Option(
+        None, "--provider", "-p", help="Provider serving it (default: the configured one)."
+    ),
+) -> None:
+    """Send one small request to see whether a model answers and calls tools."""
+    from joshu.core.model_catalog import resolve_named_model
+    from joshu.core.providers import DEFAULT_PROVIDER
+
+    named = resolve_named_model(model)
+    if named is not None:
+        provider, model = named.provider, named.model
+    provider = provider or _config().get("provider") or DEFAULT_PROVIDER
+    if provider not in _providers():
+        console.print(f"[red]Unknown provider '{provider}'.[/red] See joshu providers.")
+        raise typer.Exit(code=2)
+    if not _check(provider, model):
+        raise typer.Exit(code=1)
+
+
 def use(
     model: str = typer.Argument(..., help="Model id, or a named model."),
     provider: Optional[str] = typer.Option(
         None, "--provider", "-p", help="Provider serving it (default: the configured one)."
+    ),
+    check: bool = typer.Option(
+        False, "--check", help="Send one small request to make sure the model works."
     ),
 ) -> None:
     """Make a model the default (saved in your user config)."""
@@ -238,6 +268,8 @@ def use(
     config = _config()
     named = resolve_named_model(model)
     if named is not None:
+        if check and not _check(named.provider, named.model):
+            raise typer.Exit(code=1)
         config.set("model", named.name)
         config.save_config()
         console.print(f"Using {named.name}: {named.provider} / {named.model}")
@@ -248,10 +280,31 @@ def use(
         console.print(f"[red]Unknown provider '{provider}'.[/red] See joshu providers.")
         raise typer.Exit(code=2)
     _warn_if_missing(provider, model)
+    if check and not _check(provider, model):
+        raise typer.Exit(code=1)
     config.set("provider", provider)
     config.set("model", model)
     config.save_config()
     console.print(f"Using {provider} / {model}")
+
+
+def _check(provider: str, model: str) -> bool:
+    """Run check_model and report; False when the model can't be used."""
+    from joshu.core.model_catalog import check_model
+
+    console.print(f"[dim]Checking {provider} / {model}...[/dim]")
+    result = check_model(_providers()[provider], model)
+    if not result.ok:
+        console.print(f"[red]{model} didn't answer: {result.error}[/red]")
+        return False
+    if result.tool_call:
+        console.print(f"[green]{model} works and calls tools ({result.seconds:.1f}s).[/green]")
+    else:
+        console.print(
+            f"[yellow]{model} answered ({result.seconds:.1f}s) but didn't call the test "
+            "tool; it may not handle the agent's tools well.[/yellow]"
+        )
+    return True
 
 
 def _warn_if_missing(provider: str, model: str) -> None:

@@ -140,3 +140,48 @@ def resolve_named_model(name: Optional[str]) -> Optional[NamedModel]:
     from joshu.core.config import get_config_manager
 
     return named_models(get_config_manager().get("models")).get(name)
+
+
+@dataclass
+class CheckResult:
+    ok: bool
+    tool_call: bool = False
+    seconds: float = 0.0
+    error: str = ""
+
+
+_PING_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "ping",
+        "description": "Reply to a ping. Always call this when asked to ping.",
+        "parameters": {"type": "object", "properties": {}},
+    },
+}
+
+
+def check_model(provider: Any, model: str, timeout: float = 60.0) -> CheckResult:
+    """
+    Send one small request with a tool to see whether the model answers and
+    calls tools. Catches models a provider lists but the account can't use.
+    """
+    import time
+
+    from joshu.core.llm_client import LLMError, _client_for_provider
+
+    start = time.monotonic()
+    try:
+        client = _client_for_provider(provider, model, timeout=timeout, retries=2)
+        turn = client.complete(
+            [{"role": "user", "content": "Call the ping tool."}],
+            [_PING_TOOL],
+            max_tokens=512,
+            temperature=0,
+        )
+    except LLMError as e:
+        return CheckResult(ok=False, seconds=time.monotonic() - start, error=str(e))
+    return CheckResult(
+        ok=True,
+        tool_call=any(c.name == "ping" for c in turn.tool_calls),
+        seconds=time.monotonic() - start,
+    )

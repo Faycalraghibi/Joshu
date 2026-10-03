@@ -97,7 +97,10 @@ In interactive mode: `/config`, `/config <key>`, `/config <key> <value>`;
 | `provider` | string | `openrouter` | Model provider (see `joshu providers`) |
 | `model` | string | `poolside/laguna-s-2.1:free` | Model id for the provider |
 | `providers` | dict | `{}` | Custom providers and overrides of built-in ones |
-| `fallback_providers` | list | `[]` | Providers tried when the main one can't be reached |
+| `fallback_providers` | list | `[]` | Providers or named models tried when the main model can't serve a request |
+| `models` | map | `{}` | Named models: `provider`, `model`, `context_window` |
+| `request_retries` | integer | `3` | Retries per request on connection errors, 408/409/429 and 5xx |
+| `request_timeout` | number | `120` | Seconds to wait for a model response |
 | `max_tokens` | integer | `4096` | Max tokens per model response |
 | `temperature` | float | `0.1` | Sampling temperature for ask mode |
 

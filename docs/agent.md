@@ -286,7 +286,8 @@ sub-agents are included.
 | `max_tokens` | `4096` | Max tokens per model response |
 | `provider` | `openrouter` | Model provider (see `joshu providers`) |
 | `providers` | `{}` | Custom providers and overrides |
-| `fallback_providers` | `[]` | Tried when the provider can't be reached |
+| `fallback_providers` | `[]` | Providers or named models tried when the model can't serve a request |
+| `request_retries` | `3` | Retries per model request (connection errors, 429, 5xx) |
 | `save_sessions` | `true` | Save conversations for `--resume` / `--continue` |
 | `hooks` | `{}` | Commands run on agent events (see [Hooks](hooks.md)) |
 | `diagnostics_enabled` | `true` | Check files after edits |

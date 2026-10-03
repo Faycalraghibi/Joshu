@@ -167,7 +167,8 @@ List the models a provider serves (live), and manage named models:
 
 ```bash
 joshu models [-p <provider>] [-s <search>] [--tools] [--free] [--all]
-joshu models add <name> <model-id> [-p <provider>] [--context-window N]
+joshu models add <name> <model-id> [-p <provider>] [--context-window N] [--check]
+joshu models check <model-id|name> [-p <provider>]   # one test request with a tool
 joshu models remove <name>
 ```
 
@@ -178,8 +179,8 @@ joshu models remove <name>
 Make a model (or named model) the default, saved in the user config:
 
 ```bash
-joshu use <model-id> [-p <provider>]
-joshu use <named-model>
+joshu use <model-id> [-p <provider>] [--check]
+joshu use <named-model> [--check]
 ```
 
 See [Models & Providers](models-and-providers.md).
