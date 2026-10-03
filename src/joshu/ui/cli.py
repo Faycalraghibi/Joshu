@@ -55,6 +55,9 @@ def version_callback(value: bool) -> None:
         raise typer.Exit()
 
 
+BANNER_COMMANDS = {"interactive", "explain"}
+
+
 @app.callback()
 def main_callback(
     ctx: typer.Context,
@@ -71,8 +74,10 @@ def main_callback(
     global context_provider, _current_model
 
     config_manager, context_provider, _current_model = initialize_context()
-    # `run` prints the banner itself: headless runs must print only the result
-    if ctx.invoked_subcommand != "run":
+    # Only commands that start a conversation show the banner; `run` prints it
+    # itself (headless runs print only the result), and commands like
+    # `models` or `config` print just their output
+    if ctx.invoked_subcommand in BANNER_COMMANDS:
         print_banner(_current_model)
 
 

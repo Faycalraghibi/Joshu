@@ -11,9 +11,13 @@ All notable changes to the Joshu project will be documented in this file.
 - Model management: `joshu models` lists a provider's models live from its `/models` endpoint (tool support, price and context size where reported; `--search`, `--tools`, `--free`); `joshu use <model>` sets the default; named models (`joshu models add`, the `models` setting) bundle a provider, model id and context window; `joshu providers add|remove` (`joshu.core.model_catalog`).
 - `nvidia` provider preset (`NVIDIA_API_KEY`, free key from build.nvidia.com).
 - `/models [search]` in interactive mode.
+- `joshu models check <model>` and `--check` on `joshu use` / `joshu models add`: one small request with a tool, to catch listed models the account can't use or that don't call tools.
+- Requests are retried (`request_retries`, default 3) on connection errors, 408/409/429 and 5xx with backoff; `request_timeout` sets how long to wait.
+- `fallback_providers` also takes named models, and fallbacks now also cover unknown models (404), rate limits and server errors, not only unreachable endpoints.
 - Instruction files: `AGENTS.md` / `JOSHU.md` from the repository root down to the working directory, plus `~/.joshu/AGENTS.md`, are added to the system prompt (`config/JOSHU.md` still works).
 
 ### Fixed
+- Commands such as `joshu models`, `joshu config` and `joshu providers` printed the welcome banner.
 - `/model <id>` only saved the setting; it now switches the running conversation's model.
 - The `save_memory` file ignored `JOSHU_HOME` (always `~/.joshu/JOSHU.md`).
 

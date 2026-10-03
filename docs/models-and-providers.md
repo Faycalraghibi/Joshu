@@ -70,6 +70,11 @@ OpenRouter reports tool support, price and context size; for other providers
 those columns show `?`. `joshu use` and `joshu models add` check the id against
 the list and warn about typos or models without tool calling.
 
+A listed model isn't always usable: some providers list models an account
+can't call, or that are overloaded. `joshu models check <model>` sends one small
+request with a tool and reports whether the model answers and calls it;
+`--check` on `joshu use` and `joshu models add` does the same before saving.
+
 In interactive mode, `/models [search]` lists models and `/model <id>` switches
 the running conversation to another model (`joshu use` changes the default).
 
@@ -156,6 +161,38 @@ model: qwen3-coder
 fallback_providers: [openrouter]
 ```
 
-When the main provider can't be reached (connection error or timeout), the
-fallback providers are tried in order with their default models. Request errors
-such as a bad key, an unknown model or a rate limit are reported, not skipped.
+Entries are provider names (which use their default model) or named models.
+When the main model can't serve a request, the fallbacks are tried in order:
+connection errors, timeouts, unknown models (404), rate limits (429) and server
+errors (5xx). A bad key or an invalid request is reported, not skipped. The
+first model that answers is used for the rest of the session.
+
+Free tiers are often busy, so a fallback model is worth setting:
+
+```yaml
+provider: nvidia
+model: nvidia/nemotron-3-ultra-550b-a55b
+models:
+  lightning:
+    provider: nvidia
+    model: nvidia/nemotron-3.5-lightning-30b-a3b
+fallback_providers: [lightning, openrouter]
+```
+
+## Retries and timeouts
+
+Each request is retried on connection errors, timeouts, 408/409/429 and 5xx,
+with exponential backoff that honors `Retry-After`, before a fallback is tried:
+
+```yaml
+request_retries: 3     # default
+request_timeout: 120   # seconds to wait for a response
+```
+
+## Request size
+
+Every tool's description is sent with every request, including the tools of
+each MCP server. Many MCP tools can add tens of thousands of tokens per request,
+which uses up free-tier limits fast. Keep only the tools you need with
+`include_tools` / `exclude_tools` per server (see [MCP servers](mcp-servers.md)),
+or turn MCP off with `joshu config --set mcp_enabled=false`.

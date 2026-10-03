@@ -19,14 +19,26 @@ logger = logging.getLogger(__name__)
 class LLMError(Exception):
     """Raised when the model endpoint is missing or a request fails."""
 
-    def __init__(self, message: str, unreachable: bool = False) -> None:
+    def __init__(self, message: str, unreachable: bool = False, unavailable: bool = False) -> None:
         """
         Args:
             unreachable: The endpoint could not be reached at all (connection
-                error or timeout), so another endpoint may be tried.
+                error or timeout).
+            unavailable: The endpoint answered but can't serve the request
+                right now or at all (unknown model, rate limit, server error).
+                Either way another endpoint may be tried.
         """
         super().__init__(message)
         self.unreachable = unreachable
+        self.unavailable = unavailable or unreachable
+
+
+# Status codes after which another model may succeed: unknown model (some
+# providers list models an account can't call), timeout, rate limit, server error
+FAILOVER_STATUS = {404, 408, 409, 429, 500, 502, 503, 504}
+
+DEFAULT_REQUEST_TIMEOUT = 120.0
+DEFAULT_REQUEST_RETRIES = 3
 
 
 @dataclass
@@ -100,7 +112,8 @@ class OpenAIChatClient:
         extra_headers: Optional[Dict[str, str]] = None,
         extra_body: Optional[Dict[str, Any]] = None,
         cache_breakpoints: bool = False,
-        timeout: float = 120.0,
+        timeout: float = DEFAULT_REQUEST_TIMEOUT,
+        max_retries: int = DEFAULT_REQUEST_RETRIES,
     ) -> None:
         from openai import OpenAI
 
@@ -116,12 +129,14 @@ class OpenAIChatClient:
         import httpx
 
         # Short connect timeout: an unreachable endpoint should fail fast so the
-        # next one can be tried; reads can take long for big responses
+        # next one can be tried; reads can take long for big responses. The SDK
+        # retries connection errors, 408/409/429 and 5xx with exponential
+        # backoff, honoring Retry-After.
         self._client = OpenAI(
             base_url=base_url,
             api_key=api_key,
             timeout=httpx.Timeout(timeout, connect=10.0),
-            max_retries=1,
+            max_retries=max(0, max_retries),
         )
 
     def complete(
@@ -158,12 +173,15 @@ class OpenAIChatClient:
         except LLMError:
             raise
         except Exception as e:
-            from openai import APIConnectionError
+            from openai import APIConnectionError, APIStatusError
 
             # APITimeoutError is a subclass of APIConnectionError
             unreachable = isinstance(e, APIConnectionError)
+            unavailable = isinstance(e, APIStatusError) and e.status_code in FAILOVER_STATUS
             raise LLMError(
-                f"{self.model} at {self.base_url} request failed: {e}", unreachable=unreachable
+                f"{self.model} at {self.base_url} request failed: {e}",
+                unreachable=unreachable,
+                unavailable=unavailable,
             ) from e
 
     def _complete_blocking(self, request: Dict[str, Any]) -> AssistantTurn:
@@ -268,11 +286,12 @@ def _usage_dict(usage: Any) -> Dict[str, Any]:
 
 class FallbackChatClient:
     """
-    Tries endpoints in order, moving on when one cannot be reached.
+    Tries endpoints in order, moving on when one can't serve the request.
 
-    Only connection failures fall through; a reachable endpoint that rejects the
-    request (bad key, bad model) raises immediately. The first endpoint that
-    answers becomes the preferred one for later requests.
+    Connection failures, timeouts, unknown models, rate limits and server errors
+    (after the client's own retries) fall through to the next endpoint; other
+    rejections (bad key, invalid request) raise immediately. The first endpoint
+    that answers becomes the preferred one for later requests.
     """
 
     def __init__(self, clients: List[OpenAIChatClient]) -> None:
@@ -308,9 +327,9 @@ class FallbackChatClient:
                     on_text=on_text,
                 )
             except LLMError as e:
-                if not e.unreachable:
+                if not e.unavailable:
                     raise
-                logger.warning(f"Endpoint unreachable, trying the next one: {e}")
+                logger.warning(f"Endpoint unavailable, trying the next one: {e}")
                 failures.append(str(e))
                 continue
             if index:
@@ -318,8 +337,8 @@ class FallbackChatClient:
             return turn
 
         raise LLMError(
-            "No configured model endpoint could be reached:\n- " + "\n- ".join(failures),
-            unreachable=True,
+            "No configured model could serve the request:\n- " + "\n- ".join(failures),
+            unavailable=True,
         )
 
 
@@ -329,9 +348,9 @@ def create_chat_client(model: Optional[str] = None, provider: Optional[str] = No
 
     The provider comes from `provider` or the `provider` config value; the model
     from `model`, else the `model` config value (when using the configured
-    provider), else the provider's default. Providers listed in
-    `fallback_providers` are tried, with their default models, when the main
-    one can't be reached.
+    provider), else the provider's default. Entries of `fallback_providers`
+    (provider names, which use their default model, or named models) are tried
+    in order when the main model can't serve a request.
 
     Raises:
         LLMError: for an unknown provider, a missing API key, or no model.
@@ -362,21 +381,47 @@ def create_chat_client(model: Optional[str] = None, provider: Optional[str] = No
             "Add custom ones under `providers:` in config.yaml."
         )
 
-    clients = [_client_for_provider(providers[name], model)]
+    timeout = _number(config.get("request_timeout"), DEFAULT_REQUEST_TIMEOUT)
+    retries = int(_number(config.get("request_retries"), DEFAULT_REQUEST_RETRIES))
+
+    clients = [_client_for_provider(providers[name], model, timeout, retries)]
     if named is not None and named.context_window:
         clients[0].context_window = named.context_window
     for fallback in config.get("fallback_providers") or []:
-        if fallback == name or fallback not in providers:
+        fallback_named = resolve_named_model(fallback)
+        if fallback_named is not None:
+            target, target_model = fallback_named.provider, fallback_named.model
+        else:
+            target, target_model = fallback, None
+        if target not in providers:
+            logger.debug(f"Skipping fallback {fallback}: unknown provider {target}")
             continue
         try:
-            clients.append(_client_for_provider(providers[fallback], None))
+            client = _client_for_provider(providers[target], target_model, timeout, retries)
         except LLMError as e:
-            logger.debug(f"Skipping fallback provider {fallback}: {e}")
+            logger.debug(f"Skipping fallback {fallback}: {e}")
+            continue
+        if (client.base_url, client.model) == (clients[0].base_url, clients[0].model):
+            continue
+        if fallback_named is not None and fallback_named.context_window:
+            client.context_window = fallback_named.context_window
+        clients.append(client)
 
     return clients[0] if len(clients) == 1 else FallbackChatClient(clients)
 
 
-def _client_for_provider(provider: Any, model: Optional[str]) -> OpenAIChatClient:
+def _number(value: Any, default: float) -> float:
+    if isinstance(value, (int, float)) and not isinstance(value, bool) and value >= 0:
+        return float(value)
+    return default
+
+
+def _client_for_provider(
+    provider: Any,
+    model: Optional[str],
+    timeout: float = DEFAULT_REQUEST_TIMEOUT,
+    retries: int = DEFAULT_REQUEST_RETRIES,
+) -> OpenAIChatClient:
     """OpenAI-compatible client for one provider."""
     from joshu.core.prompt_cache import model_wants_breakpoints
 
@@ -399,4 +444,6 @@ def _client_for_provider(provider: Any, model: Optional[str]) -> OpenAIChatClien
         extra_headers=dict(provider.headers),
         extra_body=dict(provider.request_options),
         cache_breakpoints=model_wants_breakpoints(model, provider.cache_control_models),
+        timeout=timeout or DEFAULT_REQUEST_TIMEOUT,
+        max_retries=retries,
     )

@@ -52,6 +52,8 @@ DEFAULT_CONFIG = {
     "provider": "openrouter",
     "providers": {},
     "fallback_providers": [],
+    "request_timeout": 120,
+    "request_retries": 3,
     # Agent loop settings
     "agent_max_turns": 50,
     "permission_mode": "default",
@@ -145,6 +147,8 @@ class JoshuConfig:
     provider: str = "openrouter"
     providers: Dict[str, Any] = field(default_factory=dict)
     fallback_providers: List[str] = field(default_factory=list)
+    request_timeout: float = 120
+    request_retries: int = 3
     # Agent loop settings
     agent_max_turns: int = 50
     permission_mode: str = "default"
