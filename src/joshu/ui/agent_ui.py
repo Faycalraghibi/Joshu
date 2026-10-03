@@ -142,6 +142,8 @@ class ConsoleAgentUI(AgentEvents):
         parts = [f"{meta.get('tool_calls', 0)} tool calls"]
         if tokens:
             parts.append(f"{tokens:,} tokens this session")
+        if meta.get("cost_usd") is not None:
+            parts.append(f"${meta['cost_usd']:.4f}")
         if meta.get("model"):
             parts.append(str(meta["model"]))
         self.console.print(f"[dim]{' · '.join(parts)}[/dim]")

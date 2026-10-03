@@ -98,6 +98,7 @@ class OpenAIChatClient:
         api_key: str,
         model: str,
         extra_headers: Optional[Dict[str, str]] = None,
+        extra_body: Optional[Dict[str, Any]] = None,
         timeout: float = 120.0,
     ) -> None:
         from openai import OpenAI
@@ -105,6 +106,8 @@ class OpenAIChatClient:
         self.base_url = base_url
         self.model = model
         self.extra_headers = {k: v for k, v in (extra_headers or {}).items() if v}
+        # Provider-specific request fields, e.g. OpenRouter's usage accounting
+        self.extra_body = dict(extra_body or {})
         import httpx
 
         # Short connect timeout: an unreachable endpoint should fail fast so the
@@ -136,6 +139,8 @@ class OpenAIChatClient:
             request["tools"] = tools
         if self.extra_headers:
             request["extra_headers"] = self.extra_headers
+        if self.extra_body:
+            request["extra_body"] = self.extra_body
 
         try:
             if on_text is None:
@@ -228,14 +233,21 @@ class OpenAIChatClient:
         )
 
 
-def _usage_dict(usage: Any) -> Dict[str, int]:
+def _usage_dict(usage: Any) -> Dict[str, Any]:
     if usage is None:
         return {}
-    return {
+    result: Dict[str, Any] = {
         "prompt_tokens": getattr(usage, "prompt_tokens", 0) or 0,
         "completion_tokens": getattr(usage, "completion_tokens", 0) or 0,
         "total_tokens": getattr(usage, "total_tokens", 0) or 0,
     }
+    # Providers that report cost (OpenRouter) add it as an extra usage field
+    cost = getattr(usage, "cost", None)
+    if cost is None:
+        cost = (getattr(usage, "model_extra", None) or {}).get("cost")
+    if isinstance(cost, (int, float)) and not isinstance(cost, bool):
+        result["cost"] = float(cost)
+    return result
 
 
 class FallbackChatClient:
@@ -355,4 +367,5 @@ def _client_for_provider(provider: Any, model: Optional[str]) -> OpenAIChatClien
         api_key=api_key or "not-needed",
         model=model,
         extra_headers=dict(provider.headers),
+        extra_body=dict(provider.request_options),
     )

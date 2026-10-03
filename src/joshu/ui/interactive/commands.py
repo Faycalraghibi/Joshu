@@ -349,6 +349,9 @@ class CommandHandler:
         if command == "/resume" or command.startswith("/resume "):
             return self.handle_resume_command(command)
 
+        if command == "/cost":
+            return self.handle_cost_command()
+
         if command == "/undo":
             return self.handle_undo_command()
 
@@ -486,6 +489,23 @@ class CommandHandler:
         self.interactive_mode._show_message("\n".join(lines))
         return True
 
+    def handle_cost_command(self) -> bool:
+        """Tokens and cost of the current agent conversation."""
+        from joshu.core.costs import format_cost
+
+        agent = self.interactive_mode.agent
+        if agent is None:
+            self.interactive_mode._show_message("No agent conversation yet.")
+            return True
+        usage = agent.usage
+        self.interactive_mode._show_message(
+            f"Session {agent.session_id} ({getattr(agent.client, 'model', '?')}):\n"
+            f"  input tokens:  {usage['prompt_tokens']:,}\n"
+            f"  output tokens: {usage['completion_tokens']:,}\n"
+            f"  cost:          {format_cost(agent.cost)}"
+        )
+        return True
+
     def handle_undo_command(self) -> bool:
         """Revert the agent's file edits from its most recent request that edited files."""
         agent = self.interactive_mode.agent
@@ -592,6 +612,7 @@ Special Commands:
   /help        - Show this help
   /reset       - Start a new agent conversation
   /undo        - Revert the agent's file edits from its last request
+  /cost        - Tokens and cost of this conversation
   /resume [id] - List saved sessions, or continue one
   /commands    - List custom commands (.joshu/commands/*.md|toml)
   /agents      - List sub-agents (.joshu/agents/*.md)

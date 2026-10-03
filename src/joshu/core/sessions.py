@@ -65,6 +65,7 @@ def save_session(agent: "Agent") -> Path:
         "created_at": agent.created_at,
         "updated_at": datetime.now().isoformat(timespec="seconds"),
         "usage": dict(agent.usage),
+        "cost": agent.cost.as_dict(),
         "messages": messages,
     }
 

@@ -60,6 +60,7 @@ DEFAULT_CONFIG = {
     "tool_output_limit": 30000,
     "save_sessions": True,
     "hooks": {},
+    "model_pricing": {},
 }
 
 
@@ -146,6 +147,7 @@ class JoshuConfig:
     tool_output_limit: int = 30000
     save_sessions: bool = True
     hooks: Dict[str, Any] = field(default_factory=dict)
+    model_pricing: Dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, config_dict: Dict[str, Any]) -> "JoshuConfig":

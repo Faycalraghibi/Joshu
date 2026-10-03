@@ -18,6 +18,7 @@ from typing import Any, Dict, List, Optional, Sequence
 from joshu.core.checkpoints import Checkpoint, CheckpointStore
 from joshu.core.compaction import compact_messages, estimate_tokens
 from joshu.core.config import get_config_manager
+from joshu.core.costs import CostTracker, request_cost
 from joshu.core.llm_client import (
     AssistantTurn,
     ChatClient,
@@ -136,6 +137,8 @@ class Agent:
             {"role": "system", "content": self._build_system_prompt()}
         ]
         self.usage: Dict[str, int] = {"prompt_tokens": 0, "completion_tokens": 0}
+        self.cost = CostTracker()
+        self._pricing: Dict[str, Any] = config.get("model_pricing") or {}
         self.tool_call_count = 0
         self.checkpoints = CheckpointStore()
         # Notes for the model about things that happened outside the loop (e.g. undo)
@@ -215,6 +218,7 @@ class Agent:
         for key, value in (session.get("usage") or {}).items():
             if key in self.usage:
                 self.usage[key] = value
+        self.cost = CostTracker.from_dict(session.get("cost"))
 
     def _save(self) -> None:
         from joshu.core.sessions import save_session
@@ -251,6 +255,9 @@ class Agent:
                 on_text=self.events.on_text if self.stream else None,
             )
             self._add_usage(turn.usage)
+            self.cost.add(
+                request_cost(turn.usage, getattr(self.client, "model", ""), self._pricing)
+            )
             self.messages.append(turn.to_message_dict())
             self.events.on_turn_end(turn)
 
@@ -410,6 +417,7 @@ class Agent:
             "tool_calls": self.tool_call_count - tool_calls_before,
             "finish_reason": finish_reason,
             "usage": dict(self.usage),
+            "cost_usd": round(self.cost.total_usd, 6) if self.cost.known else None,
             "model": getattr(self.client, "model", None),
             "session_id": self.session_id,
         }
@@ -430,6 +438,7 @@ class Agent:
                 )
             response = sub_agent.run(prompt)
             self._add_usage(sub_agent.usage)
+            self.cost.merge(sub_agent.cost)
             return response.text or "(the sub-agent returned no answer)"
 
         description = (
