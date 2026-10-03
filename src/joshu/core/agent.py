@@ -190,8 +190,12 @@ class Agent:
         valid so the conversation can continue. With `persist`, the
         conversation is saved afterwards, also when interrupted.
         """
+        from joshu.hooks.dispatcher import dispatch_after_agent
+
         try:
-            return self._run(prompt)
+            response = self._run(prompt)
+            dispatch_after_agent(self.session_id, prompt, response.text)
+            return response
         finally:
             if self.persist and len(self.messages) > 1:
                 self._save()

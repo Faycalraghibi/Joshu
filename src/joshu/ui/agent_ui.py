@@ -210,8 +210,12 @@ def create_console_agent(
     Raises:
         LLMError: if no model endpoint is configured
     """
+    from joshu.hooks import configure_hooks_from_settings
+
     config = get_config_manager()
     ui = ConsoleAgentUI(console, quiet=quiet)
+    for problem in configure_hooks_from_settings(config.get("hooks") or {}):
+        ui.console.print(f"[yellow]Hook configuration: {problem}[/yellow]")
     if mode is None:
         mode = PermissionMode.from_string(config.get("permission_mode", "default"))
     permissions = PermissionManager(
