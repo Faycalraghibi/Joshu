@@ -502,6 +502,35 @@ def explain(command: str = typer.Argument(..., help="Command or topic to explain
 
 
 @app.command()
+def serve(
+    host: str = typer.Option("127.0.0.1", "--host", help="Address to listen on."),
+    port: int = typer.Option(8080, "--port", help="Port to listen on."),
+) -> None:
+    """Run the A2A server so other agents and tools can give Joshu tasks over HTTP."""
+    import os
+    import secrets
+
+    try:
+        from joshu.a2a.server import run_server
+    except ImportError:
+        console.print("[red]The A2A server needs extra packages:[/red] pip install -e .[a2a]")
+        raise typer.Exit(code=1)
+
+    if not os.getenv("JOSHU_A2A_TOKEN"):
+        os.environ["JOSHU_A2A_TOKEN"] = secrets.token_urlsafe(24)
+    console.print(f"A2A server on http://{host}:{port}")
+    console.print(
+        f"Send this header with every request: Authorization: Bearer {os.environ['JOSHU_A2A_TOKEN']}"
+    )
+    if host not in ("127.0.0.1", "localhost", "::1"):
+        console.print(
+            "[yellow]Listening beyond this machine: anyone with the token can run tasks "
+            "that edit files and run commands here.[/yellow]"
+        )
+    run_server(host, port)
+
+
+@app.command()
 def search(
     query: str = typer.Argument(..., help="Search query"),
     max_results: int = typer.Option(
@@ -611,6 +640,7 @@ def main() -> None:
             "interactive",
             "mcp",
             "providers",
+            "serve",
             "sessions",
             "--help",
             "-h",

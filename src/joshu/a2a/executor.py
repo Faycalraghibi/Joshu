@@ -12,8 +12,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, AsyncIterator, Dict, Optional
+from typing import Any, AsyncIterator, Dict, List, Optional
 
+from joshu.a2a.agent_runner import (
+    AgentTaskRunner,
+    ClientFactory,
+    default_client_factory,
+    latest_user_message,
+)
 from joshu.a2a.event_bus import ExecutionEventBus, get_event_bus
 from joshu.a2a.events import (
     AgentExecutionEvent,
@@ -71,6 +77,7 @@ class AgentExecutor:
         task_store: Optional[TaskStore] = None,
         event_bus: Optional[ExecutionEventBus] = None,
         tool_executor: Optional[ToolExecutor] = None,
+        client_factory: Optional[ClientFactory] = None,
     ) -> None:
         """
         Initialize the executor.
@@ -79,12 +86,20 @@ class AgentExecutor:
             task_store: TaskStore for persistence (defaults to global)
             event_bus: EventBus for streaming (defaults to global)
             tool_executor: ToolExecutor for tool calls (defaults to global)
+            client_factory: Builds the model client for a task's settings
+                (defaults to the configured provider)
         """
         self._task_store = task_store or get_task_store()
         self._event_bus = event_bus or get_event_bus()
         self._tool_executor = tool_executor or get_tool_executor()
         self._active_tasks: Dict[str, Task] = {}
         self._sequence_counters: Dict[str, int] = {}
+        self._client_factory = client_factory or default_client_factory
+        self._runners: Dict[str, AgentTaskRunner] = {}
+
+    async def _publish(self, event: AgentExecutionEvent) -> AgentExecutionEvent:
+        await self._event_bus.publish(event)
+        return event
 
     def _next_sequence(self, task_id: str) -> int:
         """Get next sequence number for a task."""
@@ -192,34 +207,93 @@ class AgentExecutor:
         yield state_event
 
         try:
-            # Emit initial thought
-            thought = AgentThought(
-                content="Processing task...",
-                turn_number=1,
-            )
-            thought_event = AgentExecutionEvent.thought(
-                task_id=task_id,
-                thought=thought,
-                sequence=self._next_sequence(task_id),
-            )
-            await self._event_bus.publish(thought_event)
-            yield thought_event
+            prompt = latest_user_message(task.session.history.messages)
+            runner = AgentTaskRunner(prompt, task.settings, self._client_factory)
+            self._runners[task_id] = runner
 
-            # Process any scheduled tool calls
-            async for event in self._process_tool_calls(task):
-                yield event
+            text_parts: List[str] = []
+            result_text = ""
+            cancelled = False
+            async for item in runner.run():
+                kind = item[0]
+                if kind == "text":
+                    text_parts.append(item[1])
+                    continue
+                # Text the model wrote before acting is its reasoning for that step
+                if kind in ("tool_start", "confirm") and "".join(text_parts).strip():
+                    thought = AgentThought(content="".join(text_parts).strip())
+                    yield await self._publish(
+                        AgentExecutionEvent.thought(task_id, thought, self._next_sequence(task_id))
+                    )
+                text_parts = [] if kind in ("tool_start", "confirm") else text_parts
 
-            # Complete the task
+                if kind == "tool_start":
+                    tool_event = ToolCallEvent(
+                        tool_name=item[1], arguments=item[2], call_id="", status="executing"
+                    )
+                    yield await self._publish(
+                        AgentExecutionEvent.tool_call(
+                            task_id, tool_event, self._next_sequence(task_id)
+                        )
+                    )
+                elif kind == "tool_end":
+                    success = item[3]
+                    tool_event = ToolCallEvent(
+                        tool_name=item[1],
+                        arguments={},
+                        call_id="",
+                        status="completed" if success else "failed",
+                        result=item[2] if success else None,
+                        error=None if success else item[2],
+                    )
+                    yield await self._publish(
+                        AgentExecutionEvent.tool_call(
+                            task_id, tool_event, self._next_sequence(task_id)
+                        )
+                    )
+                elif kind == "confirm":
+                    call_id, request = item[1], item[2]
+                    task.request_input(call_id)
+                    self._task_store.save(task)
+                    confirmation = ConfirmationRequest(
+                        call_id=call_id,
+                        tool_name=request.tool_name,
+                        description=request.preview,
+                        arguments=request.arguments,
+                        options=[option.value for option in ConfirmationOption],
+                    )
+                    yield await self._publish(
+                        AgentExecutionEvent.confirmation(
+                            task_id, confirmation, self._next_sequence(task_id)
+                        )
+                    )
+                elif kind == "done":
+                    result_text = item[1].text
+                elif kind == "cancelled":
+                    cancelled = True
+                elif kind == "error":
+                    raise RuntimeError(item[1])
+
+            if cancelled:
+                if not task.is_terminal:
+                    task.cancel("Canceled")
+                    self._task_store.save(task)
+                return
+
+            if result_text:
+                yield await self._publish(
+                    AgentExecutionEvent.message(task_id, result_text, self._next_sequence(task_id))
+                )
+
             task.complete()
             self._task_store.save(task)
-
-            complete_event = AgentExecutionEvent.complete(
-                task_id=task_id,
-                result="Task completed successfully",
-                sequence=self._next_sequence(task_id),
+            yield await self._publish(
+                AgentExecutionEvent.complete(
+                    task_id=task_id,
+                    result=result_text,
+                    sequence=self._next_sequence(task_id),
+                )
             )
-            await self._event_bus.publish(complete_event)
-            yield complete_event
 
         except asyncio.CancelledError:
             task.cancel("Cancelled by client")
@@ -248,6 +322,7 @@ class AgentExecutor:
             yield error_event
 
         finally:
+            self._runners.pop(task_id, None)
             await self._event_bus.end_task(task_id)
 
     async def _process_tool_calls(self, task: Task) -> AsyncIterator[AgentExecutionEvent]:
@@ -396,6 +471,9 @@ class AgentExecutor:
 
         task.cancel(reason)
         self._task_store.save(task)
+        runner = self._runners.get(task_id)
+        if runner is not None:
+            runner.cancel()
 
         # Publish state change
         event = AgentExecutionEvent.state_change(
@@ -438,8 +516,16 @@ class AgentExecutor:
             )
             return False
 
-        # Handle response via scheduler
-        if response == ConfirmationOption.PROCEED_ONCE.value:
+        runner = self._runners.get(task_id)
+        if runner is not None and runner.has_pending(call_id):
+            if response == ConfirmationOption.CANCEL_TASK.value:
+                runner.respond(call_id, response)
+                await self.cancel_task(task_id, "Canceled via confirmation")
+                return True
+            if not runner.respond(call_id, response):
+                return False
+        # Pre-scheduled tool calls are answered through the scheduler
+        elif response == ConfirmationOption.PROCEED_ONCE.value:
             task.scheduler.approve(call_id)
         elif response in (ConfirmationOption.CANCEL.value, ConfirmationOption.CANCEL_TASK.value):
             task.scheduler.reject(call_id)

@@ -42,6 +42,10 @@ class CreateTaskRequest(BaseModel):
     model: Optional[str] = Field(None, description="Model to use")
     target_directory: Optional[str] = Field(None, description="Working directory")
     tools_enabled: bool = Field(True, description="Enable tool calling")
+    approval_mode: str = Field(
+        "safe_only",
+        description="safe_only (ask before edits and commands), accept_edits, plan (read-only) or bypass",
+    )
 
 
 class TaskResponse(BaseModel):
@@ -156,14 +160,40 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# The server runs an agent that edits files and runs commands, so every
+# endpoint except discovery and health needs the bearer token, and browsers
+# get no cross-origin access unless origins are listed explicitly.
+PUBLIC_PATHS = {"/health", "/.well-known/agent-card.json", "/agent-card.json"}
+
+_cors_origins = [o.strip() for o in os.getenv("JOSHU_A2A_CORS_ORIGINS", "").split(",") if o.strip()]
+if _cors_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_cors_origins,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+
+def server_token() -> Optional[str]:
+    """The bearer token clients must send (JOSHU_A2A_TOKEN; set by run_server)."""
+    return os.getenv("JOSHU_A2A_TOKEN") or None
+
+
+@app.middleware("http")
+async def require_token(request: Request, call_next):
+    if request.method == "OPTIONS" or request.url.path in PUBLIC_PATHS:
+        return await call_next(request)
+
+    import hmac
+
+    from fastapi.responses import JSONResponse
+
+    token = server_token()
+    supplied = request.headers.get("authorization", "")
+    if not token or not hmac.compare_digest(supplied.encode(), f"Bearer {token}".encode()):
+        return JSONResponse({"detail": "Missing or invalid bearer token"}, status_code=401)
+    return await call_next(request)
 
 
 # ============================================================================
@@ -185,6 +215,7 @@ async def create_task(request: CreateTaskRequest) -> TaskResponse:
         model=request.model or "default",
         target_directory=request.target_directory or ".",
         tools_enabled=request.tools_enabled,
+        approval_mode=request.approval_mode,
     )
 
     task = await executor.create_task(request.message, settings)
@@ -197,18 +228,7 @@ async def create_task(request: CreateTaskRequest) -> TaskResponse:
     )
 
 
-@app.get("/tasks/{task_id}", response_model=TaskMetadataResponse)
-async def get_task(task_id: str) -> TaskMetadataResponse:
-    """Get task metadata."""
-    executor = get_agent_executor()
-
-    try:
-        metadata = executor.get_task_metadata(task_id)
-        return TaskMetadataResponse(**metadata)
-    except TaskNotFoundError:
-        raise HTTPException(status_code=404, detail=f"Task not found: {task_id}")
-
-
+# Declared before /tasks/{task_id}, which would otherwise capture "metadata"
 @app.get("/tasks/metadata")
 async def get_all_tasks_metadata() -> List[Dict[str, Any]]:
     """Get metadata for all active tasks."""
@@ -223,6 +243,18 @@ async def get_all_tasks_metadata() -> List[Dict[str, Any]]:
             pass
 
     return tasks_metadata
+
+
+@app.get("/tasks/{task_id}", response_model=TaskMetadataResponse)
+async def get_task(task_id: str) -> TaskMetadataResponse:
+    """Get task metadata."""
+    executor = get_agent_executor()
+
+    try:
+        metadata = executor.get_task_metadata(task_id)
+        return TaskMetadataResponse(**metadata)
+    except TaskNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Task not found: {task_id}")
 
 
 @app.get("/tasks/{task_id}/stream")
@@ -506,12 +538,18 @@ def run_server(host: str = "127.0.0.1", port: int = 8080) -> None:
     """
     Run the A2A server.
 
+    Uses JOSHU_A2A_TOKEN as the bearer token, generating one if it isn't set.
+
     Args:
         host: Host to bind to
         port: Port to listen on
     """
+    import secrets
+
     import uvicorn
 
+    if not server_token():
+        os.environ["JOSHU_A2A_TOKEN"] = secrets.token_urlsafe(24)
     logger.info(f"Starting A2A server on {host}:{port}")
     uvicorn.run(app, host=host, port=port, log_level="info")
 

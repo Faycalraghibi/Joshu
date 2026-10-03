@@ -5,6 +5,7 @@ All notable changes to the Joshu project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- A2A server runs the tool-using agent for each task: streamed thoughts, tool calls and the final answer, approvals as confirmation requests, cancellation; `approval_mode` per task; `joshu serve`; `a2a` extra (FastAPI, uvicorn).
 - Prompt caching: cache breakpoints on the system prompt and latest message for models that need them (Anthropic models on OpenRouter; `cache_control_models` for custom providers); cached input tokens shown in `/cost` (`joshu.core.prompt_cache`).
 - Images in requests: `@path/to/image.png` in a request or `joshu run --image PATH` sends PNG/JPEG/GIF/WebP images (up to 5 MB) to vision models (`joshu.core.images`).
 - Checks after edits: files written by the agent are checked (Python syntax and ruff error rules, JSON/YAML/TOML parsing, `node --check`, or per-extension commands) and problems are sent back to the model (`joshu.core.diagnostics`).
@@ -42,6 +43,8 @@ All notable changes to the Joshu project will be documented in this file.
 - Unused modules `joshu.core.hooks` (duplicated `joshu.hooks`), `joshu.core.credentials`, `joshu.tools.filesystem`.
 
 ### Fixed
+- A2A server: CORS allowed every origin with credentials and no authentication was required; it now needs a bearer token and allows no cross-origin access by default.
+- A2A server: `GET /tasks/metadata` returned 404 because `/tasks/{task_id}` was declared first.
 - `/reset` kept the same session id, so the next request overwrote the previous conversation's saved session.
 - The Docker sandbox was used with Docker engines in Windows-container mode, which can't run its Linux image.
 - Starting Joshu in a directory without `./cache` printed "Could not save sessions".
