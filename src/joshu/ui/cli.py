@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import sys
-from typing import Optional
+from typing import List, Optional, Sequence
 
 import typer
 from rich.console import Console
@@ -80,6 +80,7 @@ def execute_agent_prompt(
     provider: Optional[str] = None,
     resume: Optional[str] = None,
     continue_last: bool = False,
+    images: Sequence[str] = (),
 ) -> int:
     """
     Run a prompt through the tool-using agent.
@@ -124,7 +125,20 @@ def execute_agent_prompt(
                 )
                 return 2
             prompt = expanded
-        response = agent.run(prompt)
+
+        from pathlib import Path
+
+        from joshu.core.images import ImageError, find_image_refs, image_part
+
+        prompt, referenced = find_image_refs(prompt)
+        attached = [Path(p).expanduser() for p in images] + referenced
+        try:
+            for path in attached:
+                image_part(path)  # validate before calling the model
+        except ImageError as e:
+            Console(stderr=True).print(f"[red]{e}[/red]")
+            return 2
+        response = agent.run(prompt, images=attached)
     except LLMError as e:
         Console(stderr=True).print(f"[red]Model error:[/red] {e}")
         return 1
@@ -397,6 +411,11 @@ def run(
     continue_last: bool = typer.Option(
         False, "--continue", "-c", help="Continue the most recent session in this directory."
     ),
+    image: Optional[List[str]] = typer.Option(
+        None,
+        "--image",
+        help="Attach an image (repeatable). @path/to/image.png in the prompt works too.",
+    ),
 ) -> None:
     """Run a task with the agent, or start interactive mode."""
     headless = print_mode or output_format == "json"
@@ -435,6 +454,7 @@ def run(
         provider=provider,
         resume=resume,
         continue_last=continue_last,
+        images=image or [],
     )
     raise typer.Exit(code=exit_code)
 
