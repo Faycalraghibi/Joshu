@@ -51,6 +51,7 @@ def version_callback(value: bool) -> None:
 
 @app.callback()
 def main_callback(
+    ctx: typer.Context,
     version: Optional[bool] = typer.Option(
         None,
         "--version",
@@ -64,12 +65,9 @@ def main_callback(
     global context_provider, _current_model
 
     config_manager, context_provider, _current_model = initialize_context()
-    # Headless runs print only the result, so scripts can read stdout
-    if not _HEADLESS_FLAGS.intersection(sys.argv[1:]):
+    # `run` prints the banner itself: headless runs must print only the result
+    if ctx.invoked_subcommand != "run":
         print_banner(_current_model)
-
-
-_HEADLESS_FLAGS = {"-p", "--print", "--output-format"}
 
 
 def execute_agent_prompt(
@@ -401,6 +399,10 @@ def run(
     ),
 ) -> None:
     """Run a task with the agent, or start interactive mode."""
+    headless = print_mode or output_format == "json"
+    if not headless:
+        print_banner(_current_model)
+
     if interactive:
         _start_interactive(model, sandbox, verbose, provider, resume, continue_last)
         return
@@ -427,7 +429,7 @@ def run(
         prompt,
         model=model,
         permission_mode=permission_mode,
-        headless=print_mode or output_format == "json",
+        headless=headless,
         output_format=output_format,
         sandbox=sandbox,
         provider=provider,

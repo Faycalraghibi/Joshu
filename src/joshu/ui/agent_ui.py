@@ -48,6 +48,7 @@ class ConsoleAgentUI(AgentEvents):
         self.console = console or Console()
         self.quiet = quiet
         self._mid_line = False
+        self._streamed = False  # text arrived through on_text this turn
 
     # ---------------------------------------------------------------- events
 
@@ -57,8 +58,14 @@ class ConsoleAgentUI(AgentEvents):
         sys.stdout.write(delta)
         sys.stdout.flush()
         self._mid_line = not delta.endswith("\n")
+        self._streamed = True
 
     def on_turn_end(self, turn: AssistantTurn) -> None:
+        # A client that doesn't stream delivers the whole text at the end
+        if not self.quiet and not self._streamed and turn.content:
+            sys.stdout.write(turn.content)
+            self._mid_line = not turn.content.endswith("\n")
+        self._streamed = False
         self._end_line()
 
     def on_tool_start(self, name: str, arguments: Dict[str, Any]) -> None:
