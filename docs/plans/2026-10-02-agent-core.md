@@ -88,15 +88,21 @@ Where Joshu falls (verified in code):
     tool call → permission → execution → result fed back; plan-mode denial;
     approval "always"; compaction boundary; interrupt; blocklist; cache key.
 
-## Phase 2 — next
+## Phase 2 — done
 
-- Checkpoints / `/undo`: snapshot files before `replace` / `write_file`.
-- Session save / `--resume` of agent message history.
-- Real sub-agents from `agents/` definitions (custom prompts, tool allowlists).
-- Custom slash commands from `.joshu/commands/*.md`.
-- Hook configuration from `config.yaml` (`hooks:` key) documented end to end.
-- Remove the regex translator path once the agent covers it; merge duplicate
-  modules (finding 15).
+- [x] Undo: edits by `replace` / `write_file` are snapshotted per request;
+      `/undo` restores them (`core/checkpoints.py`). Shell edits are not tracked.
+- [x] Sessions saved after every request; `--resume`, `--continue`, `/resume`,
+      `joshu sessions` (`core/sessions.py`).
+- [x] Sub-agents defined in `.joshu/agents/` (Markdown or `joshu.agents`
+      YAML/JSON) available to the `task` tool, with their own prompt, tools,
+      model and turn limit (`core/subagents.py`).
+- [x] Custom slash commands from `.joshu/commands/*.md|toml`; shell steps go
+      through the permission gate (`core/custom_commands.py`).
+- [x] Hooks configured under `hooks:` in `config.yaml`; command hooks, `.py`
+      scripts on Windows, block reasons from stderr, `after_agent` fired.
+- [x] Regex translator removed; unused `core.hooks`, `core.credentials`,
+      `tools.filesystem` removed.
 
 ## Phase 3 — later
 
