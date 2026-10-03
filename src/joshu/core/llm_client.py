@@ -85,7 +85,8 @@ class ChatClient(Protocol):
         max_tokens: int = 4096,
         temperature: float = 0.1,
         on_text: Optional[Callable[[str], None]] = None,
-    ) -> AssistantTurn: ...
+    ) -> AssistantTurn:
+        """Run one completion; stream text to `on_text` when given."""
 
 
 class OpenAIChatClient:
