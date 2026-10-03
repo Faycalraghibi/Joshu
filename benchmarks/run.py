@@ -53,6 +53,7 @@ class Result:
     cost_usd: Optional[float] = None
     stopped: Optional[str] = None
     error: str = ""
+    answer: str = field(default="", repr=False)
     check_output: str = field(default="", repr=False)
 
 
@@ -129,6 +130,7 @@ def run_task(task: Path, args: argparse.Namespace, env: Dict[str, str]) -> Resul
             result.completion_tokens = usage.get("completion_tokens")
             result.cost_usd = payload.get("cost_usd")
             result.stopped = payload.get("stopped")
+            result.answer = str(payload.get("result") or "")[-2000:]
 
         # Hidden checks go in only now, so the agent can't edit them
         if (task / "check").is_dir():
