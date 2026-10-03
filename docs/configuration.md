@@ -8,6 +8,10 @@ override the file for one run.
 Unknown keys in the file are ignored; values of the wrong type are replaced by
 the default with a warning.
 
+Per-user data (saved sessions, input history, memory, semantic-memory
+database) lives in `~/.joshu`, or in `$JOSHU_HOME` when set. Joshu doesn't
+write files into your project directory.
+
 ## Example
 
 ```yaml

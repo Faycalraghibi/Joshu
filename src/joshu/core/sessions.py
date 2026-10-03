@@ -10,11 +10,12 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+
+from joshu.core.paths import joshu_home  # noqa: F401  (re-exported)
 
 if TYPE_CHECKING:
     from joshu.core.agent import Agent
@@ -39,11 +40,6 @@ class SessionInfo:
     created_at: str
     updated_at: str
     message_count: int
-
-
-def joshu_home() -> Path:
-    """Joshu's per-user data directory (~/.joshu, or $JOSHU_HOME)."""
-    return Path(os.getenv("JOSHU_HOME") or Path.home() / ".joshu")
 
 
 def sessions_dir() -> Path:
@@ -132,6 +128,48 @@ def latest_session(cwd: Path) -> Optional[SessionInfo]:
     """The most recently updated session started in `cwd`."""
     sessions = list_sessions(cwd, limit=1)
     return sessions[0] if sessions else None
+
+
+def delete_session(session_id: str) -> str:
+    """
+    Delete a saved session (a unique id prefix is enough).
+
+    Returns:
+        The full id of the deleted session.
+
+    Raises:
+        SessionError: when no session, or more than one, matches.
+    """
+    session = load_session(session_id)
+    (sessions_dir() / f"{session['id']}.json").unlink()
+    return session["id"]
+
+
+def recent_prompts(cwd: Optional[Path] = None, limit: int = 20) -> List[Tuple[str, str]]:
+    """
+    The user's most recent requests, oldest first, as (session id, text).
+
+    Notes the agent added to a request (e.g. after an undo) and compaction
+    summaries are left out.
+    """
+    from joshu.core.compaction import SUMMARY_PREFIX
+
+    prompts: List[Tuple[str, str]] = []
+    for info in list_sessions(cwd, limit=100):
+        try:
+            messages = load_session(info.id)["messages"]
+        except SessionError:
+            continue
+        for message in reversed(messages):
+            text = message.get("content") or ""
+            if message.get("role") != "user" or not text or text.startswith(SUMMARY_PREFIX):
+                continue
+            if text.startswith("[Note:") and "\n\n" in text:
+                text = text.rsplit("\n\n", 1)[1]
+            prompts.append((info.id, text))
+            if len(prompts) >= limit:
+                return list(reversed(prompts))
+    return list(reversed(prompts))
 
 
 def _read(path: Path) -> Dict[str, Any]:

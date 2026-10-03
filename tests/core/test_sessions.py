@@ -166,3 +166,53 @@ def test_cli_sessions_lists_this_directory(tmp_path, monkeypatch):
 
     result = _invoke(["sessions"], FakeClient([]))
     assert result.exit_code == 0 and "list me please" in result.stdout
+
+
+# ------------------------------------------------- single session store
+
+
+def test_reset_starts_a_new_session_and_keeps_the_old_one(tmp_path):
+    agent = make_agent(FakeClient([text("a"), text("b")]), tmp_path, session_id="first1")
+    agent.run("one")
+    agent.reset()
+    agent.run("two")
+
+    assert agent.session_id != "first1"
+    assert [m["content"] for m in load_session("first1")["messages"]] == ["one", "a"]
+    assert [m["content"] for m in load_session(agent.session_id)["messages"]] == ["two", "b"]
+
+
+def test_delete_session(tmp_path):
+    from joshu.core.sessions import delete_session
+
+    make_agent(FakeClient([text("a")]), tmp_path, session_id="gone12").run("x")
+    assert delete_session("gone") == "gone12"
+    with pytest.raises(SessionError):
+        load_session("gone12")
+
+
+def test_recent_prompts_newest_last_without_notes(tmp_path):
+    from joshu.core.sessions import recent_prompts
+
+    agent = make_agent(FakeClient([text("a"), text("b"), text("c")]), tmp_path, session_id="s1")
+    agent.run("first")
+    agent._pending_notes.append("[Note: something happened.]")
+    agent.run("second")
+    agent.run("third")
+
+    assert [text for _, text in recent_prompts(tmp_path, limit=2)] == ["second", "third"]
+
+
+def test_nothing_is_written_to_the_working_directory(tmp_path, monkeypatch):
+    from joshu.core.context_provider import ContextProvider
+    from joshu.core.paths import joshu_home
+
+    project = tmp_path / "project"
+    project.mkdir()
+    monkeypatch.chdir(project)
+    provider = ContextProvider()
+    provider.add_to_history("user", "hello")
+    provider.new_session()
+
+    assert list(project.iterdir()) == []
+    assert (joshu_home() / "data.json").exists()

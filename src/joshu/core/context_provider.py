@@ -9,6 +9,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from joshu.core.paths import joshu_home
+
 # Import project-level system prompt loader
 from joshu.tools.memory import load_project_system_prompt
 
@@ -73,15 +75,15 @@ class ContextProvider:
         """
         # Initialize storage backend
         if storage_backend is None:
-            storage_backend = JsonFileStorage(Path.cwd() / "cache" / "joshu_data.json")
+            storage_backend = JsonFileStorage(joshu_home() / "data.json")
         self.storage = storage_backend
 
         # conversation_log_file is deprecated - no longer used
         # All data is now stored in JSON format via storage backend
         # Keep a reference for session file location only
         if conversation_log_file is None:
-            # Use storage path parent for session files
-            storage_path = Path.cwd()
+            # Per-user data directory, never the project directory
+            storage_path = joshu_home()
         else:
             storage_path = Path(conversation_log_file).parent
         self._storage_path = storage_path
@@ -197,7 +199,7 @@ class ContextProvider:
 
     def _get_sessions_file(self) -> Path:
         """Get the path to the sessions metadata file."""
-        return self._storage_path / "cache" / "joshu_sessions.json"
+        return self._storage_path / "context_sessions.json"
 
     def _load_all_sessions(self) -> Dict[str, Dict[str, Any]]:
         """Load all sessions from the sessions file."""

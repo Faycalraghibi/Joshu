@@ -76,7 +76,7 @@ joshu run -p --permission-mode plan "summarize what this repo does"
 ### Session Management
 ```
 /session         # Show current session
-/session list    # List all sessions
+/session list    # Saved sessions in this directory
 /session new     # Start new session
 ```
 
