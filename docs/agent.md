@@ -69,6 +69,28 @@ Set the mode with `--permission-mode`, `-y` (bypass), the `permission_mode`
 config value, or `/permissions <mode>` in interactive mode. `/plan` switches to
 plan mode.
 
+### Permission rules
+
+Rules that last beyond the session go under `permissions` in config:
+
+```yaml
+permissions:
+  allow:
+    - run_shell_command(git status*)
+    - run_shell_command(npm test*)
+    - write_file(docs/*)
+  deny:
+    - write_file(.env*)
+    - run_shell_command(git push*)
+```
+
+A rule is a tool name, optionally with a glob over its main argument (the
+command for `run_shell_command`, the path for file tools, the URL for
+`web_fetch`). Deny rules block the call without asking, in every mode. Allow
+rules skip the prompt; commands flagged as unsafe still ask. In interactive
+mode, `/permissions allow <rule>` and `/permissions deny <rule>` save a rule
+to your user config.
+
 ## Tools
 
 | Tool | Purpose | Asks first |
@@ -82,10 +104,26 @@ plan mode.
 | `task` | Delegate research to a read-only sub-agent | no |
 | MCP tools | Tools from configured MCP servers | yes |
 
+## Instructions
+
+Put instructions for the agent in Markdown files; all that apply are added to
+its system prompt, least specific first:
+
+| File | Applies to |
+|---|---|
+| `~/.joshu/AGENTS.md` | every project |
+| `AGENTS.md` or `JOSHU.md` in the repository root | the repository |
+| `AGENTS.md` or `JOSHU.md` in a subdirectory | work in that directory (and below) |
+| `config/JOSHU.md` | the repository (older location) |
+
+The repository root is the nearest directory with `.git` above the working
+directory. Facts the agent saves with `save_memory` live in `~/.joshu/JOSHU.md`
+and are included too.
+
 ## Context
 
 - The system prompt includes the working directory, OS, shell, date, git
-  branch, the project `config/JOSHU.md` and user memory.
+  branch, instruction files and saved memory (see Instructions).
 - When the conversation reaches `compact_threshold × context_window` (estimated
   tokens), older turns are replaced by a model-written summary; the most recent
   turns stay verbatim.

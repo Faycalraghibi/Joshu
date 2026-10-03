@@ -61,6 +61,8 @@ DEFAULT_CONFIG = {
     "save_sessions": True,
     "hooks": {},
     "model_pricing": {},
+    "trusted_projects": [],
+    "permissions": {"allow": [], "deny": []},
     "diagnostics_enabled": True,
     "diagnostics": {},
     "shell_sandbox": {"mode": "off"},
@@ -151,6 +153,8 @@ class JoshuConfig:
     save_sessions: bool = True
     hooks: Dict[str, Any] = field(default_factory=dict)
     model_pricing: Dict[str, Any] = field(default_factory=dict)
+    trusted_projects: List[str] = field(default_factory=list)
+    permissions: Dict[str, Any] = field(default_factory=lambda: {"allow": [], "deny": []})
     diagnostics_enabled: bool = True
     diagnostics: Dict[str, Any] = field(default_factory=dict)
     shell_sandbox: Dict[str, Any] = field(default_factory=lambda: {"mode": "off"})
@@ -181,100 +185,189 @@ class JoshuConfig:
         return asdict(self)
 
 
+PROJECT_CONFIG = Path(".joshu") / "config.yaml"
+# Settings a project config may not change, whether trusted or not
+USER_ONLY_KEYS = {"trusted_projects"}
+
+
+def install_config_path() -> Path:
+    """config/config.yaml in a source checkout (absent in a regular pip install)."""
+    return Path(__file__).resolve().parents[3] / "config" / "config.yaml"
+
+
+def user_config_path() -> Path:
+    from joshu.core.paths import joshu_home
+
+    return joshu_home() / "config.yaml"
+
+
+def find_project_config(start: Optional[Path] = None) -> Optional[Path]:
+    """The nearest .joshu/config.yaml at or above `start` (not the user config)."""
+    user_config = user_config_path().resolve()
+    home = Path.home().resolve()
+    current = (start or Path.cwd()).resolve()
+    for directory in [current, *current.parents]:
+        if directory == home:
+            # ~/.joshu is Joshu's default data directory, never a project
+            return None
+        candidate = directory / PROJECT_CONFIG
+        if candidate.is_file():
+            if candidate.resolve() == user_config:
+                return None
+            return candidate
+    return None
+
+
+def _same_path(a: str, b: Path) -> bool:
+    try:
+        return Path(a).expanduser().resolve() == b.resolve()
+    except (OSError, ValueError):
+        return False
+
+
 class ConfigManager:
-    """Manages Joshu configuration loading, saving, and access."""
+    """
+    Loads and saves Joshu configuration.
+
+    With an explicit path, that single file is the whole configuration (the
+    original behaviour, used by tests and tools). Otherwise settings are
+    layered, later layers winning:
+
+        1. built-in defaults
+        2. config/config.yaml in a source checkout (read-only)
+        3. ~/.joshu/config.yaml, the user config; `joshu config --set` writes here
+        4. .joshu/config.yaml in the project (nearest one above the current
+           directory), only if the project is trusted (`joshu trust`), because
+           a project config can run commands (hooks, diagnostics) and choose
+           where code and API keys are sent (providers)
+    """
 
     def __init__(self, config_path: Optional[str] = None):
         """
-        Initialize ConfigManager.
-
         Args:
-            config_path: Path to config file. If None, uses default location.
+            config_path: Use this single file instead of the layered setup.
         """
-        if config_path is None:
-            # Default config location: project's config/config.yaml
-            # Get the project root (4 levels up from this file)
-            project_root = Path(__file__).parent.parent.parent.parent
-            self.config_path = project_root / "config" / "config.yaml"
-        else:
-            self.config_path = Path(config_path)
-
+        self.layered = config_path is None
+        self.config_path = user_config_path() if self.layered else Path(config_path)
+        self.layers: List[Tuple[str, Path]] = []
+        self.untrusted_project_config: Optional[Path] = None
+        self._layer_data: List[Dict[str, Any]] = []
+        self._user_data: Dict[str, Any] = {}
+        self._project_data: Dict[str, Any] = {}
         self.config: JoshuConfig = JoshuConfig()
         self.load_config()
 
+    # ---------------------------------------------------------------- load
+
     def load_config(self) -> bool:
-        """
-        Load configuration from file.
+        """Load configuration. Returns False if a file couldn't be read."""
+        if not self.layered:
+            return self._load_single_file()
 
-        Returns:
-            True if config was loaded successfully, False otherwise.
-        """
+        ok = True
+        self.layers = []
+        self._layer_data = []
+        self.untrusted_project_config = None
+
+        install = install_config_path()
+        if install.is_file():
+            data, read_ok = self._read(install)
+            ok &= read_ok
+            self._layer_data.append(data)
+            self.layers.append(("install", install))
+
+        user_data, read_ok = (
+            self._read(self.config_path) if self.config_path.is_file() else ({}, True)
+        )
+        ok &= read_ok
+        self._user_data = user_data
+        if self.config_path.is_file():
+            self.layers.append(("user", self.config_path))
+
+        project = find_project_config()
+        if project is not None:
+            trusted = self._effective_value("trusted_projects") or []
+            if any(_same_path(str(p), project.parent.parent) for p in trusted):
+                data, read_ok = self._read(project)
+                ok &= read_ok
+                self._project_data = {k: v for k, v in data.items() if k not in USER_ONLY_KEYS}
+                self.layers.append(("project", project))
+            else:
+                self._project_data = {}
+                self.untrusted_project_config = project
+        else:
+            self._project_data = {}
+
+        self._rebuild()
+        return ok
+
+    def _effective_value(self, key: str) -> Any:
+        value = DEFAULT_CONFIG.get(key)
+        for data in [*self._layer_data, self._user_data]:
+            if key in data:
+                value = data[key]
+        return value
+
+    def _rebuild(self) -> None:
+        merged: Dict[str, Any] = {}
+        for data in [*self._layer_data, self._user_data, self._project_data]:
+            merged.update(data)
+        self.config = JoshuConfig.from_dict(merged)
+
+    def _read(self, path: Path) -> Tuple[Dict[str, Any], bool]:
         try:
-            # Create config directory if it doesn't exist
-            self.config_path.parent.mkdir(parents=True, exist_ok=True)
+            data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        except Exception as e:
+            logger.warning(f"Could not read {path}: {e}")
+            return {}, False
+        if not isinstance(data, dict):
+            logger.warning(f"{path} must contain a mapping of settings")
+            return {}, False
+        return data, True
 
-            # If config file doesn't exist, create it with defaults
+    def _load_single_file(self) -> bool:
+        try:
+            self.config_path.parent.mkdir(parents=True, exist_ok=True)
             if not self.config_path.exists():
                 self.save_config()
                 return True
-
-            # Load config from file
             with open(self.config_path, "r") as f:
                 config_data = yaml.safe_load(f) or {}
-
-            # Create JoshuConfig from loaded data
             self.config = JoshuConfig.from_dict(config_data)
             logger.info(f"Configuration loaded from {self.config_path}")
             return True
-
         except Exception as e:
             logger.warning(f"Failed to load configuration: {e}")
-            # Use default configuration
             self.config = JoshuConfig()
             return False
 
+    # ---------------------------------------------------------------- save
+
     def save_config(self) -> bool:
         """
-        Save current configuration to file.
-
-        Returns:
-            True if config was saved successfully, False otherwise.
+        Save configuration. In layered mode only the settings set in the user
+        config are written, so defaults and other layers aren't frozen in.
         """
         try:
-            # Create config directory if it doesn't exist
             self.config_path.parent.mkdir(parents=True, exist_ok=True)
-
-            # Save config to file
+            data = self._user_data if self.layered else self.config.to_dict()
             with open(self.config_path, "w") as f:
-                yaml.dump(self.config.to_dict(), f, default_flow_style=False, sort_keys=False)
-
+                yaml.dump(data, f, default_flow_style=False, sort_keys=False)
             logger.info(f"Configuration saved to {self.config_path}")
             return True
-
         except Exception as e:
             logger.error(f"Failed to save configuration: {e}")
             return False
 
+    # ------------------------------------------------------------- access
+
     def get(self, key: str, default: Any = None) -> Any:
-        """
-        Get configuration value by key.
-
-        Args:
-            key: Configuration key
-            default: Default value if key not found
-
-        Returns:
-            Configuration value or default.
-        """
+        """Configuration value by key, or `default` for unknown keys."""
         return getattr(self.config, key, default)
 
     def set(self, key: str, value: Any) -> bool:
         """
-        Set configuration value by key.
-
-        Args:
-            key: Configuration key
-            value: Configuration value
+        Set a configuration value (for this process; save_config persists it).
 
         Returns:
             True if value was set successfully, False if the key is unknown
@@ -288,15 +381,36 @@ class ConfigManager:
             return False
 
         setattr(self.config, key, coerced)
+        if self.layered:
+            self._user_data[key] = coerced
         return True
 
     def reset_to_defaults(self) -> None:
-        """Reset configuration to default values."""
-        self.config = JoshuConfig()
+        """Forget the user's settings (other layers still apply)."""
+        if self.layered:
+            self._user_data = {}
+            self._rebuild()
+        else:
+            self.config = JoshuConfig()
 
     def get_config_path(self) -> Path:
-        """Get the path to the configuration file."""
+        """The file `save_config` writes (the user config in layered mode)."""
         return self.config_path
+
+    # -------------------------------------------------------------- trust
+
+    def trust_project(self, directory: Path) -> None:
+        """Let `directory`'s .joshu/config.yaml apply (persisted in the user config)."""
+        trusted = [str(p) for p in (self.get("trusted_projects") or [])]
+        if not any(_same_path(p, directory) for p in trusted):
+            trusted.append(str(directory.resolve()))
+        self.set("trusted_projects", trusted)
+
+    def untrust_project(self, directory: Path) -> bool:
+        trusted = [str(p) for p in (self.get("trusted_projects") or [])]
+        kept = [p for p in trusted if not _same_path(p, directory)]
+        self.set("trusted_projects", kept)
+        return len(kept) != len(trusted)
 
 
 def get_config_manager() -> ConfigManager:

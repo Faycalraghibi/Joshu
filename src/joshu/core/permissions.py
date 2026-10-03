@@ -9,10 +9,13 @@ changes state.
 
 from __future__ import annotations
 
+import fnmatch
+import json
 import logging
-from dataclasses import dataclass
+import re
+from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Dict, Optional, Set
+from typing import Any, Callable, Dict, List, Optional, Set
 
 from joshu.core.safety import assess_command_safety
 
@@ -81,6 +84,74 @@ class PermissionDecision:
 Approver = Callable[[ApprovalRequest], ApprovalChoice]
 
 
+# Argument a rule's pattern is matched against, per tool
+_RULE_SUBJECT = {
+    SHELL_TOOL: "command",
+    "read_file": "path",
+    "write_file": "path",
+    "replace": "path",
+    "list_directory": "path",
+    "web_fetch": "url",
+}
+_RULE_PATTERN = re.compile(r"^\s*([A-Za-z0-9_.-]+)\s*(?:\((.*)\))?\s*$")
+
+
+@dataclass
+class PermissionRule:
+    """`tool` or `tool(pattern)`; the pattern is a glob over the tool's main argument."""
+
+    tool: str
+    pattern: Optional[str] = None
+
+    @classmethod
+    def parse(cls, text: str) -> "PermissionRule":
+        match = _RULE_PATTERN.match(text or "")
+        if not match:
+            raise ValueError(f"Invalid permission rule '{text}': use tool or tool(pattern)")
+        pattern = match.group(2)
+        return cls(match.group(1), pattern.strip() if pattern is not None else None)
+
+    def matches(self, tool_name: str, arguments: Dict[str, Any]) -> bool:
+        if tool_name != self.tool:
+            return False
+        if self.pattern is None:
+            return True
+        key = _RULE_SUBJECT.get(tool_name)
+        subject = str(arguments.get(key, "")) if key else json.dumps(arguments, sort_keys=True)
+        if tool_name in ("read_file", "write_file", "replace", "list_directory"):
+            subject = subject.replace("\\", "/")
+        return fnmatch.fnmatchcase(subject, self.pattern)
+
+    def __str__(self) -> str:
+        return self.tool if self.pattern is None else f"{self.tool}({self.pattern})"
+
+
+@dataclass
+class PermissionRules:
+    """Persistent allow/deny rules (the `permissions` setting)."""
+
+    allow: List[PermissionRule] = field(default_factory=list)
+    deny: List[PermissionRule] = field(default_factory=list)
+
+    @classmethod
+    def from_config(cls, data: Optional[Dict[str, Any]]) -> "PermissionRules":
+        data = data or {}
+        rules = cls()
+        for name in ("allow", "deny"):
+            for text in data.get(name) or []:
+                try:
+                    getattr(rules, name).append(PermissionRule.parse(str(text)))
+                except ValueError as e:
+                    logger.warning(str(e))
+        return rules
+
+    def denies(self, tool_name: str, arguments: Dict[str, Any]) -> Optional[PermissionRule]:
+        return next((r for r in self.deny if r.matches(tool_name, arguments)), None)
+
+    def allows(self, tool_name: str, arguments: Dict[str, Any]) -> Optional[PermissionRule]:
+        return next((r for r in self.allow if r.matches(tool_name, arguments)), None)
+
+
 class PermissionManager:
     """Decides whether a tool call may run."""
 
@@ -90,6 +161,7 @@ class PermissionManager:
         approver: Optional[Approver] = None,
         sandbox: bool = False,
         sandboxed_shell: bool = False,
+        rules: Optional[PermissionRules] = None,
     ) -> None:
         """
         Args:
@@ -99,11 +171,18 @@ class PermissionManager:
             sandbox: Passed to the shell safety check (blocks all destructive commands)
             sandboxed_shell: Shell commands run in an OS sandbox (joshu.core.sandbox),
                 so they don't need approval; commands flagged unsafe still do
+            rules: Persistent allow/deny rules; defaults to the `permissions`
+                setting
         """
         self.mode = mode
         self.approver = approver
         self.sandbox = sandbox
         self.sandboxed_shell = sandboxed_shell
+        if rules is None:
+            from joshu.core.config import get_config_manager
+
+            rules = PermissionRules.from_config(get_config_manager().get("permissions"))
+        self.rules = rules
         self._always_allowed_tools: Set[str] = set()
         self._always_allowed_commands: Set[str] = set()
 
@@ -111,6 +190,10 @@ class PermissionManager:
         self, tool_name: str, arguments: Dict[str, Any], requires_approval: bool
     ) -> PermissionDecision:
         """Check (and if needed ask about) one tool call."""
+        denied_by = self.rules.denies(tool_name, arguments)
+        if denied_by is not None:
+            return PermissionDecision(False, f"Blocked by the permission rule '{denied_by}'.")
+
         warning = None
         if tool_name == SHELL_TOOL:
             command = str(arguments.get("command", ""))
@@ -143,6 +226,9 @@ class PermissionManager:
             return PermissionDecision(True)
 
         if not requires_approval:
+            return PermissionDecision(True)
+
+        if self.rules.allows(tool_name, arguments) is not None:
             return PermissionDecision(True)
 
         if self._is_always_allowed(tool_name, arguments):

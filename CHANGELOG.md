@@ -4,6 +4,15 @@ All notable changes to the Joshu project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Layered configuration: built-in defaults, `config/config.yaml` in a source checkout, the user config `~/.joshu/config.yaml` (written by `joshu config --set`, only the keys you set) and a project `.joshu/config.yaml`; `joshu config --list` shows where settings come from.
+- `joshu trust`: a project's config only applies once the project is trusted, since it can run commands (hooks, diagnostics) and choose providers.
+- Persistent permission rules (`permissions: {allow, deny}`, e.g. `run_shell_command(git status*)`); deny rules block in every mode; `/permissions allow|deny <rule>` saves one.
+- Instruction files: `AGENTS.md` / `JOSHU.md` from the repository root down to the working directory, plus `~/.joshu/AGENTS.md`, are added to the system prompt (`config/JOSHU.md` still works).
+
+### Fixed
+- The `save_memory` file ignored `JOSHU_HOME` (always `~/.joshu/JOSHU.md`).
+
 ## [0.2.0] - 2026-10-03
 
 ### Added

@@ -232,6 +232,12 @@ def create_console_agent(
     ui = ConsoleAgentUI(console, quiet=quiet)
     # MCP tools must be registered before the agent lists its tools
     load_mcp_tools(report=None if quiet else lambda line: ui.console.print(f"[dim]{line}[/dim]"))
+    untrusted = getattr(config, "untrusted_project_config", None)
+    if untrusted is not None and not quiet:
+        ui.console.print(
+            f"[yellow]Ignoring {untrusted}: run `joshu trust` to apply this project's settings."
+            "[/yellow]"
+        )
     for problem in configure_hooks_from_settings(config.get("hooks") or {}):
         ui.console.print(f"[yellow]Hook configuration: {problem}[/yellow]")
     from pathlib import Path

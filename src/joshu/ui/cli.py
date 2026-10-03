@@ -502,6 +502,75 @@ def explain(command: str = typer.Argument(..., help="Command or topic to explain
 
 
 @app.command()
+def trust(
+    path: Optional[str] = typer.Argument(None, help="Project directory (default: here)."),
+    remove: bool = typer.Option(False, "--remove", help="Stop trusting the project."),
+    list_trusted: bool = typer.Option(False, "--list", help="List trusted projects."),
+) -> None:
+    """Let a project's .joshu/config.yaml apply (it can run commands, so it needs trust)."""
+    from pathlib import Path
+
+    import yaml
+
+    from joshu.core.config import PROJECT_CONFIG, get_config_manager
+
+    config_manager = get_config_manager()
+    if list_trusted:
+        trusted = config_manager.get("trusted_projects") or []
+        if not trusted:
+            console.print("No trusted projects.")
+        for project in trusted:
+            console.print(f"  {project}")
+        return
+
+    directory = Path(path).expanduser().resolve() if path else Path.cwd().resolve()
+    if remove:
+        if config_manager.untrust_project(directory):
+            config_manager.save_config()
+            console.print(f"No longer trusted: {directory}")
+        else:
+            console.print(f"Not in the trusted list: {directory}")
+        return
+
+    project_config = directory / PROJECT_CONFIG
+    if project_config.is_file():
+        try:
+            data = yaml.safe_load(project_config.read_text(encoding="utf-8")) or {}
+        except Exception as e:
+            console.print(f"[red]Can't read {project_config}: {e}[/red]")
+            raise typer.Exit(code=1)
+        keys = sorted(data) if isinstance(data, dict) else []
+        console.print(f"{project_config} sets: {', '.join(keys) or '(nothing)'}")
+        risky = [
+            k
+            for k in keys
+            if k
+            in (
+                "hooks",
+                "diagnostics",
+                "providers",
+                "shell_sandbox",
+                "permission_mode",
+                "permissions",
+                "mcp_servers",
+            )
+        ]
+        if risky:
+            console.print(
+                f"[yellow]Review these before trusting: {', '.join(risky)} "
+                "(they can run commands or change what the agent may do)[/yellow]"
+            )
+    else:
+        console.print(
+            f"[dim]{project_config} doesn't exist yet; trusting the directory anyway.[/dim]"
+        )
+
+    config_manager.trust_project(directory)
+    config_manager.save_config()
+    console.print(f"Trusted: {directory}")
+
+
+@app.command()
 def serve(
     host: str = typer.Option("127.0.0.1", "--host", help="Address to listen on."),
     port: int = typer.Option(8080, "--port", help="Port to listen on."),
@@ -641,6 +710,7 @@ def main() -> None:
             "mcp",
             "providers",
             "serve",
+            "trust",
             "sessions",
             "--help",
             "-h",

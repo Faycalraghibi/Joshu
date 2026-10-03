@@ -25,10 +25,12 @@ class TestMemoryPath:
 
     def test_get_memory_path_returns_path(self):
         """Memory path should be a valid Path object."""
+        from joshu.core.paths import joshu_home
+
         path = get_memory_path()
         assert isinstance(path, Path)
-        assert path.name == "JOSHU.md"
-        assert ".joshu" in str(path)
+        # Under the per-user data directory, which honors JOSHU_HOME
+        assert path == joshu_home() / "JOSHU.md"
 
 
 class TestMemoryParsing:

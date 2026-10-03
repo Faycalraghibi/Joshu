@@ -1,16 +1,39 @@
 # Configuration Guide
 
-Joshu reads its settings from `config/config.yaml` in the project (created with
-defaults on first run) and API keys from the environment or a `.env` file.
-Command-line flags such as `--provider`, `--model` and `--permission-mode`
-override the file for one run.
+Settings come from YAML files, later ones winning:
 
-Unknown keys in the file are ignored; values of the wrong type are replaced by
-the default with a warning.
+| Layer | File | Notes |
+|---|---|---|
+| Defaults | built in | |
+| Install | `config/config.yaml` in a source checkout | Read-only |
+| User | `~/.joshu/config.yaml` (`$JOSHU_HOME/config.yaml`) | `joshu config --set` writes here, only the keys you set |
+| Project | `.joshu/config.yaml` in the project (nearest one above the current directory) | Only applies to projects you trust |
+
+Command-line flags such as `--provider`, `--model` and `--permission-mode`
+override all files for one run. `joshu config --list` shows the effective
+settings and which files they came from.
+
+Unknown keys are ignored; values of the wrong type are replaced by the default
+with a warning.
 
 Per-user data (saved sessions, input history, memory, semantic-memory
 database) lives in `~/.joshu`, or in `$JOSHU_HOME` when set. Joshu doesn't
 write files into your project directory.
+
+### Trusting a project
+
+A project config can set hooks and check commands (which run automatically)
+and custom providers (which decide where your code and API keys go), so a
+config in a repository you cloned is ignored until you trust that project:
+
+```bash
+joshu trust                 # trust the current directory (shows what its config sets)
+joshu trust --list
+joshu trust --remove
+```
+
+Joshu mentions an ignored project config when it starts. A project config
+can't add itself to `trusted_projects`.
 
 ## Example
 
@@ -88,6 +111,8 @@ In interactive mode: `/config`, `/config <key>`, `/config <key> <value>`;
 | `compact_threshold` | float | `0.8` | Fraction of the window that triggers compaction |
 | `tool_output_limit` | integer | `30000` | Max characters of one tool result sent to the model |
 | `sandbox_enabled` | boolean | `true` | Stricter shell safety check (flags all destructive commands) |
+| `permissions` | dict | `{allow: [], deny: []}` | Persistent permission rules (see [Agent](agent.md#permissions)) |
+| `trusted_projects` | list | `[]` | Projects whose `.joshu/config.yaml` applies (`joshu trust`) |
 | `save_sessions` | boolean | `true` | Save conversations for `--resume` / `--continue` |
 | `hooks` | dict | `{}` | Commands run on agent events (see [Hooks](hooks.md)) |
 | `diagnostics_enabled` | boolean | `true` | Check files after the agent edits them |

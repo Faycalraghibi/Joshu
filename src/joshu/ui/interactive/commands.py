@@ -458,17 +458,26 @@ class CommandHandler:
         """Show or set the agent permission mode: /permissions [default|accept_edits|bypass]."""
         from joshu.core.permissions import PermissionMode
 
-        parts = command.split()
+        parts = command.split(maxsplit=2)
         if len(parts) == 1:
             current = self.config_manager.get("permission_mode", "default")
+            rules = self.config_manager.get("permissions") or {}
+            allow = ", ".join(rules.get("allow") or []) or "none"
+            deny = ", ".join(rules.get("deny") or []) or "none"
             self.interactive_mode._show_message(
                 f"Permission mode: {current}\n"
                 "  default      - ask before edits, shell commands and other risky tools\n"
                 "  accept_edits - file edits run without asking; shell still asks\n"
                 "  bypass       - everything runs; commands flagged unsafe still ask\n"
-                "Use /plan for read-only mode."
+                "Use /plan for read-only mode.\n"
+                f"Saved rules: allow {allow}; deny {deny}\n"
+                "Add one: /permissions allow run_shell_command(git status*)\n"
+                "         /permissions deny write_file(.env*)"
             )
             return True
+
+        if parts[1] in ("allow", "deny"):
+            return self._add_permission_rule(parts[1], parts[2] if len(parts) > 2 else "")
 
         try:
             mode = PermissionMode.from_string(parts[1])
@@ -484,6 +493,31 @@ class CommandHandler:
         if agent is not None and self.interactive_mode.interaction_mode != "plan":
             agent.set_mode(mode)
         self.interactive_mode._show_message(f"Permission mode set to {mode.value}.")
+        return True
+
+    def _add_permission_rule(self, kind: str, text: str) -> bool:
+        """Save an allow/deny rule to the user config and apply it now."""
+        from joshu.core.permissions import PermissionRule, PermissionRules
+
+        show = self.interactive_mode._show_message
+        try:
+            rule = PermissionRule.parse(text)
+        except ValueError as e:
+            show(str(e))
+            return True
+
+        rules = dict(self.config_manager.get("permissions") or {})
+        entries = list(rules.get(kind) or [])
+        if str(rule) not in entries:
+            entries.append(str(rule))
+        rules[kind] = entries
+        self.config_manager.set("permissions", rules)
+        self.config_manager.save_config()
+
+        agent = self.interactive_mode.agent
+        if agent is not None:
+            agent.permissions.rules = PermissionRules.from_config(rules)
+        show(f"Saved: {kind} {rule}")
         return True
 
     def display_history(self):
