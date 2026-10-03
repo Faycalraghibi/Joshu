@@ -66,6 +66,8 @@ class InteractiveMode:
         self.agent = None
         self.agent_ui = None
         self.command_handler = CommandHandler(self)
+        # Text typed while the agent was working, offered as the next prompt
+        self.type_ahead = ""
 
         if PROMPT_TOOLKIT_AVAILABLE:
             self._init_prompt_toolkit()
@@ -80,7 +82,13 @@ class InteractiveMode:
         self.key_bindings = create_key_bindings(self)
         self.style = get_style()
         self.path_completer = get_path_completer()
-        self.command_completer = get_command_completer()
+        try:
+            from joshu.core.custom_commands import discover_commands
+
+            custom = [f"/{name}" for name in discover_commands()]
+        except Exception:  # a broken command file shouldn't stop the REPL
+            custom = []
+        self.command_completer = get_command_completer(custom)
 
     def _load_history(self):
         """Load command history from JSON storage."""
@@ -436,10 +444,14 @@ class InteractiveMode:
         if images:
             self._show_message("Attached: " + ", ".join(path.name for path in images))
 
+        from joshu.ui.key_listener import KeyListener
+
+        listener = KeyListener()
         try:
-            response = self.agent.run(prompt, images=images)
+            with listener:
+                response = self.agent.run(prompt, images=images)
         except KeyboardInterrupt:
-            self._show_message("\nInterrupted.")
+            self._show_message("\nInterrupted. Send a follow-up, or /rewind to drop that request.")
             return True
         except ImageError as e:
             self._show_message(str(e))
@@ -447,6 +459,8 @@ class InteractiveMode:
         except LLMError as e:
             self._show_message(f"Model error: {e}")
             return True
+        finally:
+            self.type_ahead = listener.typed
 
         self.agent_ui.print_footer(response)
         if self.context_provider and response.text:
@@ -467,13 +481,18 @@ class InteractiveMode:
         self._show_message(
             f"Current mode: [{self.interaction_mode.upper()}]. Switch modes with /agent, /ask, or /plan"
         )
+        self._show_message(
+            "Esc interrupts the agent. Typing while it works prepares your next message."
+        )
         if self.verbose_mode:
             self._show_message("Verbose mode: ON (enabled via -v or --verbose flag)")
 
         while True:
             try:
+                default, self.type_ahead = self.type_ahead, ""
                 user_input = prompt(
                     get_prompt(self.interaction_mode, self.vim_mode, self.multiline_mode),
+                    default=default,
                     key_bindings=self.key_bindings,
                     style=self.style,
                     completer=self.command_completer,

@@ -121,9 +121,13 @@ class ConsoleAgentUI(AgentEvents):
         else:
             options = "[y]es / [a]lways this session / [n]o"
 
+        from joshu.ui.key_listener import paused
+
         while True:
             try:
-                answer = self.console.input(f"Allow? {escape(options)}: ").strip().lower()
+                # Esc / type-ahead listening stops while the answer is read
+                with paused():
+                    answer = self.console.input(f"Allow? {escape(options)}: ").strip().lower()
             except (EOFError, KeyboardInterrupt):
                 self.console.print()
                 return ApprovalChoice.NO

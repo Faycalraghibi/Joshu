@@ -116,6 +116,21 @@ Sessions are the saved agent conversations: the same ones `joshu sessions`,
 
 An id prefix is enough.
 
+### Conversation
+
+```
+/undo              # Revert the agent's file edits from its last request
+/rewind [n]        # Drop the last n requests (default 1) and restore the files they changed
+/compact [focus]   # Summarize the conversation now, optionally saying what to keep
+/init [notes]      # Have the agent write or update AGENTS.md for this project
+```
+
+`/rewind` removes the requests and everything the agent did for them from the
+conversation, restores files the agent edited meanwhile, and puts the first
+removed request back in the prompt so you can edit and resend it. Changes
+made by shell commands are not undone, and requests already summarized by
+compaction can't be rewound.
+
 ### Memory Commands
 
 ```
@@ -176,6 +191,7 @@ An id prefix is enough.
 
 | Shortcut | Action |
 |----------|--------|
+| `Esc` | Interrupt the agent (while it works) |
 | `Ctrl+B` | Background bash |
 | `Ctrl+C` | Interrupt |
 | `Ctrl+D` | Exit |
@@ -189,6 +205,15 @@ An id prefix is enough.
 | `Ctrl+T` | Toggle suggestions |
 | `Ctrl+A` | Beginning of line |
 | `Ctrl+E` | End of line |
+
+### While the agent works
+
+`Esc` (or `Ctrl+C`) stops the current request. The conversation stays usable:
+send a follow-up, or `/rewind` to drop the interrupted request.
+
+Anything you type while the agent works is kept and appears in the prompt when
+it finishes, ready to edit and send. Approval prompts read their answer as
+usual.
 
 ## Vim Mode
 
@@ -213,14 +238,11 @@ vim_mode: true
 
 ## Auto-Completion
 
-Press `Tab` for completions:
+Press `Tab` to complete slash commands, including your custom commands:
 
 ```
-> /sess[Tab]
-> /session
-
-> /memory s[Tab]
-> /memory search
+> /rew[Tab]
+> /rewind
 ```
 
 ## Multiline Input

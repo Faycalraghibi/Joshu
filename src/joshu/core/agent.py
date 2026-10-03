@@ -16,10 +16,10 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
 from joshu.core.checkpoints import Checkpoint, CheckpointStore
-from joshu.core.compaction import compact_messages, estimate_tokens
+from joshu.core.compaction import SUMMARY_PREFIX, compact_messages, estimate_tokens
 from joshu.core.config import get_config_manager
 from joshu.core.costs import CostTracker, request_cost
-from joshu.core.images import build_user_content
+from joshu.core.images import build_user_content, message_text
 from joshu.core.llm_client import (
     AssistantTurn,
     ChatClient,
@@ -63,6 +63,14 @@ class AgentEvents:
 
     def on_compact(self, tokens_before: int, tokens_after: int) -> None:
         """Older turns were summarized to free context."""
+
+
+@dataclass
+class Rewind:
+    """What `Agent.rewind` removed."""
+
+    prompts: List[str]
+    files: List[Path]
 
 
 class Agent:
@@ -163,6 +171,8 @@ class Agent:
         # Identical consecutive tool calls with identical results (loop detection)
         self._last_call: Optional[tuple] = None
         self._repeats = 0
+        # Requests handled in this conversation; checkpoints are tagged with it
+        self._request_count = 0
 
     # ------------------------------------------------------------------ public
 
@@ -190,6 +200,67 @@ class Agent:
             )
         return checkpoint
 
+    def requests(self) -> List[str]:
+        """The user's requests in the current history, oldest first."""
+        return [message_text(self.messages[i].get("content")) for i in self._request_indices()]
+
+    def rewind(self, count: int = 1) -> Optional[Rewind]:
+        """
+        Remove the last `count` requests (and everything after them) from the
+        conversation and restore the files the agent edited while handling them.
+
+        Requests summarized away by compaction can't be rewound. Changes made
+        by shell commands aren't tracked and stay.
+
+        Returns:
+            What was removed, or None when there is nothing to rewind.
+        """
+        indices = self._request_indices()
+        if count < 1 or not indices:
+            return None
+        count = min(count, len(indices))
+        cut = indices[-count]
+        removed = [
+            message_text(m.get("content")) for m in self.messages[cut:] if self._is_request(m)
+        ]
+        self.messages = self.messages[:cut]
+        first_removed = self._request_count - count + 1
+        undone = self.checkpoints.undo_since(first_removed)
+        self._request_count = first_removed - 1
+        self._pending_notes = []
+        files = sorted({p for c in undone for p in c.files}, key=str)
+        if self.persist:
+            self._save()
+        return Rewind(prompts=removed, files=files)
+
+    def compact(self, focus: str = "") -> Optional[tuple]:
+        """
+        Summarize the conversation now, keeping the last request verbatim.
+
+        Returns:
+            (tokens before, tokens after), or None when there was nothing to compact.
+        """
+        before = estimate_tokens(self.messages)
+        compacted = compact_messages(self.messages, self.client, keep_recent=1, focus=focus)
+        if compacted is self.messages:
+            return None
+        self.messages = compacted
+        after = estimate_tokens(compacted)
+        self.events.on_compact(before, after)
+        if self.persist:
+            self._save()
+        return before, after
+
+    def _request_indices(self) -> List[int]:
+        """Positions of the user's requests that are still verbatim in the history."""
+        return [i for i, m in enumerate(self.messages) if i > 0 and self._is_request(m)]
+
+    @staticmethod
+    def _is_request(message: Dict[str, Any]) -> bool:
+        if message.get("role") != "user":
+            return False
+        return not message_text(message.get("content")).startswith(SUMMARY_PREFIX)
+
     def reset(self) -> None:
         """
         Start a new conversation in a new session (keeps settings and session
@@ -202,6 +273,7 @@ class Agent:
         self.cost = CostTracker()
         self.checkpoints = CheckpointStore()
         self._pending_notes = []
+        self._request_count = 0
 
     def tool_specs(self) -> List[ToolSpec]:
         """Tools offered to the model."""
@@ -248,6 +320,7 @@ class Agent:
             if key in self.usage:
                 self.usage[key] = value
         self.cost = CostTracker.from_dict(session.get("cost"))
+        self._request_count = len(self._request_indices())
 
     def _save(self) -> None:
         from joshu.core.sessions import save_session
@@ -265,7 +338,8 @@ class Agent:
             message = (hook.response.message if hook.response else None) or "Blocked by hook."
             return AgentResponse(text=message, metadata={"blocked": True})
 
-        self.checkpoints.begin(prompt)
+        self._request_count += 1
+        self.checkpoints.begin(prompt, self._request_count)
         content = prompt
         if self._pending_notes:
             content = "\n".join(self._pending_notes) + "\n\n" + prompt

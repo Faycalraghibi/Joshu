@@ -23,6 +23,8 @@ class Checkpoint:
     """Original state of the files changed while handling one request."""
 
     prompt: str
+    # Sequence number of the request in the conversation (for rewinding)
+    request: int = 0
     created_at: str = field(default_factory=lambda: datetime.now().isoformat(timespec="seconds"))
     # Absolute path -> original bytes, or None if the file did not exist
     files: Dict[Path, Optional[bytes]] = field(default_factory=dict)
@@ -35,9 +37,9 @@ class CheckpointStore:
         self.checkpoints: List[Checkpoint] = []
         self._pending: Optional[Checkpoint] = None
 
-    def begin(self, prompt: str) -> None:
+    def begin(self, prompt: str, request: int = 0) -> None:
         """Start the checkpoint for a new request (kept only if something is edited)."""
-        self._pending = Checkpoint(prompt=prompt)
+        self._pending = Checkpoint(prompt=prompt, request=request)
 
     def snapshot(self, path: Path) -> None:
         """Record a file's current state before it is changed (once per request)."""
@@ -57,6 +59,15 @@ class CheckpointStore:
         checkpoint.files[path] = original
         if not self.checkpoints or self.checkpoints[-1] is not checkpoint:
             self.checkpoints.append(checkpoint)
+
+    def undo_since(self, request: int) -> List[Checkpoint]:
+        """Undo every checkpoint of request number `request` or later, newest first."""
+        undone = []
+        while self.checkpoints and self.checkpoints[-1].request >= request:
+            checkpoint = self.undo()
+            if checkpoint is not None:
+                undone.append(checkpoint)
+        return undone
 
     def undo(self) -> Optional[Checkpoint]:
         """
