@@ -501,30 +501,9 @@ def start_interactive_mode(
     continue_last: bool = False,
 ):
     """Start the interactive mode, optionally continuing a saved session."""
-    try:
-        from joshu.core.config import get_config_manager
+    from joshu.mcp.startup import load_mcp_tools
 
-        config_mgr = get_config_manager()
-
-        if config_mgr.get("mcp_enabled", True):
-            import asyncio
-
-            from joshu.mcp.discovery import register_mcp_tools_with_joshu
-            from joshu.ui.cli_handlers.mcp_handler import load_mcp_servers_from_config
-
-            load_mcp_servers_from_config()
-
-            if config_mgr.get("mcp_discovery_on_startup", True):
-                try:
-                    count = asyncio.run(register_mcp_tools_with_joshu())
-                    if count > 0:
-                        print(f"[MCP] Registered {count} tools from MCP servers")
-                except Exception as e:
-                    if verbose:
-                        print(f"[MCP] Tool discovery failed: {e}")
-    except Exception as e:
-        if verbose:
-            print(f"[MCP] Initialization skipped: {e}")
+    load_mcp_tools(report=print)
 
     interactive_mode = InteractiveMode(model, sandbox, verbose=verbose)
     if resume or continue_last:

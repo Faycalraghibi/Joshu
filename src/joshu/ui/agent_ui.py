@@ -226,9 +226,12 @@ def create_console_agent(
         LLMError: if no model endpoint is configured
     """
     from joshu.hooks import configure_hooks_from_settings
+    from joshu.mcp.startup import load_mcp_tools
 
     config = get_config_manager()
     ui = ConsoleAgentUI(console, quiet=quiet)
+    # MCP tools must be registered before the agent lists its tools
+    load_mcp_tools(report=None if quiet else lambda line: ui.console.print(f"[dim]{line}[/dim]"))
     for problem in configure_hooks_from_settings(config.get("hooks") or {}):
         ui.console.print(f"[yellow]Hook configuration: {problem}[/yellow]")
     from pathlib import Path

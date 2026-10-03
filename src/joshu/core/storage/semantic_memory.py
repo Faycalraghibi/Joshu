@@ -65,7 +65,8 @@ class SemanticMemory:
         """
         if not CHROMADB_AVAILABLE or not SENTENCE_TRANSFORMERS_AVAILABLE:
             self._enabled = False
-            logger.warning("Semantic memory disabled due to missing dependencies")
+            # Optional feature (pip install -e .[use]); not worth a warning on every start
+            logger.debug("Semantic memory disabled: chromadb / sentence-transformers not installed")
             self.client = None
             self.collection = None
             self.embedding_model = None
