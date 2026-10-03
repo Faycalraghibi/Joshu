@@ -369,6 +369,18 @@ class InteractiveMode:
             self._show_message("Run `joshu providers` to pick a provider and set its API key.")
             return False
 
+    def run_custom_command(self, command: str) -> bool:
+        """Expand a custom slash command and run its prompt through the agent."""
+        from joshu.core.custom_commands import expand_slash_command
+
+        if not self._ensure_agent():
+            return True
+        prompt = expand_slash_command(command, self.agent.permissions)
+        if prompt is None:
+            self._show_message(f"Unknown command: {command.split()[0]}")
+            return True
+        return self._run_agent(prompt)
+
     def resume_session(self, session_id: Optional[str] = None) -> bool:
         """
         Continue a saved agent session: the given id, or the latest one here.

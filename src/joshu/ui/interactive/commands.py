@@ -410,9 +410,40 @@ class CommandHandler:
             )
             return True
 
+        elif command == "/commands":
+            return self.handle_commands_list()
+
         else:
-            self.interactive_mode._show_message(f"Unknown command: {command}")
+            return self.handle_custom_command(command)
+
+    def handle_custom_command(self, command: str) -> bool:
+        """Run a custom command from .joshu/commands or ~/.joshu/commands."""
+        from joshu.core.custom_commands import discover_commands, split_command
+
+        parsed = split_command(command)
+        if parsed is None or parsed[0] not in discover_commands():
+            self.interactive_mode._show_message(
+                f"Unknown command: {command.split()[0]} (see /help and /commands)"
+            )
             return True
+        return self.interactive_mode.run_custom_command(command)
+
+    def handle_commands_list(self) -> bool:
+        """List custom commands."""
+        from joshu.core.custom_commands import command_dirs, discover_commands
+
+        commands = discover_commands()
+        if not commands:
+            dirs = " or ".join(str(d) for d in reversed(command_dirs()))
+            self.interactive_mode._show_message(
+                f"No custom commands. Add .md or .toml files to {dirs}."
+            )
+            return True
+        lines = ["Custom commands:"]
+        for name, cmd in sorted(commands.items()):
+            lines.append(f"  /{name:<16} {cmd.description}")
+        self.interactive_mode._show_message("\n".join(lines))
+        return True
 
     def handle_resume_command(self, command: str) -> bool:
         """/resume lists recent sessions here; /resume <id> continues one."""
@@ -543,6 +574,7 @@ Special Commands:
   /reset       - Start a new agent conversation
   /undo        - Revert the agent's file edits from its last request
   /resume [id] - List saved sessions, or continue one
+  /commands    - List custom commands (.joshu/commands/*.md|toml)
   /permissions - Show or set the agent permission mode
   /config   - Show/set configuration
   /model    - Switch AI model

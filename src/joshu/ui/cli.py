@@ -115,6 +115,17 @@ def execute_agent_prompt(
         )
         if not _restore_session(agent, resume, continue_last):
             return 1
+        if prompt.startswith("/"):
+            from joshu.core.custom_commands import expand_slash_command
+
+            expanded = expand_slash_command(prompt, agent.permissions)
+            if expanded is None:
+                Console(stderr=True).print(
+                    f"[red]Unknown command {prompt.split()[0]}.[/red] "
+                    "Custom commands live in .joshu/commands/ or ~/.joshu/commands/."
+                )
+                return 2
+            prompt = expanded
         response = agent.run(prompt)
     except LLMError as e:
         Console(stderr=True).print(f"[red]Model error:[/red] {e}")
