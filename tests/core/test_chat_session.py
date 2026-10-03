@@ -1,5 +1,5 @@
 """
-Unit tests for LLM client infrastructure.
+Unit tests for chat session and tool scheduler.
 
 Run with: pytest tests/core/test_llm_client.py -v
 """
@@ -14,19 +14,6 @@ from joshu.core.chat_session import (
     MessageRole,
     SessionState,
 )
-from joshu.core.credentials import (
-    CredentialType,
-    HybridCredentialStorage,
-    MemoryCredentialStorage,
-    OAuthCredentials,
-    StorageBackend,
-    StoredCredential,
-)
-from joshu.core.hooks import (
-    HookContext,
-    HookPhase,
-    HookRegistry,
-)
 from joshu.core.tool_scheduler import (
     ApprovalMode,
     CoreToolScheduler,
@@ -34,67 +21,6 @@ from joshu.core.tool_scheduler import (
     ToolCallStatus,
     ToolSchedulerConfig,
 )
-
-
-class TestOAuthCredentials:
-    """Test OAuthCredentials data structure."""
-
-    def test_from_api_key(self):
-        """Test creating from API key."""
-        creds = OAuthCredentials.from_api_key("sk-test-123")
-        assert creds.access_token == "sk-test-123"
-        assert creds.token_type == "ApiKey"
-
-    def test_is_expired_without_expiry(self):
-        """Test non-expiring tokens."""
-        creds = OAuthCredentials(access_token="token")
-        assert not creds.is_expired()
-
-
-class TestMemoryCredentialStorage:
-    """Test in-memory credential storage."""
-
-    @pytest.fixture
-    def storage(self):
-        return MemoryCredentialStorage()
-
-    def test_save_and_load(self, storage):
-        """Test saving and loading credentials."""
-        creds = OAuthCredentials.from_api_key("test-key")
-        stored = StoredCredential(
-            credential_type=CredentialType.API_KEY,
-            credentials=creds,
-            service_name="openai",
-        )
-        storage.save(stored)
-
-        loaded = storage.load("openai")
-        assert loaded is not None
-        assert loaded.credentials.access_token == "test-key"
-
-    def test_clear(self, storage):
-        """Test clearing credentials."""
-        creds = OAuthCredentials.from_api_key("test")
-        stored = StoredCredential(
-            credential_type=CredentialType.API_KEY,
-            credentials=creds,
-            service_name="test-service",
-        )
-        storage.save(stored)
-        assert storage.exists("test-service")
-
-        storage.clear("test-service")
-        assert not storage.exists("test-service")
-
-
-class TestHybridCredentialStorage:
-    """Test hybrid credential storage."""
-
-    def test_default_to_memory(self):
-        """Test falls back to memory when keychain unavailable."""
-        storage = HybridCredentialStorage(keychain_available=False)
-        backend = storage._get_effective_backend("test")
-        assert backend == StorageBackend.MEMORY
 
 
 class TestChatMessage:
@@ -265,96 +191,3 @@ class TestCoreToolScheduler:
         truncated = scheduler.truncate_output(long_output)
         assert len(truncated) < 100
         assert "truncated" in truncated
-
-
-class TestHookRegistry:
-    """Test HookRegistry functionality."""
-
-    @pytest.fixture
-    def registry(self):
-        reg = HookRegistry()
-        return reg
-
-    def test_register_hook(self, registry):
-        """Test registering a hook."""
-
-        def my_hook(ctx):
-            return ctx
-
-        registry.register("my_hook", HookPhase.BEFORE_MODEL, my_hook)
-        hooks = registry.get_hooks(HookPhase.BEFORE_MODEL)
-        assert len(hooks) == 1
-        assert hooks[0].name == "my_hook"
-
-    def test_fire_hooks(self, registry):
-        """Test firing hooks."""
-        results = []
-
-        def hook1(ctx):
-            results.append("hook1")
-            return ctx
-
-        def hook2(ctx):
-            results.append("hook2")
-            return ctx
-
-        registry.register("hook1", HookPhase.BEFORE_MODEL, hook1, priority=10)
-        registry.register("hook2", HookPhase.BEFORE_MODEL, hook2, priority=5)
-
-        registry.fire(HookPhase.BEFORE_MODEL, data={})
-
-        # Higher priority runs first
-        assert results == ["hook1", "hook2"]
-
-    def test_hook_can_abort(self, registry):
-        """Test hooks can abort chain."""
-
-        def aborting_hook(ctx):
-            ctx.abort("Stopping")
-            return ctx
-
-        def never_called(ctx):
-            raise AssertionError("Should not be called")
-
-        registry.register("abort", HookPhase.BEFORE_MODEL, aborting_hook, priority=10)
-        registry.register("after", HookPhase.BEFORE_MODEL, never_called, priority=5)
-
-        context = registry.fire(HookPhase.BEFORE_MODEL, data={})
-        assert not context.should_continue
-
-    def test_hook_decorator(self, registry):
-        """Test decorator registration."""
-
-        @registry.hook(HookPhase.AFTER_MODEL)
-        def decorated_hook(ctx):
-            return ctx
-
-        hooks = registry.get_hooks(HookPhase.AFTER_MODEL)
-        assert len(hooks) == 1
-        assert hooks[0].name == "decorated_hook"
-
-
-class TestHookContext:
-    """Test HookContext manipulation."""
-
-    def test_modify_data(self):
-        """Test modifying context data."""
-        ctx = HookContext(
-            phase=HookPhase.BEFORE_MODEL,
-            data={"original": True},
-        )
-        ctx.modify({"modified": True})
-
-        assert ctx.get_effective_data() == {"modified": True}
-
-    def test_abort(self):
-        """Test aborting processing."""
-        ctx = HookContext(phase=HookPhase.BEFORE_MODEL, data={})
-        ctx.abort("Test reason")
-
-        assert not ctx.should_continue
-        assert ctx.metadata["abort_reason"] == "Test reason"
-
-
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])
