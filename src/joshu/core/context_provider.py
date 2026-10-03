@@ -214,6 +214,7 @@ class ContextProvider:
         """Save all sessions to the sessions file."""
         sessions_file = self._get_sessions_file()
         try:
+            sessions_file.parent.mkdir(parents=True, exist_ok=True)
             with open(sessions_file, "w", encoding="utf-8") as f:
                 json.dump(sessions, f, indent=2)
         except Exception as e:
