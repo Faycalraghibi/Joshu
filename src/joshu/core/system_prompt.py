@@ -130,10 +130,22 @@ def _git_branch(cwd: Path) -> Optional[str]:
 
 
 def _load_project_context(cwd: Path) -> str:
+    """Instruction files (AGENTS.md, JOSHU.md) plus facts saved with save_memory."""
+    parts = []
     try:
-        from joshu.tools.memory import load_combined_context
+        from joshu.core.instructions import load_instructions
 
-        return load_combined_context(cwd).strip()
+        instructions = load_instructions(cwd)
+        if instructions:
+            parts.append(instructions)
     except Exception as e:
-        logger.debug(f"Could not load project context: {e}")
-        return ""
+        logger.debug(f"Could not load instruction files: {e}")
+    try:
+        from joshu.tools.memory import load_memory
+
+        memory = load_memory().strip()
+        if memory:
+            parts.append("Saved memory (from save_memory):\n" + memory)
+    except Exception as e:
+        logger.debug(f"Could not load saved memory: {e}")
+    return "\n\n".join(parts)

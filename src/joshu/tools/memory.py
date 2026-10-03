@@ -16,8 +16,7 @@ from joshu.core.tool_registry import register_tool
 
 logger = logging.getLogger(__name__)
 
-# Memory file location
-DEFAULT_MEMORY_DIR = Path.home() / ".joshu"
+# Memory file location: ~/.joshu (or $JOSHU_HOME), see get_memory_path()
 DEFAULT_MEMORY_FILE = "JOSHU.md"
 MEMORY_SECTION_HEADER = "## Agent Memory"
 
@@ -124,7 +123,9 @@ def get_memory_path() -> Path:
     Returns:
         Path to ~/.joshu/JOSHU.md
     """
-    return DEFAULT_MEMORY_DIR / DEFAULT_MEMORY_FILE
+    from joshu.core.paths import joshu_home
+
+    return joshu_home() / DEFAULT_MEMORY_FILE
 
 
 def ensure_memory_dir() -> Path:
@@ -134,8 +135,9 @@ def ensure_memory_dir() -> Path:
     Returns:
         Path to the memory directory
     """
-    DEFAULT_MEMORY_DIR.mkdir(parents=True, exist_ok=True)
-    return DEFAULT_MEMORY_DIR
+    directory = get_memory_path().parent
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory
 
 
 def load_memory() -> str:

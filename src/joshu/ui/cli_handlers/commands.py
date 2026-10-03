@@ -25,6 +25,18 @@ def handle_config(
         config_dict = config_manager.config.to_dict()
         for key, value in config_dict.items():
             console.print(f"  {key}: {value}")
+
+        layers = getattr(config_manager, "layers", [])
+        if layers:
+            console.print("\n[bold]Read from[/bold] (later files win):")
+            for name, path in layers:
+                console.print(f"  {name}: {path}")
+        untrusted = getattr(config_manager, "untrusted_project_config", None)
+        if untrusted is not None:
+            console.print(
+                f"  [yellow]ignored: {untrusted} (run `joshu trust` to apply it)[/yellow]"
+            )
+        console.print(f"[dim]joshu config --set writes {config_manager.get_config_path()}[/dim]")
         return
 
     if get:
