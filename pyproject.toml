@@ -44,6 +44,14 @@ dev = [
     # Type stubs
     "types-PyYAML==6.0.12.12",
     "types-requests>=2.31.0",
+    # A2A server tests
+    "fastapi>=0.110.0",
+]
+
+# A2A server (joshu serve)
+a2a = [
+    "fastapi>=0.110.0",
+    "uvicorn>=0.29.0",
 ]
 
 # End-user dependencies (all optional features for production use)

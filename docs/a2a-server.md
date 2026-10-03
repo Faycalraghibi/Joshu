@@ -2,39 +2,41 @@
 
 The A2A server provides HTTP-based access to Joshu's agent capabilities, enabling external clients (IDEs, UIs, SDKs) to communicate with the agent via a REST API with Server-Sent Events (SSE) streaming.
 
-> [!NOTE]
-> The A2A server is a **transport + orchestration** layer only. It does not implement agent logic—it connects external clients to the existing Joshu agent components.
+Each task runs Joshu's tool-using agent (the same one as `joshu run`): it reads
+and edits files and runs commands in the task's target directory, streaming
+its progress as events. Tool calls that need approval become confirmation
+requests the client answers.
 
 ## Quick Start
 
 ### Install Dependencies
 
 ```bash
-pip install joshu[a2a]
-# or
-pip install fastapi uvicorn
+pip install -e .[a2a]
 ```
 
 ### Start the Server
 
 ```bash
-# Using the module directly
-python -m joshu.a2a.server --host 127.0.0.1 --port 8080
-
-# Or programmatically
-python -c "from joshu.a2a.server import run_server; run_server()"
+joshu serve                      # http://127.0.0.1:8080, prints the bearer token
+joshu serve --port 9000
+JOSHU_A2A_TOKEN=my-token joshu serve   # use your own token
 ```
+
+Every endpoint except `/health` and the agent card needs
+`Authorization: Bearer <token>`. The model and provider come from your Joshu
+configuration (see [Models & Providers](models-and-providers.md)).
 
 ### Creating Your First Task
 
 ```bash
 # Create a task
 curl -X POST http://localhost:8080/tasks \
-  -H "Content-Type: application/json" \
-  -d '{"message": "List files in current directory"}'
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"message": "List the Python files here", "target_directory": "/path/to/project"}'
 
 # Stream events (replace TASK_ID)
-curl -N http://localhost:8080/tasks/{TASK_ID}/stream
+curl -N -H "Authorization: Bearer $TOKEN" http://localhost:8080/tasks/{TASK_ID}/stream
 ```
 
 ## Architecture Overview
@@ -103,9 +105,21 @@ Content-Type: application/json
     "message": "Initial user message",
     "model": "optional-model-name",
     "target_directory": "/optional/working/dir",
-    "tools_enabled": true
+    "tools_enabled": true,
+    "approval_mode": "safe_only"
 }
 ```
+
+`approval_mode`: `safe_only` (default: edits, commands and other risky tools
+need a confirmation), `accept_edits`, `plan` (read-only) or `bypass`.
+Commands flagged as unsafe always need a confirmation. Confirmation options are
+`proceed_once`, `proceed_session` (stop asking for this tool), `cancel` and
+`cancel_task`.
+
+While a task runs, text the model writes before using a tool is streamed as a
+`thought` event, tool calls as `tool_call` events (status `executing`, then
+`completed` or `failed` with the result), and the final answer as a `message`
+event followed by `complete`.
 
 Response:
 ```json
@@ -396,7 +410,10 @@ with httpx.stream("POST", "http://localhost:8080/executeCommand", json={
 ## Security Considerations
 
 - **Task ID Validation**: Task IDs are validated against `^[a-zA-Z0-9_-]+$` to prevent path traversal
-- **CORS**: Configurable via FastAPI middleware (defaults to allow all for development)
+- **Bearer token**: required on every endpoint except `/health` and the agent card; `joshu serve` generates one unless `JOSHU_A2A_TOKEN` is set
+- **CORS**: off by default, so web pages can't call the server; allow specific origins with `JOSHU_A2A_CORS_ORIGINS` (comma-separated)
+- **Local by default**: `joshu serve` listens on 127.0.0.1; binding elsewhere lets anyone with the token run tasks on this machine
+- **One target directory at a time**: file and shell tools resolve paths from process-wide settings, so run concurrent tasks for different directories in separate servers
 - **No Silent Bypass**: Tool confirmations cannot be bypassed programmatically
 - **Workspace Archives**: Tarball extraction filters out unsafe paths
 

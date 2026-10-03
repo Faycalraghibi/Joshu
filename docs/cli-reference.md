@@ -206,6 +206,19 @@ joshu history --limit 10
 
 ---
 
+### serve
+
+Run the A2A server so other agents and tools can give Joshu tasks over HTTP
+(needs `pip install -e .[a2a]`):
+
+```bash
+joshu serve --port 8080
+```
+
+See [A2A Server](a2a-server.md).
+
+---
+
 ### mcp
 
 Manage MCP servers: `joshu mcp list|add|remove|status|connect|disconnect|discover`.
