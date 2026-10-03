@@ -431,7 +431,8 @@ class CommandHandler:
         usage = agent.usage
         self.interactive_mode._show_message(
             f"Session {agent.session_id} ({getattr(agent.client, 'model', '?')}):\n"
-            f"  input tokens:  {usage['prompt_tokens']:,}\n"
+            f"  input tokens:  {usage['prompt_tokens']:,}"
+            f" ({usage.get('cached_tokens', 0):,} from cache)\n"
             f"  output tokens: {usage['completion_tokens']:,}\n"
             f"  cost:          {format_cost(agent.cost)}"
         )

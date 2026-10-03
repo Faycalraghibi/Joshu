@@ -136,7 +136,11 @@ class Agent:
         self.messages: List[Dict[str, Any]] = [
             {"role": "system", "content": self._build_system_prompt()}
         ]
-        self.usage: Dict[str, int] = {"prompt_tokens": 0, "completion_tokens": 0}
+        self.usage: Dict[str, int] = {
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "cached_tokens": 0,
+        }
         self.cost = CostTracker()
         self._pricing: Dict[str, Any] = config.get("model_pricing") or {}
         self.diagnostics_enabled = bool(config.get("diagnostics_enabled", True))
@@ -183,7 +187,7 @@ class Agent:
         self.session_id = uuid.uuid4().hex[:12]
         self.created_at = datetime.now().isoformat(timespec="seconds")
         self.messages = [{"role": "system", "content": self._build_system_prompt()}]
-        self.usage = {"prompt_tokens": 0, "completion_tokens": 0}
+        self.usage = {"prompt_tokens": 0, "completion_tokens": 0, "cached_tokens": 0}
         self.cost = CostTracker()
         self.checkpoints = CheckpointStore()
         self._pending_notes = []
@@ -441,7 +445,7 @@ class Agent:
             self.events.on_compact(tokens, estimate_tokens(compacted))
 
     def _add_usage(self, usage: Dict[str, int]) -> None:
-        for key in ("prompt_tokens", "completion_tokens"):
+        for key in ("prompt_tokens", "completion_tokens", "cached_tokens"):
             self.usage[key] += usage.get(key, 0)
 
     def _metadata(self, turns: int, tool_calls_before: int, finish_reason: Any) -> Dict[str, Any]:

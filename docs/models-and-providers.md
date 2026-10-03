@@ -79,7 +79,24 @@ providers:
 ```
 
 Settings: `base_url` (required for custom providers), `api_key_env`, `api_key`,
-`headers`, `default_model`, `requires_key`, `description`.
+`headers`, `default_model`, `requires_key`, `description`, `request_options`
+(extra request fields), `cache_control_models` (see Prompt caching).
+
+## Prompt caching
+
+The agent's requests grow by appending to the conversation, so providers that
+cache repeated prompt prefixes make long conversations cheaper and faster:
+
+| Provider | Caching |
+|---|---|
+| OpenAI, DeepSeek | Automatic |
+| OpenRouter, Anthropic models (`anthropic/...`) | Joshu adds cache breakpoints (system prompt and latest message) |
+| Anthropic direct (`anthropic` preset) | Not available through Anthropic's OpenAI-compatible endpoint |
+
+Other models on OpenRouter use whatever caching their provider does
+automatically. A custom provider can ask for breakpoints with
+`cache_control_models: ["*"]` (or a list of model id prefixes). Input tokens
+served from the cache appear in `/cost`.
 
 ## Fallback
 

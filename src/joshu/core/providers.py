@@ -39,6 +39,8 @@ class Provider:
     description: str = ""
     # Extra fields sent with every request (OpenAI SDK extra_body)
     request_options: Dict[str, Any] = field(default_factory=dict)
+    # Model id prefixes ("*" = all) whose requests get prompt-cache breakpoints
+    cache_control_models: List[str] = field(default_factory=list)
 
     def resolve_api_key(self) -> Optional[str]:
         """The API key, from the config value or the environment."""
@@ -62,6 +64,7 @@ BUILTIN_PROVIDERS: Dict[str, Provider] = {
             api_key_env="OPENROUTER_API_KEY",
             headers={"X-Title": "Joshu Assistant"},
             request_options={"usage": {"include": True}},  # cost in every response
+            cache_control_models=["anthropic/"],  # Anthropic needs explicit breakpoints
             default_model="poolside/laguna-s-2.1:free",
             description="Hundreds of models from many vendors behind one key",
         ),
@@ -153,6 +156,7 @@ _PROVIDER_FIELDS = {
     "requires_key",
     "description",
     "request_options",
+    "cache_control_models",
 }
 
 
