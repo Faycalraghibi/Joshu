@@ -88,6 +88,10 @@ class ConsoleAgentUI(AgentEvents):
                 else ""
             )
             self.console.print(f"  [dim]└ {first_line}[/dim]{more}")
+            if "now has problems. Fix them" in output:
+                self.console.print(
+                    "  [yellow]└ problems found after the edit; the agent will fix them[/yellow]"
+                )
         else:
             self.console.print(f"  [red]└ {escape(name)}: {first_line}[/red]")
 
@@ -142,6 +146,8 @@ class ConsoleAgentUI(AgentEvents):
         parts = [f"{meta.get('tool_calls', 0)} tool calls"]
         if tokens:
             parts.append(f"{tokens:,} tokens this session")
+        if meta.get("cost_usd") is not None:
+            parts.append(f"${meta['cost_usd']:.4f}")
         if meta.get("model"):
             parts.append(str(meta["model"]))
         self.console.print(f"[dim]{' · '.join(parts)}[/dim]")
@@ -175,10 +181,12 @@ def _first_line(text: str, limit: int) -> str:
 
 def _json_summary(text: str) -> Optional[str]:
     """Short description of a JSON tool result, e.g. "12 matches" or its error."""
-    if not text.lstrip().startswith("{"):
+    text = text.lstrip()
+    if not text.startswith("{"):
         return None
     try:
-        data = json.loads(text)
+        # Text may follow the JSON object (e.g. diagnostics after an edit)
+        data, _ = json.JSONDecoder().raw_decode(text)
     except ValueError:
         return None
     if not isinstance(data, dict):
@@ -223,10 +231,25 @@ def create_console_agent(
     ui = ConsoleAgentUI(console, quiet=quiet)
     for problem in configure_hooks_from_settings(config.get("hooks") or {}):
         ui.console.print(f"[yellow]Hook configuration: {problem}[/yellow]")
+    from pathlib import Path
+
+    from joshu.core.sandbox import configure_shell_sandbox
+
+    shell_sandbox, sandbox_auto_allow, sandbox_warning = configure_shell_sandbox(
+        config.get("shell_sandbox"), Path.cwd()
+    )
+    if sandbox_warning:
+        ui.console.print(f"[yellow]{sandbox_warning}[/yellow]")
+    elif shell_sandbox is not None and not quiet:
+        ui.console.print(f"[dim]{shell_sandbox.describe()}[/dim]")
+
     if mode is None:
         mode = PermissionMode.from_string(config.get("permission_mode", "default"))
     permissions = PermissionManager(
-        mode, approver=ui.approve if interactive else None, sandbox=sandbox
+        mode,
+        approver=ui.approve if interactive else None,
+        sandbox=sandbox,
+        sandboxed_shell=sandbox_auto_allow,
     )
     agent = Agent(
         permissions=permissions,

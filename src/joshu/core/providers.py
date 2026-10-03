@@ -37,6 +37,8 @@ class Provider:
     default_model: Optional[str] = None
     requires_key: bool = True  # local servers don't need one
     description: str = ""
+    # Extra fields sent with every request (OpenAI SDK extra_body)
+    request_options: Dict[str, Any] = field(default_factory=dict)
 
     def resolve_api_key(self) -> Optional[str]:
         """The API key, from the config value or the environment."""
@@ -59,6 +61,7 @@ BUILTIN_PROVIDERS: Dict[str, Provider] = {
             "https://openrouter.ai/api/v1",
             api_key_env="OPENROUTER_API_KEY",
             headers={"X-Title": "Joshu Assistant"},
+            request_options={"usage": {"include": True}},  # cost in every response
             default_model="poolside/laguna-s-2.1:free",
             description="Hundreds of models from many vendors behind one key",
         ),
@@ -149,6 +152,7 @@ _PROVIDER_FIELDS = {
     "default_model",
     "requires_key",
     "description",
+    "request_options",
 }
 
 

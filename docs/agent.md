@@ -154,6 +154,73 @@ agent's permission gate, so its edits and commands still ask you. Without a
 definitions in the `joshu.agents` format also work (use `model_name: inherit`
 for the main model).
 
+## Checks after edits
+
+After `replace` or `write_file` succeeds, the edited file is checked and any
+problems are added to the tool result, so the agent fixes them in the same
+request:
+
+| Files | Check |
+|---|---|
+| `.py` | Syntax, plus ruff's error rules (undefined names, invalid code; no style) when ruff is installed |
+| `.json`, `.yaml`, `.yml`, `.toml` | Must parse |
+| `.js`, `.mjs`, `.cjs` | `node --check` when node is installed |
+
+Add or replace checks per extension; `{file}` is the edited file and a
+non-zero exit means problems:
+
+```yaml
+diagnostics:
+  .go: go vet {file}
+  .ts: npx tsc --noEmit {file}
+  .py: ""        # turn the built-in Python check off
+```
+
+`diagnostics_enabled: false` turns checking off.
+
+## Shell sandbox
+
+Shell commands the agent runs (and custom-command shell steps) can run in an
+OS-level sandbox: they can write only inside the working directory and temp
+files, with no network unless allowed.
+
+```yaml
+shell_sandbox:
+  mode: auto          # off (default) | auto | bubblewrap | seatbelt | docker
+  network: false
+  image: python:3.12-slim   # docker only
+  auto_allow: true    # sandboxed commands run without asking
+```
+
+| Backend | Platform | Notes |
+|---|---|---|
+| `bubblewrap` | Linux | Needs `bwrap`; on Ubuntu 24.04, unprivileged user namespaces must be allowed |
+| `seatbelt` | macOS | Uses the built-in `sandbox-exec` |
+| `docker` | Any (incl. Windows) | Commands run in a Linux container with the project at `/workspace` |
+
+`auto` picks the first backend that works. With `auto_allow`, sandboxed
+commands skip the approval prompt; commands flagged as unsafe still ask, and
+plan mode still denies the shell. If the requested sandbox isn't available,
+Joshu says so at startup and commands run unsandboxed, needing approval as
+before. With Docker, a command that times out stops waiting but the container
+may keep running until it finishes.
+
+## Cost
+
+Each response's cost is added up for the conversation. OpenRouter reports the
+cost of every request; for other providers, give prices in USD per million
+tokens:
+
+```yaml
+model_pricing:
+  gpt-4.1-mini: {input: 0.40, output: 1.60}
+```
+
+When a request's price is unknown the total is shown as unknown rather than
+undercounted. The cost appears in the footer after each request, as
+`cost_usd` in `--output-format json`, in `/cost`, and in saved sessions;
+sub-agents are included.
+
 ## Configuration
 
 | Key | Default | Meaning |
@@ -169,12 +236,17 @@ for the main model).
 | `fallback_providers` | `[]` | Tried when the provider can't be reached |
 | `save_sessions` | `true` | Save conversations for `--resume` / `--continue` |
 | `hooks` | `{}` | Commands run on agent events (see [Hooks](hooks.md)) |
+| `diagnostics_enabled` | `true` | Check files after edits |
+| `diagnostics` | `{}` | Per-extension check commands |
+| `shell_sandbox` | `{mode: off}` | OS sandbox for shell commands |
+| `model_pricing` | `{}` | USD per million tokens, for providers that don't report cost |
 
 ## Interactive commands
 
 - `/agent`, `/plan`, `/ask`: switch mode (`ask` answers without tools)
 - `/permissions [mode]`: show or set the permission mode
 - `/undo`: revert the agent's file edits from its last request
+- `/cost`: tokens and cost of the conversation
 - `/resume [id]`: list saved sessions, or continue one
 - `/commands`, `/agents`: list custom commands and sub-agents
 - `/reset`: start a new agent conversation

@@ -96,6 +96,12 @@ def environment_block(cwd: Path) -> str:
         f"- Date: {date.today().isoformat()}",
     ]
 
+    from joshu.tools.shell_tool import get_shell_config
+
+    sandbox = get_shell_config().sandbox
+    if sandbox is not None:
+        lines.append(f"- Sandbox: {sandbox.describe()}")
+
     branch = _git_branch(cwd)
     if branch is not None:
         lines.append(f"- Git repository: yes (branch: {branch or 'detached'})")
