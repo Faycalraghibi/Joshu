@@ -11,8 +11,8 @@
 ### 1. Clone Repository
 
 ```bash
-git clone https://github.com/Faycacalraghibi/Joshu.git
-cd Joshu
+git clone https://github.com/Faycalraghibi/OpenCLI.git joshu
+cd joshu
 ```
 
 ### 2. Create Virtual Environment (Recommended)
@@ -56,26 +56,18 @@ See [A2A Server Documentation](a2a-server.md) for usage.
 Enables semantic search of past conversations using ChromaDB:
 
 ```bash
-pip install -e .[semantic]
+pip install -e .[use]
 ```
 
 Includes:
 - `chromadb>=0.4.0` — Vector database
 - `sentence-transformers>=2.2.0` — Text embeddings
 
-### Local LLM Support
+### Local Models
 
-Enables running local models (Llama, Mistral, etc.):
-
-```bash
-pip install -e .[llm]
-```
-
-Includes:
-- `transformers>=4.36.2`
-- `torch>=2.9.0`
-- `llama-cpp-python>=0.2.55`
-- `sentencepiece>=0.1.99`
+No extra packages are needed: run a local OpenAI-compatible server such as
+Ollama or LM Studio and select it with `--provider ollama` or
+`--provider lmstudio`. See [Models & Providers](models-and-providers.md).
 
 ### Development Tools
 
@@ -95,7 +87,7 @@ Includes:
 Install everything:
 
 ```bash
-pip install -e .[dev,llm,semantic,a2a]
+pip install -e .[dev,use]
 ```
 
 ## Automated Installation Scripts

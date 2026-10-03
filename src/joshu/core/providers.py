@@ -22,7 +22,7 @@ import os
 from dataclasses import dataclass, field, replace
 from typing import Any, Dict, List, Optional
 
-AUTO_PROVIDER = "auto"
+DEFAULT_PROVIDER = "openrouter"
 
 
 @dataclass(frozen=True)

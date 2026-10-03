@@ -211,34 +211,19 @@ del /s C:\Program Files # HIGH
 
 ## Configuration
 
-### Enable/Disable Safety
+### Sandbox Mode
 
 ```yaml
-# ~/.joshu/config.yaml
-safety_mode: true      # Enable safety checks
-sandbox_enabled: false # Disable sandbox mode
+# config/config.yaml
+sandbox_enabled: true  # flag every destructive command, not just dangerous patterns
 ```
 
-### Safety in Auto-Fix
+### Safety in the Agent
 
-Auto-fix respects safety settings:
-
-```python
-from joshu.core.auto_fix import analyze_error_and_generate_fix
-from joshu.core.safety import assess_command_safety
-
-# Generate fix
-fix = analyze_error_and_generate_fix(...)
-
-if fix:
-    # Safety check before execution
-    safety = assess_command_safety(fix.command,
-                                   sandbox_mode=config.get("sandbox_enabled"))
-
-    if not safety.safe:
-        print(f"Unsafe fix rejected: {safety.reasons}")
-        fix = None
-```
+Every `run_shell_command` call the agent makes is checked with
+`assess_command_safety` before it runs. A command flagged as unsafe always
+needs an explicit "yes" from the user, in every permission mode including
+`bypass`, and is denied in headless runs. See [Agent](agent.md#permissions).
 
 ## Suggested Alternatives
 
@@ -350,6 +335,5 @@ exit_code, stdout, stderr = run_command("rm file.txt")
 
 ## Related Documentation
 
-- [Auto-Fix](auto-fix.md) - Auto-fix uses safety validation
 - [Configuration](configuration.md) - Safety configuration options
 - [Testing Guide](testing-guide.md) - Testing safety features

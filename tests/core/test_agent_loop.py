@@ -15,8 +15,6 @@ from joshu.core.llm_client import (
     LLMError,
     OpenAIChatClient,
     ToolCall,
-    _with_v1,
-    create_chat_client,
 )
 from joshu.core.permissions import (
     ApprovalChoice,
@@ -391,29 +389,6 @@ def test_permission_mode_from_string():
 # --------------------------------------------------------------- llm client
 
 
-def test_with_v1_normalizes_urls():
-    assert _with_v1("http://localhost:1234") == "http://localhost:1234/v1"
-    assert _with_v1("http://localhost:1234/v1/") == "http://localhost:1234/v1"
-    assert _with_v1("http://h:8000/v1/chat/completions") == "http://h:8000/v1"
-
-
-def test_create_chat_client_without_endpoint_raises(monkeypatch):
-    for var in [
-        "VLLM_SERVER_URL",
-        "LOCAL_MODEL_URL",
-        "OPENROUTER_API_KEY",
-        "DEEPSEEK_API_KEY",
-        "TONGYI_API_KEY",
-        "QWEN_API_KEY",
-        "KIMI_DEV_API_KEY",
-        "AGENTICAT_API_KEY",
-        "GLM_API_KEY",
-    ]:
-        monkeypatch.delenv(var, raising=False)
-    with pytest.raises(LLMError, match="No model endpoint configured"):
-        create_chat_client("z-ai/glm-4.5-air:free")
-
-
 def test_streaming_accumulates_text_and_tool_call_fragments():
     def chunk(content=None, tool_calls=None, finish=None, usage=None):
         choices = (
@@ -571,20 +546,6 @@ def test_fallback_does_not_hide_request_errors():
     with pytest.raises(LLMError, match="invalid key"):
         FallbackChatClient([bad, live]).complete([])
     assert live.calls == 0
-
-
-def test_requested_cloud_model_endpoint_comes_first(monkeypatch):
-    from joshu.core.llm_client import FallbackChatClient
-
-    monkeypatch.setenv("VLLM_SERVER_URL", "http://vllm.example:8000")
-    monkeypatch.setenv("VLLM_MODEL", "qwen/qwen3-8b")
-    monkeypatch.delenv("LOCAL_MODEL_URL", raising=False)
-    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
-
-    client = create_chat_client("z-ai/glm-4.5-air:free")
-
-    assert isinstance(client, FallbackChatClient)
-    assert [c.model for c in client.clients] == ["z-ai/glm-4.5-air:free", "qwen/qwen3-8b"]
 
 
 def test_tool_result_summaries():

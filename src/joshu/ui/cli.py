@@ -8,18 +8,12 @@ from typing import Optional
 import typer
 from rich.console import Console
 
-from joshu.core.translate import translate_to_command
-
 # Import modular handlers
-from .cli_handlers.code_handlers import handle_code_command
 from .cli_handlers.commands import (
     handle_commands_list,
     handle_config,
     handle_examples,
-    handle_explain,
-    handle_explain_last,
     handle_history,
-    handle_repeat_last,
 )
 from .cli_handlers.init import initialize_context, setup_logging
 from .cli_handlers.mcp_handler import (
@@ -32,17 +26,8 @@ from .cli_handlers.mcp_handler import (
     mcp_status,
 )
 from .cli_handlers.search_handler import handle_search_command
-from .cli_handlers.translation_helpers import handle_translation_execution
 from .display import print_banner
-
-# Import interactive mode
-try:
-    from .interactive import start_interactive_mode
-
-    PROMPT_TOOLKIT_AVAILABLE = True
-except ImportError:
-    start_interactive_mode = None
-    PROMPT_TOOLKIT_AVAILABLE = False
+from .interactive import start_interactive_mode
 
 # Initialize app and console
 app = typer.Typer(no_args_is_help=True)
@@ -144,35 +129,6 @@ def execute_agent_prompt(
     return 0
 
 
-def execute_prompt(prompt: str) -> None:
-    """Execute a prompt directly."""
-    global _current_model, context_provider
-
-    from joshu.core.config import get_config_manager
-
-    config_manager = get_config_manager()
-
-    model = config_manager.get("model", "llama-3-8b")
-    sandbox = config_manager.get("sandbox_enabled", True)
-    auto_execute = config_manager.get("auto_execute", False)
-
-    console.print(f"[bold]Prompt:[/bold] {prompt}")
-
-    translation = translate_to_command(prompt, context_provider, model)
-
-    if not translation:
-        console.print("[yellow]No translation found. Try rephrasing.[/yellow]")
-        raise typer.Exit(code=2)
-
-    console.print(f"[bold]Proposed command:[/bold] [cyan]{translation.command}[/cyan]")
-    console.print(f"[dim]{translation.explanation}[/dim]\n")
-
-    exit_code = handle_translation_execution(
-        translation, prompt, sandbox, auto_execute, context_provider
-    )
-    raise typer.Exit(code=exit_code)
-
-
 @app.command()
 def config(
     list_config: bool = typer.Option(False, "--list", "-l", help="List all configuration options."),
@@ -228,7 +184,7 @@ def providers() -> None:
     from rich.table import Table
 
     from joshu.core.config import get_config_manager
-    from joshu.core.providers import AUTO_PROVIDER, ProviderError, get_providers
+    from joshu.core.providers import DEFAULT_PROVIDER, ProviderError, get_providers
 
     config_manager = get_config_manager()
     try:
@@ -237,7 +193,7 @@ def providers() -> None:
         console.print(f"[red]Invalid provider configuration: {e}[/red]")
         raise typer.Exit(code=2)
 
-    active = config_manager.get("provider", AUTO_PROVIDER)
+    active = config_manager.get("provider") or DEFAULT_PROVIDER
     table = Table(title="Model providers")
     table.add_column("Provider")
     table.add_column("API key")
@@ -255,11 +211,6 @@ def providers() -> None:
         table.add_row(label, key, p.base_url, p.default_model or "-")
 
     console.print(table)
-    if active == AUTO_PROVIDER:
-        console.print(
-            "[dim]provider: auto - endpoints are detected from VLLM_SERVER_URL, "
-            "LOCAL_MODEL_URL and OpenRouter keys.[/dim]"
-        )
     console.print(
         "[dim]Use one: joshu config --set provider=<name> (and model=<id>), "
         "or --provider on run/interactive. Add others under `providers:` in config.yaml.[/dim]"
@@ -285,6 +236,13 @@ def interactive(
     ),
 ) -> None:
     """Start interactive chat mode directly."""
+    _start_interactive(model, sandbox, verbose, provider)
+
+
+def _start_interactive(
+    model: Optional[str], sandbox: Optional[bool], verbose: bool, provider: Optional[str]
+) -> None:
+    """Start the interactive REPL with CLI overrides applied."""
     global _current_model
 
     from joshu.core.config import get_config_manager
@@ -294,33 +252,14 @@ def interactive(
     if provider:
         model = _use_provider(provider, model)
     if model is None:
-        model = config_manager.get("model", "llama-3-8b")
+        model = config_manager.get("model")
     _current_model = model
 
     if sandbox is None:
         sandbox = config_manager.get("sandbox_enabled", True)
 
     setup_logging(verbose)
-
-    if start_interactive_mode:
-        try:
-            start_interactive_mode(model, sandbox, verbose=verbose)
-        except ImportError:
-            # Fallback to basic mode
-            from joshu.core.config import get_config_manager
-
-            from .cli_handlers.basic_interactive import start_basic_interactive_mode
-
-            config_manager = get_config_manager()
-            start_basic_interactive_mode(model, sandbox, config_manager, context_provider)
-    else:
-        # Fallback to basic mode
-        from joshu.core.config import get_config_manager
-
-        from .cli_handlers.basic_interactive import start_basic_interactive_mode
-
-        config_manager = get_config_manager()
-        start_basic_interactive_mode(model, sandbox, config_manager, context_provider)
+    start_interactive_mode(model, sandbox, verbose=verbose)
 
 
 @app.command()
@@ -359,9 +298,6 @@ def run(
     output_format: str = typer.Option(
         "text", "--output-format", help="Output format: text or json (implies --print)."
     ),
-    legacy: bool = typer.Option(
-        False, "--legacy", help="Translate the prompt into a single shell command instead."
-    ),
     provider: Optional[str] = typer.Option(
         None,
         "--provider",
@@ -369,47 +305,14 @@ def run(
     ),
 ) -> None:
     """Run a task with the agent, or start interactive mode."""
-    global _current_model
-
     if interactive:
-        from joshu.core.config import get_config_manager
-
-        config_manager = get_config_manager()
-
-        if provider:
-            model = _use_provider(provider, model)
-        if model is None:
-            model = config_manager.get("model", "llama-3-8b")
-        _current_model = model
-
-        if sandbox is None:
-            sandbox = config_manager.get("sandbox_enabled", True)
-
-        setup_logging(verbose)
-
-        if start_interactive_mode:
-            try:
-                start_interactive_mode(model, sandbox, verbose=verbose)
-            except ImportError:
-                # Fallback to basic mode
-                from .cli_handlers.basic_interactive import start_basic_interactive_mode
-
-                start_basic_interactive_mode(model, sandbox, config_manager, context_provider)
-        else:
-            # Fallback to basic mode
-            from .cli_handlers.basic_interactive import start_basic_interactive_mode
-
-            start_basic_interactive_mode(model, sandbox, config_manager, context_provider)
+        _start_interactive(model, sandbox, verbose, provider)
         return
 
     if not prompt:
         console.print("[red]Error: Prompt is required for non-interactive mode.[/red]")
         console.print("[dim]Use --interactive or -i for interactive mode without a prompt.[/dim]")
         raise typer.Exit(code=1)
-
-    if legacy:
-        execute_prompt(prompt)
-        return
 
     if output_format not in ("text", "json"):
         console.print(f"[red]Unknown output format '{output_format}'. Use text or json.[/red]")
@@ -446,20 +349,6 @@ def history(
 
 
 @app.command()
-def repeat_last() -> None:
-    """Repeat the last executed command."""
-    global context_provider
-    handle_repeat_last(context_provider)
-
-
-@app.command()
-def explain_last() -> None:
-    """Explain the last executed command."""
-    global context_provider
-    handle_explain_last(context_provider)
-
-
-@app.command()
 def examples() -> None:
     """Show usage examples for Joshu."""
     handle_examples()
@@ -477,23 +366,19 @@ def commands(
 
 @app.command()
 def explain(command: str = typer.Argument(..., help="Command or topic to explain")) -> None:
-    """Explain a specific command or topic."""
-    global context_provider
-    handle_explain(command, context_provider)
+    """Explain a command or topic (read-only: nothing is run or changed)."""
+    from joshu.core.config import get_config_manager
 
-
-@app.command()
-def code(
-    prompt: str = typer.Argument(..., help="Code generation or editing prompt"),
-    file: Optional[str] = typer.Option(None, "--file", "-f", help="File to edit or create"),
-    language: Optional[str] = typer.Option(None, "--language", "-l", help="Programming language"),
-    dry_run: bool = typer.Option(
-        False, "--dry-run", "-d", help="Show what would be done without making changes"
-    ),
-) -> None:
-    """Generate, edit, explain, debug, or refactor code based on natural language prompts."""
-    console.print(f"[bold]Code Assistant:[/bold] {prompt}")
-    handle_code_command(prompt, file, language, dry_run)
+    exit_code = execute_agent_prompt(
+        "Explain this command or topic clearly and concisely. If it is a shell command, "
+        f"say what each part does and any risks: {command}",
+        model=None,
+        permission_mode="plan",
+        headless=False,
+        output_format="text",
+        sandbox=get_config_manager().get("sandbox_enabled", True),
+    )
+    raise typer.Exit(code=exit_code)
 
 
 @app.command()
@@ -505,73 +390,6 @@ def search(
 ) -> None:
     """Search the web for information."""
     handle_search_command(query, max_results)
-
-
-@app.command()
-def cache_stats() -> None:
-    """Show translation cache statistics."""
-    from joshu.core.config import get_config_manager
-    from joshu.core.translation_cache import TranslationCache
-
-    try:
-        config_manager = get_config_manager()
-
-        if not config_manager.get("cache_enabled", True):
-            console.print("[yellow]Translation cache is disabled in configuration.[/yellow]")
-            console.print("Enable it with: [cyan]joshu config --set cache_enabled=true[/cyan]")
-            return
-
-        cache_dir = config_manager.get("cache_dir", "./cache")
-        similarity_threshold = config_manager.get("cache_similarity_threshold", 0.85)
-        max_entries = config_manager.get("cache_max_entries", 1000)
-
-        cache = TranslationCache(
-            cache_dir=cache_dir, similarity_threshold=similarity_threshold, max_entries=max_entries
-        )
-
-        stats = cache.get_stats()
-
-        console.print("\n[bold cyan]Translation Cache Statistics:[/bold cyan]")
-        console.print(f"  Total entries: [green]{stats['total_entries']}[/green] / {max_entries}")
-        console.print(f"  Total cache hits: [green]{stats['total_hits']}[/green]")
-        console.print(f"  Cache file size: [green]{stats['cache_file_size']:,}[/green] bytes")
-        console.print(f"  Similarity threshold: [green]{similarity_threshold}[/green]")
-        console.print(f"  Cache location: [cyan]{cache.cache_file}[/cyan]")
-
-        if stats["total_entries"] > 0:
-            hit_rate = (
-                (stats["total_hits"] / stats["total_entries"]) * 100
-                if stats["total_entries"] > 0
-                else 0
-            )
-            console.print(f"  Average hits per entry: [green]{hit_rate:.1f}%[/green]")
-        console.print()
-
-    except Exception as e:
-        console.print(f"[red]Error getting cache statistics: {e}[/red]")
-
-
-@app.command()
-def cache_clear() -> None:
-    """Clear the translation cache."""
-    from joshu.core.config import get_config_manager
-    from joshu.core.translation_cache import TranslationCache
-
-    try:
-        config_manager = get_config_manager()
-        cache_dir = config_manager.get("cache_dir", "./cache")
-        similarity_threshold = config_manager.get("cache_similarity_threshold", 0.85)
-        max_entries = config_manager.get("cache_max_entries", 1000)
-
-        cache = TranslationCache(
-            cache_dir=cache_dir, similarity_threshold=similarity_threshold, max_entries=max_entries
-        )
-
-        cache.clear()
-        console.print("[green]✓[/green] Translation cache cleared successfully.")
-
-    except Exception as e:
-        console.print(f"[red]Error clearing cache: {e}[/red]")
 
 
 # MCP Subcommands
@@ -666,15 +484,10 @@ def main() -> None:
             "config",
             "run",
             "history",
-            "repeat-last",
-            "explain-last",
             "examples",
             "commands",
             "explain",
-            "code",
             "search",
-            "cache-stats",
-            "cache-clear",
             "interactive",
             "mcp",
             "providers",

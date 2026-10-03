@@ -31,9 +31,9 @@ class TestConfig(unittest.TestCase):
     def test_config_creation(self):
         """Test creating JoshuConfig with default values."""
         config = JoshuConfig()
-        self.assertEqual(config.model, "llama-3-8b")
-        self.assertEqual(config.safety_mode, True)
-        self.assertEqual(config.auto_execute, False)
+        self.assertEqual(config.model, "poolside/laguna-s-2.1:free")
+        self.assertEqual(config.sandbox_enabled, True)
+        self.assertEqual(config.vim_mode, False)
         self.assertEqual(config.max_tokens, 4096)
         self.assertEqual(config.temperature, 0.1)
 
@@ -41,15 +41,15 @@ class TestConfig(unittest.TestCase):
         """Test creating JoshuConfig from dictionary."""
         config_dict = {
             "model": "llama-3-70b",
-            "safety_mode": False,
-            "auto_execute": True,
+            "sandbox_enabled": False,
+            "vim_mode": True,
             "max_tokens": 2048,
             "temperature": 0.5,
         }
         config = JoshuConfig.from_dict(config_dict)
         self.assertEqual(config.model, "llama-3-70b")
-        self.assertEqual(config.safety_mode, False)
-        self.assertEqual(config.auto_execute, True)
+        self.assertEqual(config.sandbox_enabled, False)
+        self.assertEqual(config.vim_mode, True)
         self.assertEqual(config.max_tokens, 2048)
         self.assertEqual(config.temperature, 0.5)
 
@@ -62,30 +62,30 @@ class TestConfig(unittest.TestCase):
         config = JoshuConfig.from_dict(config_dict)
         self.assertEqual(config.model, "test-model")
         # Other values should be defaults
-        self.assertEqual(config.safety_mode, True)
-        self.assertEqual(config.auto_execute, False)
+        self.assertEqual(config.sandbox_enabled, True)
+        self.assertEqual(config.vim_mode, False)
 
     def test_config_to_dict(self):
         """Test converting JoshuConfig to dictionary."""
-        config = JoshuConfig(model="test-model", auto_execute=True)
+        config = JoshuConfig(model="test-model", vim_mode=True)
         config_dict = config.to_dict()
         self.assertEqual(config_dict["model"], "test-model")
-        self.assertEqual(config_dict["auto_execute"], True)
-        self.assertEqual(config_dict["safety_mode"], True)
+        self.assertEqual(config_dict["vim_mode"], True)
+        self.assertEqual(config_dict["sandbox_enabled"], True)
 
     def test_config_manager_creation(self):
         """Test creating ConfigManager."""
         config_manager = ConfigManager(str(self.test_config_path))
         self.assertEqual(config_manager.config_path, self.test_config_path)
         # Should have default config
-        self.assertEqual(config_manager.config.model, "llama-3-8b")
+        self.assertEqual(config_manager.config.model, "poolside/laguna-s-2.1:free")
 
     def test_config_manager_save_and_load(self):
         """Test saving and loading configuration."""
         # Create config manager and modify config
         config_manager = ConfigManager(str(self.test_config_path))
         config_manager.config.model = "test-model"
-        config_manager.config.auto_execute = True
+        config_manager.config.vim_mode = True
 
         # Save config
         self.assertTrue(config_manager.save_config())
@@ -96,14 +96,14 @@ class TestConfig(unittest.TestCase):
         # Create new config manager to load config
         new_config_manager = ConfigManager(str(self.test_config_path))
         self.assertEqual(new_config_manager.config.model, "test-model")
-        self.assertEqual(new_config_manager.config.auto_execute, True)
+        self.assertEqual(new_config_manager.config.vim_mode, True)
 
     def test_config_manager_get_set(self):
         """Test getting and setting configuration values."""
         config_manager = ConfigManager(str(self.test_config_path))
 
         # Test get
-        self.assertEqual(config_manager.get("model"), "llama-3-8b")
+        self.assertEqual(config_manager.get("model"), "poolside/laguna-s-2.1:free")
         self.assertEqual(config_manager.get("nonexistent", "default"), "default")
 
         # Test set
@@ -134,9 +134,6 @@ class TestConfig(unittest.TestCase):
         self.assertTrue(config_manager.set("temperature", 1))
         self.assertEqual(config_manager.get("temperature"), 1.0)
 
-        # Optional fields accept None
-        self.assertTrue(config_manager.set("auto_fix_require_approval", None))
-
     def test_load_config_replaces_invalid_values_with_defaults(self):
         """Test that invalid values in the config file fall back to defaults."""
         with open(self.test_config_path, "w") as f:
@@ -150,14 +147,14 @@ class TestConfig(unittest.TestCase):
         """Test resetting configuration to defaults."""
         config_manager = ConfigManager(str(self.test_config_path))
         config_manager.config.model = "test-model"
-        config_manager.config.auto_execute = True
+        config_manager.config.vim_mode = True
 
         # Reset to defaults
         config_manager.reset_to_defaults()
 
         # Should be back to defaults
-        self.assertEqual(config_manager.config.model, "llama-3-8b")
-        self.assertEqual(config_manager.config.auto_execute, False)
+        self.assertEqual(config_manager.config.model, "poolside/laguna-s-2.1:free")
+        self.assertEqual(config_manager.config.vim_mode, False)
 
     def test_get_config_manager_singleton(self):
         """Test that get_config_manager returns singleton instance."""
@@ -179,8 +176,8 @@ class TestConfig(unittest.TestCase):
         # Check that output contains expected configuration keys
         self.assertIn("Current Configuration:", output)
         self.assertIn("model:", output)
-        self.assertIn("safety_mode:", output)
-        self.assertIn("auto_execute:", output)
+        self.assertIn("sandbox_enabled:", output)
+        self.assertIn("vim_mode:", output)
 
     def test_config_get_command(self):
         """Test the config --get command."""
@@ -343,24 +340,27 @@ class TestConfig(unittest.TestCase):
                 stdout = io.StringIO()
                 with patch("sys.stdout", stdout), patch("sys.stderr", self.stderr):
                     try:
-                        app(["config", "--set", f"safety_mode={input_val}"], standalone_mode=False)
+                        app(
+                            ["config", "--set", f"sandbox_enabled={input_val}"],
+                            standalone_mode=False,
+                        )
                     except SystemExit:
                         pass  # Typer raises SystemExit, which is expected
 
                 output = stdout.getvalue()
                 # Check that output confirms the setting
-                self.assertIn(f"Set safety_mode = {expected}", output)
+                self.assertIn(f"Set sandbox_enabled = {expected}", output)
 
                 # Verify the value was actually set by getting it
                 stdout_get = io.StringIO()
                 with patch("sys.stdout", stdout_get), patch("sys.stderr", self.stderr):
                     try:
-                        app(["config", "--get", "safety_mode"], standalone_mode=False)
+                        app(["config", "--get", "sandbox_enabled"], standalone_mode=False)
                     except SystemExit:
                         pass  # Typer raises SystemExit, which is expected
 
                 output_get = stdout_get.getvalue()
-                self.assertIn(f"safety_mode: {expected}", output_get)
+                self.assertIn(f"sandbox_enabled: {expected}", output_get)
 
     def test_config_set_numeric_values(self):
         """Test the config --set command with numeric values."""

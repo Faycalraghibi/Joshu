@@ -84,41 +84,12 @@ Backups: joshu "create backup"
 
 ### explain
 
-Get explanation of what a shell command does:
+Explain a shell command or topic. Runs the agent in read-only (plan) mode, so
+it may read files to answer but never runs or changes anything:
 
 ```bash
-joshu explain <command>
-```
-
-**Examples**:
-
-```bash
-# Explain tar command
-$ joshu explain tar
-Explanation of 'tar':
-The tar command is used to create and manipulate tar archives.
-It can compress/extract files and preserve permissions.
-
-Common usage:
-  tar -czf archive.tar.gz directory/  # Create compressed archive
-  tar -xzf archive.tar.gz              # Extract archive
-  tar -tzf archive.tar.gz              # List contents
-
-# Explain ls
-$ joshu explain ls
-Explanation of 'ls':
-Lists directory contents. Common flags:
-  -l  Long format (detailed info)
-  -a  Show hidden files
-  -h  Human-readable sizes
-  -t  Sort by modification time
-```
-
-For unknown commands:
-```bash
-$ joshu explain unknowncommand
-No specific explanation available for 'unknowncommand'.
-Try asking about common commands like ls, cd, grep, etc.
+joshu explain "tar -czf backup.tar.gz src/"
+joshu explain "what does git rebase --onto do"
 ```
 
 ---
@@ -129,28 +100,33 @@ Show general Joshu help:
 
 ```bash
 joshu --help
+joshu run --help
 ```
-
-Lists all available commands and options.
 
 ## Main Commands
 
-### run (default)
+### run
 
-Execute natural language command:
+Give the agent a task. It reads, searches, edits and runs commands until the
+task is done, asking before edits and shell commands:
 
 ```bash
-joshu "your natural language request"
-
-# Examples
-joshu "list all Python files"
-joshu "show disk usage"
-joshu "compress directory"
+joshu run "add type hints to src/utils.py and run the tests"
+joshu "list the largest files in this repo"     # same as `joshu run`
 ```
 
 **Options**:
-- `-y, --yes` - Auto-execute without confirmation
-- `--sandbox` - Run in sandbox mode (safe commands only)
+- `--provider <name>` - Model provider for this run (see `joshu providers`)
+- `-m, --model <id>` - Model id
+- `--permission-mode <mode>` - `default`, `accept_edits`, `plan` (read-only) or `bypass`
+- `-y, --yes` - Bypass mode: run tools without asking (unsafe commands still ask)
+- `-p, --print` - Headless: print only the final answer
+- `--output-format json` - Print one JSON object (implies `--print`)
+- `-s, --sandbox` - Stricter shell safety check
+- `-i, --interactive` - Start interactive mode instead
+- `-v, --verbose` - Debug logging
+
+See [Agent](agent.md) for permissions and tools.
 
 ---
 
@@ -160,15 +136,36 @@ Start interactive mode:
 
 ```bash
 joshu interactive
+joshu interactive --provider ollama --model qwen3-coder
 ```
 
-Starts a persistent session with:
-- Conversation history
-- Context awareness
-- Slash commands
-- Tab completion
+Starts a persistent session with conversation history, slash commands
+(`/agent`, `/plan`, `/ask`, `/permissions`, `/reset`, ...) and tab completion.
+See [Interactive Mode](interactive-mode.md).
 
-See [Interactive Mode](interactive-mode.md) for details.
+---
+
+### providers
+
+List model providers, their API key variable and whether it is set:
+
+```bash
+joshu providers
+```
+
+See [Models & Providers](models-and-providers.md).
+
+---
+
+### config
+
+```bash
+joshu config --list
+joshu config --set provider=openai
+joshu config --set model=<model-id>
+```
+
+See [Configuration](configuration.md).
 
 ---
 
@@ -177,110 +174,55 @@ See [Interactive Mode](interactive-mode.md) for details.
 Search the web:
 
 ```bash
-joshu search "your query"
-
-# Examples
 joshu search "Python async best practices"
-joshu search "how to install Docker"
 ```
 
-See [Web Search](web-search.md) for details.
+See [Web Search](web-search.md).
 
 ---
 
 ### history
 
-Show command history:
+Show your previous requests:
 
 ```bash
-# Show all history
 joshu history
-
-# Show last N commands
 joshu history --limit 10
 ```
 
 ---
 
-### repeat-last
+### mcp
 
-Repeat the last command:
-
-```bash
-joshu repeat-last
-```
-
----
-
-### explain-last
-
-Show explanation of the last command:
-
-```bash
-joshu explain-last
-```
-
-## Global Options
-
-These work with any command:
-
-```bash
---verbose          # Show detailed output
---quiet            # Minimal output
---model <name>     # Use specific model
---config <path>    # Use custom config file
-```
+Manage MCP servers: `joshu mcp list|add|remove|status|connect|disconnect|discover`.
+See [MCP Servers](mcp-servers.md).
 
 ## Usage Patterns
 
-### Quick One-Shot Commands
+### Scripts and CI
 
 ```bash
-joshu "show system info" -y
+joshu run -p --permission-mode plan "summarize the changes in the last commit"
+joshu run --output-format json "list TODO comments in src/" | jq -r .result
 ```
 
 ### Explore Available Commands
 
 ```bash
-# See what's possible
 joshu examples
-
-# Browse by category
-joshu commands
-
-# Look up specific commands
 joshu commands file
-```
-
-### Get Help with Shell Commands
-
-```bash
-# Before using unfamiliar command
-joshu explain tar
-
-# After failed command
-joshu explain-last
-```
-
-### Repeat Previous Work
-
-```bash
-# Run last command again
-joshu repeat-last
-
-# See what last command did
-joshu explain-last
 ```
 
 ## Tips
 
-1. **Start with examples**: Run `joshu examples` to see what's possible
-2. **Browse commands by category**: Use `joshu commands <category>`
-3. **Explain before executing**: Use `joshu explain <cmd>` for unfamiliar commands
-4. **Use -y for automation**: Add `-y` flag to skip confirmations
+1. **Start in plan mode** for unfamiliar repos: `/plan` or `--permission-mode plan`
+2. **Use "always"** at an approval prompt to stop being asked for a tool this session
+3. **Explain before executing**: `joshu explain "<command>"`
+4. **Pick a provider** with `joshu providers`; any OpenAI-compatible endpoint works
 
 ## Related Documentation
 
 - [Quick Start](quick-start.md) - Getting started guide
+- [Agent](agent.md) - Permissions, tools and headless mode
 - [Interactive Mode](interactive-mode.md) - Interactive session features
 - [Configuration](configuration.md) - Configure Joshu behavior

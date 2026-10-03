@@ -588,7 +588,7 @@ Current Mode: PLAN
         """Handle model switching commands."""
         parts = command.split()
         if len(parts) == 1:
-            current_model = self.config_manager.get("model", "llama-3-8b")
+            current_model = self.config_manager.get("model")
             self.interactive_mode._show_message(f"Current model: {current_model}")
         elif len(parts) == 2:
             model = parts[1]

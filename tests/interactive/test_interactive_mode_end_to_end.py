@@ -11,12 +11,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 def test_interactive_mode_can_be_imported():
     """Test that the interactive mode components can be imported."""
     try:
-        from joshu.ui.cli import PROMPT_TOOLKIT_AVAILABLE
         from joshu.ui.interactive import InteractiveMode
 
         assert InteractiveMode is not None
         # PROMPT_TOOLKIT_AVAILABLE should be True in the test environment
-        assert PROMPT_TOOLKIT_AVAILABLE is True
     except ImportError:
         pytest.fail("Failed to import interactive mode")
 

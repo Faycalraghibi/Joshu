@@ -1,4 +1,4 @@
-"""Tests for interactive mode handlers (ask, plan, agent)."""
+"""Tests for interactive ask mode."""
 
 import tempfile
 from pathlib import Path
@@ -7,118 +7,68 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from joshu.core.context_provider import ContextProvider
+from joshu.core.llm_client import AssistantTurn, LLMError
 from joshu.core.storage import JsonFileStorage
-from joshu.ui.interactive.modes import AskModeHandler, PlanModeHandler
+from joshu.ui.interactive.modes import AskModeHandler
+
+
+class FakeClient:
+    model = "fake"
+
+    def __init__(self, answer):
+        self.answer = answer
+        self.requests = []
+
+    def complete(self, messages, tools=None, **kwargs):
+        self.requests.append((messages, tools))
+        return AssistantTurn(content=self.answer)
 
 
 @pytest.fixture
-def mock_interactive_mode():
-    """Create a mocked InteractiveMode instance for testing."""
+def mode():
+    """A mocked InteractiveMode with a real context provider."""
     with tempfile.TemporaryDirectory() as tmpdir:
         storage = JsonFileStorage(Path(tmpdir) / "test_data.json")
-        context_provider = ContextProvider(storage_backend=storage)
-
-        mode = MagicMock()
-        mode.context_provider = context_provider
-        mode.model = "test-model"
-        mode.sandbox = False
-        mode._show_message = MagicMock()
-
-        yield mode
+        interactive = MagicMock()
+        interactive.context_provider = ContextProvider(storage_backend=storage)
+        interactive.model = "test-model"
+        interactive._show_message = MagicMock()
+        yield interactive
 
 
-def test_ask_mode_handler():
-    """Test AskModeHandler processes queries correctly."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        storage = JsonFileStorage(Path(tmpdir) / "test_data.json")
-        context_provider = ContextProvider(storage_backend=storage)
+def shown(mode):
+    return " ".join(str(c.args[0]) for c in mode._show_message.call_args_list)
 
-        mode = MagicMock()
-        mode.context_provider = context_provider
-        mode.model = "test-model"
-        mode._show_message = MagicMock()
 
+def test_ask_mode_answers_with_configured_provider(mode):
+    client = FakeClient("Python is a programming language.")
+
+    with patch("joshu.core.llm_client.create_chat_client", return_value=client) as create:
+        AskModeHandler(mode).handle("What is Python?")
+
+    create.assert_called_once_with("test-model")
+    messages, tools = client.requests[0]
+    assert tools is None
+    assert messages[0]["role"] == "system"
+    assert messages[-1] == {"role": "user", "content": "What is Python?"}
+    assert "Python is a programming language." in shown(mode)
+
+
+def test_ask_mode_reuses_client_across_questions(mode):
+    client = FakeClient("ok")
+
+    with patch("joshu.core.llm_client.create_chat_client", return_value=client) as create:
         handler = AskModeHandler(mode)
+        handler.handle("one")
+        handler.handle("two")
 
-        # Mock LLM response
-        with patch("joshu.models.openrouter.chat_completion") as mock_chat:
-            mock_chat.return_value = "This is a helpful response"
-
-            handler.handle("What is Python?")
-
-            # Should have called LLM
-            mock_chat.assert_called()
-            # Should have shown message
-            mode._show_message.assert_called()
+    assert create.call_count == 1 and len(client.requests) == 2
 
 
-def test_plan_mode_handler():
-    """Test PlanModeHandler generates plans correctly."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        storage = JsonFileStorage(Path(tmpdir) / "test_data.json")
-        context_provider = ContextProvider(storage_backend=storage)
+def test_ask_mode_reports_missing_provider(mode):
+    error = LLMError("Provider 'openrouter' needs an API key: set OPENROUTER_API_KEY.")
 
-        mode = MagicMock()
-        mode.context_provider = context_provider
-        mode.model = "test-model"
-        mode._show_message = MagicMock()
+    with patch("joshu.core.llm_client.create_chat_client", side_effect=error):
+        assert AskModeHandler(mode).handle("hi") is True
 
-        handler = PlanModeHandler(mode)
-
-        # Mock LLM response with plan
-        with patch("joshu.models.openrouter.chat_completion") as mock_chat:
-            mock_chat.return_value = "1. Step one\n2. Step two\n3. Step three"
-
-            handler.handle("Set up a Flask project")
-
-            # Should have called LLM
-            mock_chat.assert_called()
-            # Should have shown message
-            mode._show_message.assert_called()
-
-
-def test_ask_mode_conversational_query():
-    """Test that ask mode handles conversational queries."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        storage = JsonFileStorage(Path(tmpdir) / "test_data.json")
-        context_provider = ContextProvider(storage_backend=storage)
-
-        mode = MagicMock()
-        mode.context_provider = context_provider
-        mode.model = "test-model"
-        mode._show_message = MagicMock()
-
-        handler = AskModeHandler(mode)
-
-        # Mock LLM to return conversational response
-        with patch("joshu.models.openrouter.chat_completion") as mock_chat:
-            mock_chat.return_value = "Hello! How can I help you today?"
-
-            handler.handle("hi")
-
-            # Should have generated response
-            mock_chat.assert_called()
-            # Response should be shown
-            mode._show_message.assert_called()
-
-
-def test_plan_mode_json_parsing():
-    """Test that plan mode correctly parses JSON plans."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        storage = JsonFileStorage(Path(tmpdir) / "test_data.json")
-        context_provider = ContextProvider(storage_backend=storage)
-
-        mode = MagicMock()
-        mode.context_provider = context_provider
-        mode.model = "test-model"
-        mode._show_message = MagicMock()
-
-        handler = PlanModeHandler(mode)
-
-        # Mock LLM with JSON response
-        with patch("joshu.models.openrouter.chat_completion") as mock_chat:
-            mock_chat.return_value = '{"steps": ["step1", "step2"]}'
-
-            # Should handle both JSON and text formats
-            handler.handle("plan something")
-            mock_chat.assert_called()
+    assert "OPENROUTER_API_KEY" in shown(mode)

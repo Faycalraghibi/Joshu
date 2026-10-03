@@ -8,13 +8,8 @@ env:
   PYTHONDONTWRITEBYTECODE: "1"
   SKIP_LLM_TESTS: "1"
 
-  # Model configuration
-  GLM_Identifier: "z-ai/glm-4.5-air:free"
-  GLM_AUTO_EXEC: "false"
-  OPENROUTER_MODEL: "poolside/laguna-s-2.1:free"
-
-  # API Keys (from GitHub Secrets)
-  GLM_API_KEY: ${{ secrets.GLM_API_KEY }}
+  # API Keys (from GitHub Secrets); LLM tests are skipped above
+  OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
   TESTSPRITE_API_KEY: ${{ secrets.TESTSPRITE_API_KEY }}
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

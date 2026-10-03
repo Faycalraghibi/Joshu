@@ -21,10 +21,7 @@ KEY_VARS = [
     "OPENROUTER_API_KEY",
     "OPENAI_API_KEY",
     "ANTHROPIC_API_KEY",
-    "GLM_API_KEY",
     "MYCLOUD_API_KEY",
-    "VLLM_SERVER_URL",
-    "LOCAL_MODEL_URL",
 ]
 
 
@@ -132,12 +129,6 @@ def test_custom_local_provider_needs_no_key():
     )
     client = create_chat_client()
     assert client.base_url == "http://10.0.0.5:8080/v1" and client.model == "qwen-coder"
-
-
-def test_openrouter_accepts_model_family_keys(monkeypatch):
-    monkeypatch.setenv("GLM_API_KEY", "glm-key")
-    configure(provider="openrouter", model="z-ai/glm-4.5-air")
-    assert create_chat_client().model == "z-ai/glm-4.5-air"
 
 
 def test_fallback_providers_build_a_chain(monkeypatch):

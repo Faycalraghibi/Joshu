@@ -23,9 +23,6 @@ JSON object: `result`, `turns`, `tool_calls`, `usage`, `model`, `session_id`.
 Headless runs can't ask for approval, so tools that need it are denied unless
 the permission mode allows them.
 
-`joshu run --legacy "..."` keeps the old behavior: translate the request into a
-single shell command and run it after confirmation.
-
 ## Model provider
 
 The agent works with any provider that has an OpenAI-compatible API and a
@@ -89,7 +86,7 @@ plan mode.
 | `compact_threshold` | `0.8` | Fraction of the window that triggers compaction |
 | `tool_output_limit` | `30000` | Max characters of one tool result sent to the model |
 | `max_tokens` | `4096` | Max tokens per model response |
-| `provider` | `auto` | Model provider (see `joshu providers`) |
+| `provider` | `openrouter` | Model provider (see `joshu providers`) |
 | `providers` | `{}` | Custom providers and overrides |
 | `fallback_providers` | `[]` | Tried when the provider can't be reached |
 

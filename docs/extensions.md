@@ -227,5 +227,5 @@ joshu extension install https://github.com/user/my-extension --ref v1.0.0
 ## See Also
 
 - [MCP Servers](mcp-servers.md) - MCP protocol integration
-- [Tool Calling](tool-calling.md) - Built-in tools guide
+- [Agent Tools](agent.md#tools) - Built-in tools guide
 - [Configuration](configuration.md) - Global configuration

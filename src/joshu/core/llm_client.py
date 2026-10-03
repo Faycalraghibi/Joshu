@@ -10,16 +10,10 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Protocol
 
-from joshu.models.config import ModelConfig
-
 logger = logging.getLogger(__name__)
-
-OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
-DEFAULT_OPENROUTER_MODEL = "openai/gpt-4o-mini"
 
 
 class LLMError(Exception):
@@ -301,26 +295,22 @@ def create_chat_client(model: Optional[str] = None, provider: Optional[str] = No
     Build the chat client for the configured provider.
 
     The provider comes from `provider` or the `provider` config value; the model
-    from `model`, else the `model` config value, else the provider's default.
-    Providers listed in `fallback_providers` are tried (with their default
-    models) when the main one can't be reached.
-
-    With provider "auto" (the default), endpoints are detected from environment
-    variables instead; see _create_auto_client.
+    from `model`, else the `model` config value (when using the configured
+    provider), else the provider's default. Providers listed in
+    `fallback_providers` are tried, with their default models, when the main
+    one can't be reached.
 
     Raises:
         LLMError: for an unknown provider, a missing API key, or no model.
     """
     from joshu.core.config import get_config_manager
-    from joshu.core.providers import AUTO_PROVIDER, ProviderError, get_providers
+    from joshu.core.providers import DEFAULT_PROVIDER, ProviderError, get_providers
 
     config = get_config_manager()
-    name = provider or config.get("provider", AUTO_PROVIDER) or AUTO_PROVIDER
-    if provider is None or provider == config.get("provider"):
+    configured = config.get("provider") or DEFAULT_PROVIDER
+    name = provider or configured
+    if name == configured:
         model = model or config.get("model")
-
-    if name == AUTO_PROVIDER:
-        return _create_auto_client(model)
 
     try:
         providers = get_providers(config.get("providers") or {})
@@ -355,12 +345,6 @@ def _client_for_provider(provider: Any, model: Optional[str]) -> OpenAIChatClien
         )
 
     api_key = provider.resolve_api_key()
-    headers = dict(provider.headers)
-    if provider.name == "openrouter":
-        # Keys stored per model family (GLM_API_KEY, ...) also work for OpenRouter
-        api_key = api_key or ModelConfig.get_openrouter_api_key(model)
-        headers.update({k: v for k, v in ModelConfig.get_openrouter_headers().items() if v})
-
     if provider.requires_key and not api_key:
         where = f"set {provider.api_key_env}" if provider.api_key_env else "set api_key"
         raise LLMError(f"Provider '{provider.name}' needs an API key: {where}.")
@@ -369,81 +353,5 @@ def _client_for_provider(provider: Any, model: Optional[str]) -> OpenAIChatClien
         base_url=provider.base_url,
         api_key=api_key or "not-needed",
         model=model,
-        extra_headers=headers,
+        extra_headers=dict(provider.headers),
     )
-
-
-def _create_auto_client(model: Optional[str] = None) -> ChatClient:
-    """
-    Detect endpoints from environment variables (provider: auto).
-
-    Endpoints: vLLM server (VLLM_SERVER_URL), local model API (LOCAL_MODEL_URL),
-    OpenRouter (OPENROUTER_API_KEY or a model-specific key). The endpoint serving
-    the requested model is tried first; unreachable endpoints fall through to
-    the next one.
-
-    Raises:
-        LLMError: if no endpoint is configured.
-    """
-    candidates: List[OpenAIChatClient] = []
-    preferred: Optional[OpenAIChatClient] = None
-
-    vllm_url = os.getenv("VLLM_SERVER_URL")
-    if vllm_url:
-        vllm_model = ModelConfig.get_vllm_model() or model or "default"
-        client = OpenAIChatClient(
-            base_url=_with_v1(vllm_url), api_key="not-needed", model=vllm_model
-        )
-        candidates.append(client)
-        if model and model == vllm_model:
-            preferred = client
-
-    local_url = ModelConfig.get_local_model_api_url()
-    if local_url:
-        local_model = ModelConfig.get_local_model_api_identifier() or model or "default"
-        client = OpenAIChatClient(
-            base_url=_with_v1(local_url), api_key="not-needed", model=local_model
-        )
-        candidates.append(client)
-        if preferred is None and model and model == local_model:
-            preferred = client
-
-    if model and ModelConfig.is_cloud_model(model):
-        cloud_model = model
-    else:
-        cloud_model = os.getenv("OPENROUTER_MODEL") or DEFAULT_OPENROUTER_MODEL
-
-    api_key = ModelConfig.get_openrouter_api_key(cloud_model)
-    if api_key:
-        client = OpenAIChatClient(
-            base_url=OPENROUTER_BASE_URL,
-            api_key=api_key,
-            model=cloud_model,
-            extra_headers=ModelConfig.get_openrouter_headers(),
-        )
-        candidates.append(client)
-        if preferred is None and model and model == cloud_model:
-            preferred = client
-
-    if not candidates:
-        raise LLMError(
-            "No model endpoint configured. Choose a provider with `joshu providers` "
-            "and set its API key (e.g. OPENROUTER_API_KEY), or set `provider` in "
-            "config.yaml."
-        )
-
-    if preferred is not None:
-        candidates.remove(preferred)
-        candidates.insert(0, preferred)
-
-    return candidates[0] if len(candidates) == 1 else FallbackChatClient(candidates)
-
-
-def _with_v1(url: str) -> str:
-    """Normalize a server URL to the OpenAI-compatible /v1 base."""
-    url = url.rstrip("/")
-    for suffix in ("/chat/completions", "/v1/chat/completions"):
-        if url.endswith(suffix):
-            url = url[: -len(suffix)]
-    url = url.rstrip("/")
-    return url if url.endswith("/v1") else url + "/v1"

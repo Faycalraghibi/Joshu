@@ -85,4 +85,4 @@ Large pages are truncated at `web_fetch_max_content_length` (default: 50,000 cha
 ## See Also
 
 - [Web Search Tool](web-search.md) - Search the web for URLs
-- [Tool Calling Guide](tool-calling.md) - Overview of all tools
+- [Agent Tools](agent.md#tools) - Overview of all tools

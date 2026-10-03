@@ -12,7 +12,7 @@ The test suite has **67 test files** organized into these categories:
 - **Interactive Mode** (8 files) - Interactive commands and mode behavior
 - **Search** (3 files) - Web search functionality
 - **Storage** (2 files) - Data persistence and session management
-- **Core Features** (18 files) - Safety, auto-fix, context, caching, etc.
+- **Core Features** - Safety, agent loop, providers, context, etc.
 - **A2A Server** (5 files) - Agent-to-agent communication, events, task stores
 - **Agents** (6 files) - Agent definitions, registry, delegation, schema conversion
 - **Commands** (1 file) - CLI command processing and action types
@@ -67,7 +67,9 @@ export SKIP_LLM_TESTS=1
 pytest -v
 ```
 
-This skips integration tests that need real LLM connections, making the test suite run much faster.
+Any test that reaches a real model endpoint (the OpenAI SDK's chat
+`create` call) is skipped. Tests that use a fake chat client are unaffected.
+CI sets this. `0` or `false` disables it.
 
 ## Test Fixtures
 
@@ -83,31 +85,14 @@ def test_example(project_root, src_path, tests_path):
     pass
 ```
 
-### Model Configuration Fixtures
+### Isolation Fixtures
 
-```python
-def test_with_models(deepseek_model, deepseek_api_key):
-    # Access configured model identifiers from .env
-    model = deepseek_model  # "deepseek/deepseek-chat-v3.1:free"
-    api_key = deepseek_api_key
-```
+Applied to every test automatically:
 
-Available model fixtures:
-- `llama_cpp_model_llama3_8b`
-- `llama_cpp_model_mistral_7b`
-- `deepseek_model`, `deepseek_api_key`
-- `tongyi_model`, `tongyi_api_key`
-- `qwen_model`, `qwen_api_key`
-- `kimi_dev_model`, `kimi_dev_api_key`
-- `agenticat_model`, `agenticat_api_key`
-
-### Sample Data Fixtures
-
-```python
-def test_with_sample_data(sample_config_data, sample_translation_data):
-    config = sample_config_data  # Dict with default config
-    translation = sample_translation_data  # Command translation example
-```
+- `_isolated_config` points the global config manager at a temporary file, so
+  tests never write `config/config.yaml`.
+- `skip_llm_test_fixture` skips tests that reach a real model when
+  `SKIP_LLM_TESTS` is set.
 
 ## Writing Tests
 
@@ -139,16 +124,10 @@ class TestMyFeature:
 Mock LLM API calls to avoid real API usage:
 
 ```python
-@patch("joshu.core.translate.translate_with_openrouter")
-def test_translation(mock_translate):
-    mock_translate.return_value = Translation(
-        command="ls -la",
-        explanation="List files",
-        needs_execution=True
-    )
-
-    result = translate_to_command("show files")
-    assert result is not None
+@patch("joshu.core.llm_client.create_chat_client")
+def test_ask_mode(mock_create):
+    mock_create.return_value = FakeClient([AssistantTurn(content="answer")])
+    ...
 ```
 
 ### Using Temporary Storage
@@ -194,17 +173,6 @@ Mark tests that require real LLM connections:
 def test_real_llm_connection():
     """This test requires a real LLM API key."""
     pytest.skip("Requires real LLM connection")
-```
-
-### Local Model Tests
-
-Mark tests requiring local models:
-
-```python
-@pytest.mark.requires_local_model
-def test_local_model_feature():
-    """Requires LOCAL_MODEL_URL and LOCAL_MODEL_IDENTIFIER."""
-    pass
 ```
 
 ## Continuous Integration
@@ -268,20 +236,34 @@ def test_context_operations():
     assert provider.get_memory("key") == "value"
 ```
 
-### Testing Auto-Fix
+### Testing the Agent Loop
+
+Drive the agent with a scripted fake client instead of a real model (see
+`tests/core/test_agent_loop.py`):
 
 ```python
-from joshu.core.auto_fix import should_attempt_auto_fix
+from joshu.core.agent import Agent
+from joshu.core.llm_client import AssistantTurn, ToolCall
+from joshu.core.permissions import PermissionManager, PermissionMode
 
-def test_autofix_config():
-    config = {
-        "auto_fix_enabled": True,
-        "auto_fix_max_attempts": 2
-    }
 
-    assert should_attempt_auto_fix(config, 0) is True
-    assert should_attempt_auto_fix(config, 1) is True
-    assert should_attempt_auto_fix(config, 2) is False  # Max reached
+class FakeClient:
+    model = "fake"
+
+    def __init__(self, turns):
+        self.turns = list(turns)
+
+    def complete(self, messages, tools=None, **kwargs):
+        return self.turns.pop(0)
+
+
+def test_reads_file(tmp_path):
+    client = FakeClient([
+        AssistantTurn(tool_calls=[ToolCall("c1", "read_file", '{"path": "a.txt"}')]),
+        AssistantTurn(content="done"),
+    ])
+    agent = Agent(client=client, permissions=PermissionManager(PermissionMode.PLAN))
+    assert agent.run("read a.txt").text == "done"
 ```
 
 ## Troubleshooting

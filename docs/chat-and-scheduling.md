@@ -313,6 +313,6 @@ storage = HybridCredentialStorage(config)
 
 ## See Also
 
-- [Tool Calling](tool-calling.md) - Tool registration and execution
+- [Agent Tools](agent.md#tools) - Tool registration and execution
 - [Agent System](agent-system.md) - Agent definitions
 - [Configuration](configuration.md) - System settings

@@ -5,8 +5,8 @@ Get Joshu running in under 5 minutes.
 ## Installation
 
 ```bash
-git clone https://github.com/Faycacalraghibi/Joshu.git
-cd Joshu
+git clone https://github.com/Faycalraghibi/OpenCLI.git joshu
+cd joshu
 pip install -e .
 ```
 
@@ -57,8 +57,11 @@ Execute without entering interactive mode:
 joshu "list all Python files modified today"
 joshu "create a backup of the config directory"
 
-# Code generation
-joshu code "write a binary search function in Python"
+# Code changes (asks before editing)
+joshu "write a binary search function in search.py with a test"
+
+# Headless, for scripts
+joshu run -p --permission-mode plan "summarize what this repo does"
 ```
 
 ## Essential Commands
@@ -84,22 +87,24 @@ joshu code "write a binary search function in Python"
 /config   # Configuration
 ```
 
-## Configuration (Optional)
+## Choose a Model Provider
 
-Create `~/.joshu/config.yaml`:
-
-```yaml
-model: "llama-3-8b"
-safety_mode: true
-max_tokens: 4096
-```
-
-Or use environment variables:
+Joshu works with any OpenAI-compatible provider. The default is OpenRouter
+with a free model; set its key in `.env` at the project root:
 
 ```bash
-export OPENROUTER_API_KEY=your_api_key
-export JOSHU_MODEL=llama-3-8b
+OPENROUTER_API_KEY=your_api_key
 ```
+
+To use another provider:
+
+```bash
+joshu providers                          # list providers and key status
+joshu config --set provider=anthropic    # then set ANTHROPIC_API_KEY
+joshu config --set model=claude-sonnet-5-5
+```
+
+See [Models & Providers](models-and-providers.md).
 
 ## Common Use Cases
 

@@ -253,6 +253,6 @@ Available in hook scripts:
 
 ## See Also
 
-- [Tool Calling](tool-calling.md) - Built-in tools reference
+- [Agent Tools](agent.md#tools) - Built-in tools reference
 - [Extensions](extensions.md) - Extension system
 - [Configuration](configuration.md) - Configuration guide

@@ -186,5 +186,5 @@ myserver:
 
 ## See Also
 
-- [Tool Calling Guide](tool-calling.md)
+- [Agent Tools](agent.md#tools)
 - [Configuration Guide](configuration.md)
