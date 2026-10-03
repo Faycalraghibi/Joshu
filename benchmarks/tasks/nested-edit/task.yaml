@@ -1,0 +1,4 @@
+prompt: >-
+  In inventory.py, Inventory.remove() lets stock go negative. Make it raise
+  ValueError("not enough stock") instead, leaving the stock unchanged.
+check: python -m pytest -q check_test.py

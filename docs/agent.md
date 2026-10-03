@@ -104,6 +104,30 @@ to your user config.
 | `task` | Delegate research to a read-only sub-agent | no |
 | MCP tools | Tools from configured MCP servers | yes |
 
+### Recovering from tool-call mistakes
+
+Smaller and open models often get tool calls slightly wrong. Joshu repairs
+what it safely can instead of rejecting the call:
+
+- Arguments that aren't quite JSON: code fences, trailing commas, Python-style
+  `{'path': 'a.py', 'x': True}`, text around the object, double-encoded JSON,
+  or output cut off before the closing brace.
+- Near-miss tool names: `ReadFile`, `functions.read_file`, `bash`,
+  `str_replace`, `grep` and similar map to the matching built-in tool (only
+  among the tools the agent offers, and still subject to permissions).
+- Errors say what to do next: an unknown tool lists the available ones, bad
+  arguments list the tool's parameters, and a `replace` whose `old_string`
+  isn't found shows the closest matching lines (or the lines that differ only
+  in indentation) to copy from.
+- The same call returning the same result 3 times in a row gets a warning
+  appended for the model; at 5 the request stops (`stopped: loop` in JSON
+  output).
+
+`replace` keeps a file's line endings (LF or CRLF) as they are.
+
+See [benchmarks/](../benchmarks/README.md) for measuring how a model does on
+real tasks.
+
 ## Instructions
 
 Put instructions for the agent in Markdown files; all that apply are added to

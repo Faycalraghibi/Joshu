@@ -732,6 +732,53 @@ def search_file_content_tool(
 # =============================================================================
 
 
+def _with_line_endings(text: str, eol: str) -> str:
+    return text.replace("\r\n", "\n").replace("\n", eol)
+
+
+def _closest_match(content: str, old_string: str, max_lines: int = 20000) -> Dict[str, Any]:
+    """
+    Where the file has text most like `old_string`, so the model can copy the
+    real text instead of guessing again.
+    """
+    from difflib import SequenceMatcher
+
+    lines = content.replace("\r\n", "\n").split("\n")
+    wanted = old_string.replace("\r\n", "\n").strip("\n").split("\n")
+    if not any(line.strip() for line in wanted) or len(lines) > max_lines:
+        return {}
+
+    size = len(wanted)
+    wanted_stripped = [line.strip() for line in wanted]
+    first = wanted_stripped[0]
+    best_ratio, best_start = 0.0, -1
+    for start in range(0, max(1, len(lines) - size + 1)):
+        window = lines[start : start + size]
+        stripped = [line.strip() for line in window]
+        if stripped == wanted_stripped:
+            snippet = "\n".join(window)
+            return {
+                "hint": f"Lines {start + 1}-{start + size} match except for indentation or "
+                "whitespace. Use the exact text below as old_string.",
+                "closest_match": snippet,
+            }
+        # Cheap filter before the expensive comparison
+        if first and size > 1 and SequenceMatcher(None, first, stripped[0]).quick_ratio() < 0.5:
+            continue
+        ratio = SequenceMatcher(None, "\n".join(wanted_stripped), "\n".join(stripped)).ratio()
+        if ratio > best_ratio:
+            best_ratio, best_start = ratio, start
+
+    if best_start < 0 or best_ratio < 0.6:
+        return {}
+    snippet = "\n".join(lines[best_start : best_start + size])
+    return {
+        "hint": f"The most similar text is at lines {best_start + 1}-{best_start + size} "
+        f"({best_ratio:.0%} similar). If that is what you meant, use it as old_string.",
+        "closest_match": snippet,
+    }
+
+
 @register_tool(
     name="replace",
     description="""Replace text within a file.
@@ -798,16 +845,20 @@ def replace_tool(
         if not resolved.is_file():
             return {"success": False, "error": f"Not a file: {path}"}
 
-        # Read current content
-        content = resolved.read_text(encoding="utf-8")
+        # Read as-is: keep the file's line endings (CRLF or LF) unchanged
+        content = resolved.read_bytes().decode("utf-8")
+        if "\r\n" in content:
+            old_string = _with_line_endings(old_string, "\r\n")
+            new_string = _with_line_endings(new_string, "\r\n")
 
         # Check if old_string exists
         if old_string not in content:
-            # Try fuzzy matching for helpful error
             return {
                 "success": False,
-                "error": "old_string not found in file. Ensure exact match including whitespace.",
-                "suggestion": "Include more context to ensure unique matching.",
+                "error": "old_string not found in file. It must match the file exactly, "
+                "including indentation and whitespace. Read the file again and copy the "
+                "text from it.",
+                **_closest_match(content, old_string),
             }
 
         # Count occurrences
@@ -827,10 +878,12 @@ def replace_tool(
             new_content = content.replace(old_string, new_string, 1)
 
         # Generate diff
-        diff = generate_diff(content, new_content, resolved.name)
+        diff = generate_diff(
+            content.replace("\r\n", "\n"), new_content.replace("\r\n", "\n"), resolved.name
+        )
 
-        # Write the file
-        resolved.write_text(new_content, encoding="utf-8")
+        # Write the file (bytes: no newline translation)
+        resolved.write_bytes(new_content.encode("utf-8"))
 
         replaced_count = occurrences if all_occurrences else 1
 

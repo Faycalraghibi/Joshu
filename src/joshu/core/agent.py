@@ -35,6 +35,9 @@ from joshu.core.tool_registry import ToolSpec, load_builtin_tools
 logger = logging.getLogger(__name__)
 
 SUBAGENT_MAX_TURNS = 25
+# Identical calls with identical results in a row: warn the model, then stop
+LOOP_WARN = 3
+LOOP_STOP = 5
 
 
 @dataclass
@@ -157,6 +160,9 @@ class Agent:
         self.checkpoints = CheckpointStore()
         # Notes for the model about things that happened outside the loop (e.g. undo)
         self._pending_notes: List[str] = []
+        # Identical consecutive tool calls with identical results (loop detection)
+        self._last_call: Optional[tuple] = None
+        self._repeats = 0
 
     # ------------------------------------------------------------------ public
 
@@ -266,6 +272,7 @@ class Agent:
             self._pending_notes = []
         self.messages.append({"role": "user", "content": build_user_content(content, images)})
         tool_calls_before = self.tool_call_count
+        self._last_call, self._repeats = None, 0
 
         for turn_number in range(1, self.max_turns + 1):
             self._maybe_compact()
@@ -291,6 +298,18 @@ class Agent:
                 )
 
             self._run_tool_calls(turn.tool_calls)
+            if self._repeats >= LOOP_STOP:
+                note = (
+                    f"[Stopped: the same tool call returned the same result {self._repeats} "
+                    "times in a row.]"
+                )
+                return AgentResponse(
+                    text=f"{turn.content}\n\n{note}".strip(),
+                    metadata={
+                        **self._metadata(turn_number, tool_calls_before, "loop"),
+                        "stopped": "loop",
+                    },
+                )
 
         last_text = next(
             (m.get("content") for m in reversed(self.messages) if m.get("role") == "assistant"),
@@ -311,7 +330,7 @@ class Agent:
         answered = 0
         try:
             for call in calls:
-                output = self._execute(call)
+                output = self._note_repeats(call, self._execute(call))
                 self.messages.append({"role": "tool", "tool_call_id": call.id, "content": output})
                 answered += 1
         except KeyboardInterrupt:
@@ -322,20 +341,48 @@ class Agent:
                 )
             raise
 
+    def _note_repeats(self, call: ToolCall, output: str) -> str:
+        """Warn the model when it repeats a call that keeps giving the same result."""
+        signature = (call.name, " ".join((call.arguments or "").split()), output)
+        if signature == self._last_call:
+            self._repeats += 1
+        else:
+            self._last_call, self._repeats = signature, 1
+        if self._repeats >= LOOP_WARN:
+            output += (
+                f"\n\n[This exact call has now returned the same result {self._repeats} times "
+                "in a row. Repeating it won't help: change the arguments, try another "
+                "approach, or explain what is blocking you.]"
+            )
+        return output
+
     def _execute(self, call: ToolCall) -> str:
+        from joshu.core.tool_repair import repair_arguments, resolve_tool_name
         from joshu.hooks.dispatcher import dispatch_after_tool, dispatch_before_tool
 
         self.tool_call_count += 1
         spec = self._find_tool(call.name)
         if spec is None:
-            output = f"Error: unknown tool '{call.name}'."
-            self.events.on_tool_end(call.name, output, False)
-            return output
+            available = [s.name for s in self.tool_specs()]
+            resolved = resolve_tool_name(call.name, available)
+            spec = self._find_tool(resolved) if resolved else None
+            if spec is None:
+                output = (
+                    f"Error: unknown tool '{call.name}'. Available tools: "
+                    f"{', '.join(sorted(available))}."
+                )
+                self.events.on_tool_end(call.name, output, False)
+                return output
+            logger.debug(f"Tool name '{call.name}' resolved to '{spec.name}'")
+            call = ToolCall(id=call.id, name=spec.name, arguments=call.arguments)
 
         try:
-            arguments = call.parsed_arguments()
+            arguments = repair_arguments(call.arguments)
         except ValueError as e:
-            output = f"Error: invalid arguments for '{call.name}': {e}"
+            output = (
+                f"Error: invalid arguments for '{call.name}': {e}. Send a JSON object "
+                f"with these fields: {_parameter_summary(spec)}."
+            )
             self.events.on_tool_end(call.name, output, False)
             return output
 
@@ -416,7 +463,10 @@ class Agent:
         try:
             value = spec.function(**arguments)
         except TypeError as e:
-            return False, f"Error: invalid arguments for '{spec.name}': {e}"
+            return False, (
+                f"Error: invalid arguments for '{spec.name}': {e}. "
+                f"Parameters: {_parameter_summary(spec)}."
+            )
         except KeyboardInterrupt:
             raise
         except Exception as e:
@@ -590,6 +640,16 @@ class _SubagentEvents(AgentEvents):
 
     def on_tool_end(self, name: str, output: str, success: bool) -> None:
         self.parent.on_tool_end(f"{self.label} › {name}", output, success)
+
+
+def _parameter_summary(spec: ToolSpec) -> str:
+    """`path (required), limit` from a tool's JSON schema, for error messages."""
+    schema = spec.parameters or {}
+    properties = schema.get("properties") or {}
+    required = set(schema.get("required") or [])
+    if not properties:
+        return "none"
+    return ", ".join(f"{name} (required)" if name in required else name for name in properties)
 
 
 def truncate_output(text: str, limit: int) -> str:

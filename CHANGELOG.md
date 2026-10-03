@@ -16,7 +16,13 @@ All notable changes to the Joshu project will be documented in this file.
 - `fallback_providers` also takes named models, and fallbacks now also cover unknown models (404), rate limits and server errors, not only unreachable endpoints.
 - Instruction files: `AGENTS.md` / `JOSHU.md` from the repository root down to the working directory, plus `~/.joshu/AGENTS.md`, are added to the system prompt (`config/JOSHU.md` still works).
 
+- Tool-call recovery for weaker models: arguments that aren't quite JSON (code fences, trailing commas, Python literals, truncated output) are repaired, near-miss tool names (`ReadFile`, `bash`, `functions.read_file`) resolve to the right tool, and errors list the available tools or the tool's parameters (`joshu.core.tool_repair`).
+- Loop detection: the same tool call returning the same result 3 times in a row gets a warning; at 5 the request stops (`stopped: loop`).
+- `replace` shows the closest matching lines when `old_string` isn't found.
+- Benchmark tasks and runner (`benchmarks/`): pass rate, turns and tokens per model on small real coding tasks, graded by hidden tests.
+
 ### Fixed
+- `replace` rewrote a whole file's line endings on Windows (LF files became CRLF); line endings are now kept as they are.
 - Commands such as `joshu models`, `joshu config` and `joshu providers` printed the welcome banner.
 - `/model <id>` only saved the setting; it now switches the running conversation's model.
 - The `save_memory` file ignored `JOSHU_HOME` (always `~/.joshu/JOSHU.md`).

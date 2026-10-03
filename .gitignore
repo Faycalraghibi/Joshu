@@ -244,3 +244,6 @@ fix_joshu_glm.ps1
 *.fls
 joshu_technical_report.tex
 joshu_technical_report.pdf
+
+# Benchmark results
+benchmarks/results/

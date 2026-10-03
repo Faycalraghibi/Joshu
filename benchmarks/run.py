@@ -1,0 +1,250 @@
+"""
+Run Joshu on the benchmark tasks and report how many it solves.
+
+Each task in benchmarks/tasks/<name>/ has:
+    task.yaml   prompt (sent to the agent), check (command run afterwards),
+                optional timeout (seconds, default 600)
+    files/      the project the agent works on
+    check/      hidden test files, copied in only after the agent finishes
+
+Usage:
+    python benchmarks/run.py --provider nvidia --model nvidia/nemotron-3.5-lightning-30b-a3b
+    python benchmarks/run.py --model fast --tasks fix-bug,off-by-one --repeat 3
+    python benchmarks/run.py --permission-mode bypass   # let the agent run tests itself
+
+Each run gets a fresh copy of the task in a temporary directory and a
+temporary JOSHU_HOME holding a copy of your user config (MCP off unless --mcp),
+so your sessions and settings are untouched. Results are printed as a table and
+saved as JSON under benchmarks/results/.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import shlex
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+from dataclasses import asdict, dataclass, field
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+import yaml
+
+ROOT = Path(__file__).resolve().parent
+REPO = ROOT.parent
+TASKS = ROOT / "tasks"
+
+
+@dataclass
+class Result:
+    task: str
+    passed: bool
+    seconds: float
+    turns: Optional[int] = None
+    tool_calls: Optional[int] = None
+    prompt_tokens: Optional[int] = None
+    completion_tokens: Optional[int] = None
+    cost_usd: Optional[float] = None
+    stopped: Optional[str] = None
+    error: str = ""
+    check_output: str = field(default="", repr=False)
+
+
+def load_tasks(names: Optional[List[str]]) -> List[Path]:
+    tasks = sorted(p for p in TASKS.iterdir() if (p / "task.yaml").is_file())
+    if names:
+        wanted = set(names)
+        unknown = wanted - {t.name for t in tasks}
+        if unknown:
+            sys.exit(f"Unknown task(s): {', '.join(sorted(unknown))}")
+        tasks = [t for t in tasks if t.name in wanted]
+    return tasks
+
+
+def make_home(base: Path, mcp: bool) -> Path:
+    """A JOSHU_HOME with a copy of the user config (providers, named models)."""
+    from joshu.core.paths import joshu_home
+
+    home = base / "home"
+    home.mkdir()
+    config: Dict[str, Any] = {}
+    user_config = joshu_home() / "config.yaml"
+    if user_config.is_file():
+        config = yaml.safe_load(user_config.read_text(encoding="utf-8")) or {}
+    if not mcp:
+        config["mcp_enabled"] = False
+    config["save_sessions"] = False
+    (home / "config.yaml").write_text(yaml.safe_dump(config), encoding="utf-8")
+    return home
+
+
+def run_task(task: Path, args: argparse.Namespace, env: Dict[str, str]) -> Result:
+    spec = yaml.safe_load((task / "task.yaml").read_text(encoding="utf-8"))
+    timeout = int(spec.get("timeout", args.timeout))
+
+    with tempfile.TemporaryDirectory(prefix=f"joshu-bench-{task.name}-") as tmp:
+        base = Path(tmp)
+        work = base / "work"
+        shutil.copytree(task / "files", work)
+        run_env = {**env, "JOSHU_HOME": str(make_home(base, args.mcp))}
+
+        command = [sys.executable, "-m", "joshu", "run", spec["prompt"]]
+        command += ["--output-format", "json", "--permission-mode", args.permission_mode]
+        if args.provider:
+            command += ["--provider", args.provider]
+        if args.model:
+            command += ["--model", args.model]
+
+        start = time.monotonic()
+        try:
+            agent = subprocess.run(
+                command,
+                cwd=work,
+                env=run_env,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=timeout,
+            )
+        except subprocess.TimeoutExpired:
+            return Result(task.name, False, time.monotonic() - start, error="timeout")
+        seconds = time.monotonic() - start
+
+        result = Result(task.name, False, seconds)
+        payload = _last_json(agent.stdout)
+        if payload is None:
+            result.error = (agent.stderr or agent.stdout).strip()[-500:] or "no output"
+        else:
+            usage = payload.get("usage") or {}
+            result.turns = payload.get("turns")
+            result.tool_calls = payload.get("tool_calls")
+            result.prompt_tokens = usage.get("prompt_tokens")
+            result.completion_tokens = usage.get("completion_tokens")
+            result.cost_usd = payload.get("cost_usd")
+            result.stopped = payload.get("stopped")
+
+        # Hidden checks go in only now, so the agent can't edit them
+        if (task / "check").is_dir():
+            shutil.copytree(task / "check", work, dirs_exist_ok=True)
+        check = subprocess.run(
+            [sys.executable if part == "python" else part for part in shlex.split(spec["check"])],
+            cwd=work,
+            env=run_env,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=300,
+        )
+        result.passed = check.returncode == 0
+        result.check_output = (check.stdout + check.stderr).strip()[-2000:]
+        return result
+
+
+def _last_json(stdout: str) -> Optional[Dict[str, Any]]:
+    for line in reversed(stdout.strip().splitlines()):
+        line = line.strip()
+        if line.startswith("{"):
+            try:
+                return json.loads(line)
+            except ValueError:
+                continue
+    return None
+
+
+def print_table(results: List[Result]) -> None:
+    header = f"{'task':24} {'result':6} {'time':>7} {'turns':>5} {'tools':>5} {'tokens':>8}  note"
+    print(header)
+    print("-" * len(header))
+    for r in results:
+        tokens = (r.prompt_tokens or 0) + (r.completion_tokens or 0)
+        note = r.error.splitlines()[-1][:60] if r.error else (r.stopped or "")
+        print(
+            f"{r.task:24} {'PASS' if r.passed else 'fail':6} {r.seconds:6.0f}s "
+            f"{r.turns if r.turns is not None else '-':>5} "
+            f"{r.tool_calls if r.tool_calls is not None else '-':>5} "
+            f"{tokens or '-':>8}  {note}"
+        )
+    passed = sum(r.passed for r in results)
+    total_tokens = sum((r.prompt_tokens or 0) + (r.completion_tokens or 0) for r in results)
+    print("-" * len(header))
+    print(
+        f"{passed}/{len(results)} passed ({passed / max(1, len(results)):.0%}), "
+        f"{total_tokens:,} tokens, {sum(r.seconds for r in results):.0f}s"
+    )
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser.add_argument("--provider", help="Provider (default: your configured one)")
+    parser.add_argument("--model", help="Model id or named model (default: configured)")
+    parser.add_argument("--tasks", help="Comma-separated task names (default: all)")
+    parser.add_argument("--repeat", type=int, default=1, help="Runs per task")
+    parser.add_argument(
+        "--permission-mode",
+        default="accept_edits",
+        choices=["accept_edits", "bypass"],
+        help="accept_edits (default): edits run, shell commands are refused; "
+        "bypass: the agent may also run commands (it runs unattended in a temp dir)",
+    )
+    parser.add_argument("--timeout", type=int, default=600, help="Seconds per task")
+    parser.add_argument("--mcp", action="store_true", help="Load MCP servers (off by default)")
+    parser.add_argument("--list", action="store_true", help="List tasks and exit")
+    args = parser.parse_args()
+
+    tasks = load_tasks(args.tasks.split(",") if args.tasks else None)
+    if args.list:
+        for task in tasks:
+            prompt = yaml.safe_load((task / "task.yaml").read_text(encoding="utf-8"))["prompt"]
+            print(f"{task.name:24} {prompt[:70]}")
+        return 0
+
+    sys.path.insert(0, str(REPO / "src"))
+    from dotenv import dotenv_values
+
+    env = {**os.environ}
+    for key, value in dotenv_values(REPO / ".env").items():
+        if value is not None:
+            env.setdefault(key, value)
+    env["PYTHONPATH"] = os.pathsep.join(filter(None, [str(REPO / "src"), env.get("PYTHONPATH")]))
+    env["PYTHONIOENCODING"] = "utf-8"
+
+    results: List[Result] = []
+    for task in tasks:
+        for attempt in range(args.repeat):
+            label = task.name + (f" #{attempt + 1}" if args.repeat > 1 else "")
+            print(f"running {label}...", file=sys.stderr, flush=True)
+            results.append(run_task(task, args, env))
+
+    print_table(results)
+
+    out_dir = ROOT / "results"
+    out_dir.mkdir(exist_ok=True)
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    name = (args.model or "default").replace("/", "_").replace(":", "_")
+    out = out_dir / f"{stamp}-{name}.json"
+    out.write_text(
+        json.dumps(
+            {
+                "provider": args.provider,
+                "model": args.model,
+                "permission_mode": args.permission_mode,
+                "results": [asdict(r) for r in results],
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    print(f"Saved {out.relative_to(REPO)}")
+    return 0 if all(r.passed for r in results) else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

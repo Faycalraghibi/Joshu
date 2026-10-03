@@ -1,0 +1,4 @@
+prompt: >-
+  Add a --reverse flag to wordcount.py that lists the words from least to most
+  frequent instead of most to least. Keep the existing behaviour as the default.
+check: python -m pytest -q check_test.py
