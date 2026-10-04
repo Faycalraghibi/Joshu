@@ -60,7 +60,8 @@ runs:
           echo
           echo "Request: $request"
           echo
-          echo "Work in this repository. Make the changes needed, then summarize what you did in a few lines (it will be posted as a comment)."
+          echo "Work in this repository. Make the changes needed, then summarize what you did"
+          echo "in a few lines (it will be posted as a comment)."
           echo "JOSHU_EOF"
           echo "is_pr=$IS_PR"
           echo "number=$NUMBER"
@@ -94,11 +95,23 @@ runs:
         JOSHU_HOME: ${{ runner.temp }}/joshu-home
       run: |
         mkdir -p "$JOSHU_HOME"
-        printf 'mcp_enabled: false\nsave_sessions: false\nagent_max_turns: %s\n' "${{ inputs.max_turns }}" > "$JOSHU_HOME/config.yaml"
-        args=(run --output-format json --permission-mode "${{ inputs.permission_mode }}" --provider "${{ inputs.provider }}")
+        {
+          echo "mcp_enabled: false"
+          echo "save_sessions: false"
+          echo "agent_max_turns: ${{ inputs.max_turns }}"
+        } > "$JOSHU_HOME/config.yaml"
+        args=(run --output-format json)
+        args+=(--permission-mode "${{ inputs.permission_mode }}" --provider "${{ inputs.provider }}")
         [ -n "${{ inputs.model }}" ] && args+=(--model "${{ inputs.model }}")
         joshu "${args[@]}" "$PROMPT" > "$RUNNER_TEMP/joshu.json" || true
-        result="$(python -c "import json,sys; d=json.loads(open(sys.argv[1]).read().strip().splitlines()[-1]); print(d.get('result') or d.get('message') or 'Joshu finished without an answer.')" "$RUNNER_TEMP/joshu.json" 2>/dev/null || echo 'Joshu could not run; see the workflow log.')"
+        cat > "$RUNNER_TEMP/read_result.py" <<'PY'
+        import json, sys
+        lines = open(sys.argv[1], encoding="utf-8").read().strip().splitlines()
+        data = json.loads(lines[-1])
+        print(data.get("result") or data.get("message") or "Joshu finished without an answer.")
+        PY
+        result="$(python "$RUNNER_TEMP/read_result.py" "$RUNNER_TEMP/joshu.json" 2>/dev/null \
+          || echo 'Joshu could not run; see the workflow log.')"
         {
           echo "result<<JOSHU_EOF"
           echo "$result"
