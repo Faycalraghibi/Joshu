@@ -129,6 +129,9 @@ def create_key_bindings(interactive_mode) -> Optional[KeyBindings]:
         ui = getattr(interactive_mode, "agent_ui", None)
         if ui is not None:
             run_in_terminal(ui.show_expanded)
+        else:
+            interactive_mode.notice = "No tool output yet"
+            event.app.invalidate()
 
     @kb.add("c-l")
     def _(event):
