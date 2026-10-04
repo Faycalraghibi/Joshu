@@ -13,8 +13,6 @@ except ImportError:
     Style = None
     PROMPT_TOOLKIT_AVAILABLE = False
 
-ACCENT = "#d97757"
-
 FormattedText = List[Tuple[str, str]]
 
 # Mode name -> (hint shown under the input, style class)
@@ -34,22 +32,32 @@ SHORTCUTS = """\
 
 
 def get_style():
-    """prompt_toolkit styles for the input area."""
+    """prompt_toolkit styles for the input area, from the current theme."""
     if not PROMPT_TOOLKIT_AVAILABLE:
         return None
+    from joshu.ui.theme import current_theme
+
+    theme = current_theme()
+
+    def color(value: str, extra: str = "") -> str:
+        return " ".join(part for part in (value, extra) if part)
+
     return Style.from_dict(
         {
-            "prompt": "bold",
-            "rule": "#555555",
-            "hint": "#888888",
-            "model": "#888888",
-            "notice": "#d7af00",
-            "mode-edits": "#af87ff",
-            "mode-plan": "#5fafaf",
-            "mode-bypass": "#ff5f5f",
-            "placeholder": "#666666 italic",
+            "prompt": color(theme.accent, "bold"),
+            "rule": color(theme.rule),
+            "hint": color(theme.dim),
+            "model": color(theme.dim),
+            "notice": color(theme.warning),
+            "mode-edits": color(theme.edits),
+            "mode-plan": color(theme.plan),
+            "mode-bypass": color(theme.bypass),
+            "placeholder": color(theme.dim, "italic"),
             "bottom-toolbar": "noreverse",
-            "normal-mode": "#5f87ff bold",
+            "normal-mode": color(theme.secondary, "bold"),
+            "completion-menu": "bg:#1f2335 #c0caf5" if theme.name == "dark" else "",
+            "completion-menu.completion.current": color(theme.accent, "reverse"),
+            "completion-menu.meta.completion": color(theme.dim),
         }
     )
 

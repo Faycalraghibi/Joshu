@@ -2,6 +2,8 @@
 
 import json
 
+from joshu.ui.interactive.commands_extra import ExtraCommands
+
 INIT_PROMPT = """Create or update AGENTS.md at the root of this repository: instructions for AI coding agents working here.
 
 First explore: the README, build and dependency files (pyproject.toml, package.json, Makefile, ...), CI configuration, the source layout and a few representative files. Then write a concise AGENTS.md (under about 150 lines) covering:
@@ -19,7 +21,7 @@ def _shorten(text: str, limit: int = 80) -> str:
     return text if len(text) <= limit else text[: limit - 3] + "..."
 
 
-class CommandHandler:
+class CommandHandler(ExtraCommands):
     """Handler for slash commands."""
 
     def __init__(self, interactive_mode):
@@ -307,115 +309,113 @@ class CommandHandler:
             return True
 
     def handle_slash_command(self, command: str) -> bool:
-        """Handle slash commands."""
-        if command.startswith("/session"):
-            return self.handle_session_command(command)
+        """Run a slash command. Returns False when the session should end (/exit)."""
+        from joshu.ui.interactive.command_registry import find_command
 
-        if command.startswith("/memory"):
-            return self.handle_memory_command(command)
+        name, _, arg = command.strip().partition(" ")
+        spec = find_command(name)
+        if spec is None:
+            return self.handle_custom_command(command)
+        result = getattr(self, spec.method)(arg.strip())
+        return True if result is None else bool(result)
 
-        if command == "/clear":
+    # Adapters from the registry to the handlers below
+
+    def cmd_clear(self, arg: str = "") -> bool:
+        return self.handle_session_command("/session new")
+
+    def cmd_compact(self, arg: str = "") -> bool:
+        return self.handle_compact_command(f"/compact {arg}".strip())
+
+    def cmd_rewind(self, arg: str = "") -> bool:
+        return self.handle_rewind_command(f"/rewind {arg}".strip())
+
+    def cmd_undo(self, arg: str = "") -> bool:
+        return self.handle_undo_command()
+
+    def cmd_resume(self, arg: str = "") -> bool:
+        return self.handle_resume_command(f"/resume {arg}".strip())
+
+    def cmd_session(self, arg: str = "") -> bool:
+        return self.handle_session_command(f"/session {arg}".strip())
+
+    def cmd_cost(self, arg: str = "") -> bool:
+        return self.handle_cost_command()
+
+    def cmd_memory(self, arg: str = "") -> bool:
+        return self.handle_memory_command(f"/memory {arg}".strip())
+
+    def cmd_init(self, arg: str = "") -> bool:
+        return self.handle_init_command(f"/init {arg}".strip())
+
+    def cmd_model(self, arg: str = "") -> bool:
+        self.handle_model_command(f"/model {arg}".strip())
+        return True
+
+    def cmd_models(self, arg: str = "") -> bool:
+        return self.handle_models_list(f"/models {arg}".strip())
+
+    def cmd_permissions(self, arg: str = "") -> bool:
+        return self.handle_permissions_command(f"/permissions {arg}".strip())
+
+    def cmd_config(self, arg: str = "") -> bool:
+        self.handle_config_command(f"/config {arg}".strip())
+        return True
+
+    def cmd_skills(self, arg: str = "") -> bool:
+        return self.handle_skills_list()
+
+    def cmd_agents(self, arg: str = "") -> bool:
+        return self.handle_agents_list()
+
+    def cmd_commands(self, arg: str = "") -> bool:
+        return self.handle_commands_list()
+
+    def cmd_help(self, arg: str = "") -> bool:
+        self.show_help()
+        return True
+
+    def cmd_exit(self, arg: str = "") -> bool:
+        return False
+
+    def cmd_history(self, arg: str = "") -> bool:
+        if arg == "clear":
             self.interactive_mode.prompt_history.clear()
             self.interactive_mode.command_history = []
             self.interactive_mode._show_message("Input history cleared.")
-            return True
-
-        if command == "/new-session":
-            return self.handle_session_command("/session new")
-
-        if command == "/reset":
-            return self.handle_session_command("/session new")
-
-        if command == "/resume" or command.startswith("/resume "):
-            return self.handle_resume_command(command)
-
-        if command == "/cost":
-            return self.handle_cost_command()
-
-        if command == "/undo":
-            return self.handle_undo_command()
-
-        if command == "/rewind" or command.startswith("/rewind "):
-            return self.handle_rewind_command(command)
-
-        if command == "/compact" or command.startswith("/compact "):
-            return self.handle_compact_command(command)
-
-        if command == "/init" or command.startswith("/init "):
-            return self.handle_init_command(command)
-
-        if command.startswith("/permissions"):
-            return self.handle_permissions_command(command)
-
-        elif command == "/history":
-            self.display_history()
-            return True
-
-        elif command.startswith("/help"):
-            self.show_help()
-            return True
-
-        elif command.startswith("/config"):
-            self.handle_config_command(command)
-            return True
-
-        elif command.startswith("/search"):
-            parts = command.split(maxsplit=1)
-            if len(parts) < 2:
-                self.interactive_mode._show_message("❌ Usage: /search <query>")
-                self.interactive_mode._show_message(
-                    "💡 Example: /search Python best practices 2024"
-                )
-                return True
-
-            query = parts[1]
-
-            from joshu.ui.cli_handlers.search_handler import handle_search_command
-
-            handle_search_command(query, max_results=None)
-            return True
-
-        elif command == "/models" or command.startswith("/models "):
-            return self.handle_models_list(command)
-
-        elif command == "/model" or command.startswith("/model "):
-            self.handle_model_command(command)
-            return True
-
-        elif command == "/agent":
-            self.interactive_mode.interaction_mode = "agent"
-            self.interactive_mode._show_message(
-                "Switched to agent mode. I read, edit and run commands to finish tasks, "
-                "asking before edits and shell commands."
-            )
-            return True
-
-        elif command == "/ask":
-            self.interactive_mode.interaction_mode = "ask"
-            self.interactive_mode._show_message(
-                "Switched to ask mode. I will answer questions directly without executing commands."
-            )
-            return True
-
-        elif command == "/plan":
-            self.interactive_mode.interaction_mode = "plan"
-            self.interactive_mode._show_message(
-                "Switched to plan mode. I investigate with read-only tools and propose a plan "
-                "without changing anything."
-            )
-            return True
-
-        elif command == "/commands":
-            return self.handle_commands_list()
-
-        elif command == "/agents":
-            return self.handle_agents_list()
-
-        elif command == "/skills":
-            return self.handle_skills_list()
-
         else:
-            return self.handle_custom_command(command)
+            self.display_history()
+        return True
+
+    def cmd_search(self, arg: str = "") -> bool:
+        if not arg:
+            self.interactive_mode._show_message("Usage: /search <query>")
+            return True
+        from joshu.ui.cli_handlers.search_handler import handle_search_command
+
+        handle_search_command(arg, max_results=None)
+        return True
+
+    def cmd_agent(self, arg: str = "") -> bool:
+        self.interactive_mode.interaction_mode = "agent"
+        self.interactive_mode._show_message(
+            "Agent mode: I read, edit and run commands to finish tasks, asking before edits "
+            "and shell commands."
+        )
+        return True
+
+    def cmd_ask(self, arg: str = "") -> bool:
+        self.interactive_mode.interaction_mode = "ask"
+        self.interactive_mode._show_message("Ask mode: I answer directly, without using tools.")
+        return True
+
+    def cmd_plan(self, arg: str = "") -> bool:
+        self.interactive_mode.interaction_mode = "plan"
+        self.interactive_mode._show_message(
+            "Plan mode: I investigate with read-only tools and propose a plan without "
+            "changing anything."
+        )
+        return True
 
     def handle_custom_command(self, command: str) -> bool:
         """Run a custom command from .joshu/commands or ~/.joshu/commands."""
@@ -682,119 +682,6 @@ class CommandHandler:
         self.interactive_mode._show_message("Command History:")
         for i, cmd in enumerate(history_strings[-20:], 1):
             self.interactive_mode._show_message(f"{i}: {cmd}")
-
-    def show_help(self):
-        """Display help information."""
-        base_help = """
-interactive Mode Help:
-
-Keyboard Shortcuts:
-  Ctrl+R    - Reverse search
-  Ctrl+J    - Line navigation down
-  Ctrl+K    - Line navigation up
-  Ctrl+B    - Send command to background bash
-  Ctrl+C    - Interrupt current operation
-  Ctrl+D    - Exit
-  Ctrl+L    - Clear screen
-  Ctrl+T    - Toggle command suggestions
-
-Vim Mode:
-  ESC       - Switch to NORMAL mode
-  i         - Switch to INSERT mode
-  h/j/k/l   - Left/Down/Up/Right
-  w/b       - Word forward/backward
-  :         - Command mode
-
-Special Commands:
-  !command  - Execute bash command
-  !!        - Repeat last bash command
-  !n        - Execute nth bash command from history
-  @file     - Inject file content
-  @@file    - Inject and execute file content
-  @file:n-m - Inject lines n to m from file
-  /clear       - Clear input history (up-arrow recall)
-  /search \u003cquery\u003e - Search the web for information
-  /session     - Show the current agent session (/session help for more)
-  /session list - Saved sessions in this directory
-  /session new - Start a new conversation
-  /session switch <id> - Continue a saved session
-  /session delete <id> - Delete a saved session
-  /memory      - The agent's saved memories (/memory forget <name> to delete one)
-  /skills      - List skills (/<skill> [request] runs one)
-  /memory status - Show semantic memory statistics
-  /memory search <query> - Search for similar conversations
-  /memory clear - Clear all semantic memories
-  /history     - Show your recent input
-  /help        - Show this help
-  /reset       - Start a new conversation (same as /session new)
-  /undo        - Revert the agent's file edits from its last request
-  /rewind [n]  - Drop the last n requests and restore the files they changed
-  /compact [focus] - Summarize the conversation now (optionally what to keep)
-  /init [notes] - Write or update AGENTS.md for this project
-  /cost        - Tokens and cost of this conversation
-  /model [id]  - Show or switch the model for this conversation
-  /models [q]  - List the provider's models
-  /resume [id] - List saved sessions, or continue one
-  /commands    - List custom commands (.joshu/commands/*.md|toml)
-  /agents      - List sub-agents (.joshu/agents/*.md)
-  /permissions - Show or set the agent permission mode
-  /config   - Show/set configuration
-  Esc       - Interrupt the agent (typing while it works prepares your next message)
-"""
-
-        mode_help = {
-            "agent": """
-Current Mode: AGENT
-  Description: I work on your task with tools - reading and searching files, editing them,
-  and running commands - and see each result before deciding the next step.
-
-  Usage:
-    - Describe your goal (e.g., "add a --verbose flag to the CLI and test it")
-    - Edits and shell commands show a preview and ask first
-      ([y]es / [a]lways this session / [n]o); change this with /permissions
-    - Ctrl+C interrupts the current task; /reset starts a new conversation
-
-  Example: "create a Python virtual environment and install requests"
-
-  Mode Switching:
-    /ask   - Switch to ask mode (information & explanations)
-    /plan  - Switch to plan mode (planning without execution)
-""",
-            "ask": """
-Current Mode: ASK
-  Description: Information & explanation mode. I answer questions directly without executing commands.
-
-  Usage:
-    - Ask any question (e.g., "what is Python?", "how does Git work?")
-    - I provide clear, informative answers
-    - No commands are generated or executed
-
-  Example: "explain how virtual environments work in Python"
-
-  Mode Switching:
-    /agent - Switch to agent mode (autonomous task execution)
-    /plan  - Switch to plan mode (task planning)
-""",
-            "plan": """
-Current Mode: PLAN
-  Description: Read-only planning mode. I investigate the codebase with read-only tools
-  and propose a plan; edits and commands are not allowed.
-
-  Usage:
-    - Describe a task or goal
-    - I explore the relevant files and return a numbered plan
-    - Switch to /agent to carry it out
-
-  Example: "plan how to set up a Flask project"
-
-  Mode Switching:
-    /agent - Switch to agent mode (autonomous task execution)
-    /ask   - Switch to ask mode (information & explanations)
-""",
-        }
-
-        help_text = base_help + "\n" + mode_help.get(self.interactive_mode.interaction_mode, "")
-        self.interactive_mode._show_message(help_text)
 
     def handle_config_command(self, command: str):
         """Handle configuration commands."""

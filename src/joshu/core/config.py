@@ -28,6 +28,7 @@ DEFAULT_CONFIG = {
     "interactive": True,
     "multiline_input": True,
     "vim_mode": False,
+    "theme": "dark",
     "persistent_history": True,
     "history_limit": 1000,
     # Semantic memory settings
@@ -124,6 +125,7 @@ class JoshuConfig:
     interactive: bool = True
     multiline_input: bool = True
     vim_mode: bool = False
+    theme: str = "dark"
     persistent_history: bool = True
     history_limit: int = 1000
     # Semantic memory settings

@@ -82,16 +82,21 @@ class TestInteractiveSearchCommand:
 
         handler = CommandHandler(mock_interactive)
 
-        # Call show_help
-        handler.show_help()
+        import io
 
-        # Check that help text was shown and includes /search
-        assert mock_interactive._show_message.called
-        messages = [str(call) for call in mock_interactive._show_message.call_args_list]
+        from rich.console import Console
 
-        # Join all messages to check full help text
-        full_help = " ".join(messages).lower()
-        assert "/search" in full_help or "search <query>" in full_help
+        from joshu.ui import display
+
+        buffer = io.StringIO()
+        original = display.console
+        display.console = Console(file=buffer, width=120)
+        try:
+            handler.show_help()
+        finally:
+            display.console = original
+
+        assert "/search <query>" in buffer.getvalue()
 
 
 class TestInteractiveModeIntegration:

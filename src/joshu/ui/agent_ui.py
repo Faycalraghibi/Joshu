@@ -13,7 +13,6 @@ from rich.markdown import Markdown
 from rich.markup import escape
 from rich.padding import Padding
 from rich.panel import Panel
-from rich.spinner import Spinner
 from rich.syntax import Syntax
 from rich.table import Table
 from rich.text import Text
@@ -27,6 +26,7 @@ from joshu.core.permissions import (
     PermissionManager,
     PermissionMode,
 )
+from joshu.ui.theme import GLYPH, SPINNER_FRAMES, current_theme, style
 
 # Argument shown next to the tool name, per tool
 _SUMMARY_KEYS: Dict[str, Optional[str]] = {
@@ -63,30 +63,59 @@ TOOL_LABELS = {
     "skill": "Skill",
 }
 
-ACCENT = "#d97757"
 RESULT = "  ⎿  "
 RESULT_INDENT = "     "
 MAX_DIFF_LINES = 24
 MAX_OUTPUT_LINES = 4
 
 
-class _Working:
-    """Spinner line with elapsed time, re-rendered by rich.live."""
+def _s(role: str, *extra: str) -> str:
+    """Rich style for a theme color role (accent, error, ...)."""
+    return style(getattr(current_theme(), role), *extra)
 
-    def __init__(self, label: str = "Working") -> None:
+
+# What the working indicator says while a tool runs
+_ACTIVITY = {
+    "read_file": ("Reading", "path"),
+    "write_file": ("Writing", "path"),
+    "replace": ("Editing", "path"),
+    "run_shell_command": ("Running", "command"),
+    "search_file_content": ("Searching for", "pattern"),
+    "glob": ("Finding", "pattern"),
+    "list_directory": ("Listing", "path"),
+    "web_search": ("Searching the web for", "query"),
+    "web_fetch": ("Fetching", "url"),
+    "task": ("Delegating:", "description"),
+    "skill": ("Loading skill", "name"),
+    "memory": ("Updating memory", None),
+    "write_todos": ("Updating todos", None),
+}
+
+
+def activity_label(tool: str, arguments: Dict[str, Any]) -> str:
+    verb, key = _ACTIVITY.get(tool, ("Running " + TOOL_LABELS.get(tool, tool), None))
+    if key and arguments.get(key):
+        value = " ".join(str(arguments[key]).split())
+        value = value if len(value) <= 50 else value[:47] + "..."
+        return f"{verb} {value}"
+    return verb
+
+
+class _Working:
+    """Working indicator with elapsed time, re-rendered by rich.live."""
+
+    def __init__(self, label: str = "Thinking") -> None:
         self.started = time.monotonic()
-        self.spinner = Spinner("dots", style=ACCENT)
         self.label = label
 
     def __rich_console__(self, console, options):
-        elapsed = int(time.monotonic() - self.started)
-        self.spinner.update(
-            text=Text.assemble(
-                (f"{self.label}… ", ACCENT),
-                (f"({elapsed}s · esc to interrupt)", "dim"),
-            )
+        elapsed = time.monotonic() - self.started
+        frame = SPINNER_FRAMES[int(elapsed * 6) % len(SPINNER_FRAMES)]
+        yield Text.assemble(
+            (f"{frame} ", _s("accent", "bold")),
+            (f"{self.label}… ", _s("accent")),
+            (f"({int(elapsed)}s · esc to interrupt)", "dim"),
         )
-        yield self.spinner
 
 
 class ConsoleAgentUI(AgentEvents):
@@ -156,7 +185,8 @@ class ConsoleAgentUI(AgentEvents):
         summary = escape(summarize_arguments(tool, arguments))
         args = f"({summary})" if summary else ""
         self.console.print()
-        self.console.print(f"[{ACCENT}]●[/] [bold]{escape(label)}[/bold]{args}")
+        self.console.print(f"[{_s('accent')}]●[/] [bold]{escape(label)}[/bold]{args}")
+        self._start_spinner(activity_label(tool, arguments))
 
     def on_tool_end(self, name: str, output: str, success: bool) -> None:
         if self.quiet:
@@ -165,7 +195,7 @@ class ConsoleAgentUI(AgentEvents):
         tool = name.rpartition(" › ")[2]
         if not success:
             self.console.print(
-                f"[red]{RESULT}{escape(_first_line(output, 160))}[/red]", highlight=False
+                f"[{_s('error')}]{RESULT}{escape(_first_line(output, 160))}[/]", highlight=False
             )
             return
         renderer = {
@@ -179,8 +209,8 @@ class ConsoleAgentUI(AgentEvents):
             self._result_line(escape(_first_line(output, 160)))
         if "now has problems. Fix them" in output:
             self.console.print(
-                f"[yellow]{RESULT_INDENT}problems found after the edit; the agent will fix them"
-                "[/yellow]"
+                f"[{_s('warning')}]{RESULT_INDENT}problems found after the edit; "
+                "the agent will fix them[/]"
             )
 
     def on_compact(self, tokens_before: int, tokens_after: int) -> None:
@@ -189,7 +219,7 @@ class ConsoleAgentUI(AgentEvents):
         self._stop_spinner()
         self._end_line()
         self.console.print(
-            f"[dim]✻ Context compacted: ~{tokens_before:,} → ~{tokens_after:,} tokens[/dim]"
+            f"[dim]{GLYPH} Context compacted: ~{tokens_before:,} → ~{tokens_after:,} tokens[/dim]"
         )
 
     # ------------------------------------------------------- tool results
@@ -243,12 +273,12 @@ class ConsoleAgentUI(AgentEvents):
             code = data.get("exit_code")
             self._result_line("(no output)" if code in (0, None) else f"exit code {code}")
             return True
-        style = "" if data.get("exit_code") in (0, None) else "red"
+        failed = data.get("exit_code") not in (0, None)
         for index, line in enumerate(lines[:MAX_OUTPUT_LINES]):
             lead = RESULT if index == 0 else RESULT_INDENT
             shown = escape(line[:200])
             self.console.print(
-                f"[dim]{lead}[/dim]" + (f"[{style}]{shown}[/{style}]" if style else shown),
+                f"[dim]{lead}[/dim]" + (f"[{_s('error')}]{shown}[/]" if failed else shown),
                 highlight=False,
             )
         if len(lines) > MAX_OUTPUT_LINES:
@@ -305,9 +335,9 @@ class ConsoleAgentUI(AgentEvents):
             body = Text(preview)
         parts: List[Any] = [Text(title, style="bold"), Text(""), body]
         if request.warning:
-            parts += [Text(""), Text.assemble(("Warning: ", "bold red"), request.warning)]
+            parts += [Text(""), Text.assemble(("Warning: ", _s("error", "bold")), request.warning)]
         self.console.print()
-        self.console.print(Panel(Group(*parts), border_style=ACCENT, padding=(0, 1)))
+        self.console.print(Panel(Group(*parts), border_style=_s("accent"), padding=(0, 1)))
 
         options = [(ApprovalChoice.YES, "Yes")]
         what = _always_scope(tool, label, request.arguments)
@@ -352,11 +382,11 @@ class ConsoleAgentUI(AgentEvents):
         self.console.print()
         self.console.print(grid)
 
-    def _start_spinner(self) -> None:
-        if self._live is not None:
+    def _start_spinner(self, label: str = "Thinking") -> None:
+        if not self.rich_mode or self._live is not None:
             return
         self._live = Live(
-            _Working(),
+            _Working(label),
             console=self.console,
             refresh_per_second=8,
             transient=True,
@@ -420,10 +450,10 @@ def render_diff(diff: str, limit: int) -> Any:
             continue
         if line.startswith("+"):
             new_no += 1
-            table.add_row(str(new_no), Text("+ " + line[1:], style="green"))
+            table.add_row(str(new_no), Text("+ " + line[1:], style=_s("diff_add")))
         elif line.startswith("-"):
             old_no += 1
-            table.add_row(str(old_no), Text("- " + line[1:], style="red"))
+            table.add_row(str(old_no), Text("- " + line[1:], style=_s("diff_remove")))
         else:
             old_no += 1
             new_no += 1

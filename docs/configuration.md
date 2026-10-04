@@ -128,6 +128,7 @@ In interactive mode: `/config`, `/config <key>`, `/config <key> <value>`;
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `auto_memory` | boolean | `true` | Agent keeps notes across sessions (`memory` tool) |
+| `theme` | string | `dark` | Color theme: `dark`, `light`, `colorblind`, `plain` |
 | `memory_enabled` | boolean | `true` | Enable conversation memory |
 | `history_size` | integer | `100` | Maximum history entries |
 | `semantic_memory_enabled` | boolean | `true` | Enable semantic memory (needs `pip install -e .[use]`) |
