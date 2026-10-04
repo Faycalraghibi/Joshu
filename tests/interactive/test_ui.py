@@ -55,6 +55,19 @@ def test_finished_blocks_print_while_the_reply_streams():
     assert "  Second paragraph." in shown
 
 
+def test_emoji_with_variation_selector_does_not_overflow_lines():
+    # "➡️" is drawn two cells wide but measured as one: lines padded to the
+    # full width would wrap. Without the selector it is one cell everywhere.
+    ui, out = terminal_ui()
+    ui._live = MagicMock()
+    ui.on_model_start()
+    ui.on_text("➡️ Recommended answer: keep it short")
+    ui.on_turn_end(AssistantTurn())
+    shown = text_of(out)
+    assert "️" not in shown and "➡ Recommended answer" in shown
+    assert agent_ui.terminal_safe("ok ✔️") == "ok ✔"
+
+
 def test_split_keeps_code_fences_whole():
     split = agent_ui.split_complete_blocks
     assert split("a\n\nb") == ("a\n\n", "b")

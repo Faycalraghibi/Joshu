@@ -34,6 +34,7 @@ from joshu.core.skills import (
     SKILL_TOOL_DESCRIPTION,
     Skill,
     discover_skills,
+    model_skills,
     run_skill_tool,
     skills_prompt,
 )
@@ -210,7 +211,7 @@ class Agent:
             self.subagents = discover_subagents(self.cwd)
             self._local_tools["task"] = self._make_task_tool()
             self.skills = discover_skills(self.cwd)
-            if self.skills:
+            if model_skills(self.skills):
                 self._local_tools["skill"] = self._make_skill_tool()
             self.auto_memory = bool(config.get("auto_memory", True))
             if self.auto_memory:
@@ -1031,7 +1032,7 @@ class Agent:
             parameters={
                 "type": "object",
                 "properties": {
-                    "name": {"type": "string", "enum": sorted(self.skills)},
+                    "name": {"type": "string", "enum": sorted(model_skills(self.skills))},
                     "file": {
                         "type": "string",
                         "description": "A supporting file of the skill (relative path)",

@@ -511,7 +511,8 @@ class CommandHandler(ExtraCommands, MoreCommands):
             return True
         lines = ["Skills (the agent loads one when a task matches; /<name> runs it):"]
         for name, skill in sorted(skills.items()):
-            lines.append(f"  /{name:<16} {skill.description}  [{skill.scope}]")
+            scope = skill.scope if skill.model_invocable else f"{skill.scope}, /{name} only"
+            lines.append(f"  /{name:<16} {skill.description}  [{scope}]")
         self.interactive_mode._show_message("\n".join(lines))
         return True
 
