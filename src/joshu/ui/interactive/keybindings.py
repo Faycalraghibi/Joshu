@@ -79,6 +79,28 @@ def create_key_bindings(interactive_mode) -> Optional[KeyBindings]:
         buffer.delete_before_cursor(1)
         buffer.insert_text("\n")
 
+    @kb.add("escape", "v")
+    def _(event):
+        """Alt+V: attach the image in the clipboard."""
+        from joshu.ui.clipboard import (
+            ClipboardError,
+            grab_clipboard_image,
+            image_reference,
+        )
+
+        try:
+            path = grab_clipboard_image()
+        except ClipboardError as e:
+            interactive_mode.notice = str(e)
+            event.app.invalidate()
+            return
+        if path is None:
+            interactive_mode.notice = "No image in the clipboard"
+        else:
+            event.current_buffer.insert_text(image_reference(path))
+            interactive_mode.notice = ""
+        event.app.invalidate()
+
     @kb.add("s-tab")
     def _(event):
         """Shift+Tab cycles default -> accept edits -> plan."""

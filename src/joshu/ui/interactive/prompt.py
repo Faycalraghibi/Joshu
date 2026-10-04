@@ -26,7 +26,7 @@ MODE_HINTS = {
 
 SHORTCUTS = """\
   !  run a shell command        /  commands           @  attach a file or image
-  alt+enter or \+enter  new line
+  alt+enter or \+enter  new line          alt+v  paste an image
   esc  interrupt the agent      shift+tab  cycle modes (default, accept edits, plan)
   tab  complete commands        ctrl+r  search history
   ctrl+c  clear input (twice on an empty prompt to exit)    ctrl+d  exit"""

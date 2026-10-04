@@ -125,6 +125,8 @@ to your user config.
 | `read_file`, `list_directory`, `glob`, `search_file_content` | Explore the workspace | no |
 | `replace` | Exact-string edit | yes |
 | `write_file` | Create or overwrite a file | yes |
+| `multi_edit` | Several exact-text edits to one file, all or nothing (loaded on demand) | yes |
+| `notebook_edit` | Replace, insert or delete a Jupyter notebook cell (loaded on demand) | yes |
 | `run_shell_command` | Run a command (fresh shell each call; `background: true` for long-running ones) | yes |
 | `bash_output`, `kill_bash` | Read the output of / stop a background command (loaded when one starts) | no |
 | `web_search` / `web_fetch` | Search the web / fetch a URL | no / yes |

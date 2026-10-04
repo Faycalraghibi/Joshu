@@ -67,6 +67,30 @@ class MoreCommands:
             prompt += f"\n\nFocus on: {focus.strip()}"
         return mode._run_agent(prompt)
 
+    # ---------------------------------------------------------------- paste
+
+    def cmd_paste(self, arg: str = "") -> bool:
+        from joshu.ui.clipboard import (
+            ClipboardError,
+            grab_clipboard_image,
+            image_reference,
+        )
+
+        console = _console()
+        try:
+            path = grab_clipboard_image()
+        except ClipboardError as e:
+            console.print(str(e), highlight=False)
+            return True
+        if path is None:
+            console.print("No image in the clipboard.")
+            return True
+        mode = self.interactive_mode
+        pending = getattr(mode, "type_ahead", "") or ""
+        mode.type_ahead = image_reference(path) + pending
+        console.print(f"Attached {path.name}; add your request and press Enter.", highlight=False)
+        return True
+
     # ----------------------------------------------------------------- dirs
 
     def cmd_add_dir(self, arg: str = "") -> bool:
