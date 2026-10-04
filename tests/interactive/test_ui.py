@@ -72,6 +72,65 @@ def test_working_line_counts_streamed_tokens():
     assert "↓ 1.0k tokens" in shown and "esc to interrupt" in shown
 
 
+def shell_result(count):
+    return json.dumps({"exit_code": 0, "stdout": "\n".join(f"line {i}" for i in range(count))})
+
+
+def test_cut_output_can_be_expanded_after_the_request():
+    ui, out = terminal_ui()
+    ui.begin_request()
+    ui.on_tool_start("run_shell_command", {"command": "pytest"})
+    ui.on_tool_end("run_shell_command", shell_result(10), True)
+    assert "… +6 lines (ctrl+o to expand)" in text_of(out)
+    assert "line 9" not in text_of(out)
+    ui.show_expanded()
+    assert "● Bash(pytest)" in text_of(out) and "line 9" in text_of(out)
+    ui.begin_request()  # a new request forgets the old output
+    ui.show_expanded()
+    assert "Nothing was cut short" in text_of(out)
+
+
+def test_long_one_line_results_are_expandable_too():
+    ui, out = terminal_ui()
+    ui.on_tool_start("web_fetch", {"url": "https://x.dev"})
+    ui.on_tool_end("web_fetch", "first line\nsecond line", True)
+    assert "first line (ctrl+o to expand)" in text_of(out)
+    assert ui.expandable == [("Fetch(https://x.dev)", "first line\nsecond line")]
+
+
+def test_verbose_shows_output_in_full():
+    ui, out = terminal_ui()
+    ui.toggle_verbose()
+    ui.on_tool_start("run_shell_command", {"command": "ls"})
+    ui.on_tool_end("run_shell_command", shell_result(10), True)
+    assert "line 9" in text_of(out) and "ctrl+o" not in text_of(out)
+
+
+def test_bell_rings_only_after_a_long_request(monkeypatch):
+    ui, out = terminal_ui()
+    ui.notify()
+    assert "\a" not in text_of(out)  # no request started
+    ui.begin_request()
+    ui.notify()
+    assert "\a" not in text_of(out)  # too quick
+    ui._request_started -= 60
+    ui.notify()
+    assert "\a" in text_of(out)
+
+
+def test_working_line_names_the_task_in_progress():
+    ui, _ = terminal_ui()
+    todos = [
+        {"description": "Write the parser", "status": "completed"},
+        {"description": "Add tests", "status": "in_progress"},
+    ]
+    ui.on_tool_start("write_todos", {"todos": todos})
+    ui.on_tool_end("write_todos", "{}", True)
+    ui.on_model_start()
+    assert ui._working is not None and ui._working.label == "Add tests"
+    ui._stop_spinner()
+
+
 def test_tool_calls_show_label_and_result():
     ui, out = terminal_ui()
     ui.on_tool_start("read_file", {"path": "a.py"})

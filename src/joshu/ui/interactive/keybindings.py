@@ -9,7 +9,7 @@ import time
 from typing import Optional
 
 try:
-    from prompt_toolkit.application import get_app
+    from prompt_toolkit.application import get_app, run_in_terminal
     from prompt_toolkit.enums import EditingMode
     from prompt_toolkit.filters import Condition
     from prompt_toolkit.key_binding import KeyBindings
@@ -122,6 +122,13 @@ def create_key_bindings(interactive_mode) -> Optional[KeyBindings]:
         interactive_mode.cycle_mode()
         interactive_mode.notice = ""
         event.app.invalidate()
+
+    @kb.add("c-o")
+    def _(event):
+        """Ctrl+O: the last request's tool output in full."""
+        ui = getattr(interactive_mode, "agent_ui", None)
+        if ui is not None:
+            run_in_terminal(ui.show_expanded)
 
     @kb.add("c-l")
     def _(event):

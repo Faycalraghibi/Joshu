@@ -362,9 +362,10 @@ class InteractiveMode:
         if images:
             self._show_message("Attached: " + ", ".join(path.name for path in images))
 
-        from joshu.ui.key_listener import KeyListener
+        from joshu.ui.key_listener import CTRL_O, KeyListener
 
-        listener = KeyListener()
+        self.agent_ui.begin_request()
+        listener = KeyListener({CTRL_O: self.agent_ui.toggle_verbose})
         try:
             with listener:
                 response = self.agent.run(prompt, images=images)

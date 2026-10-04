@@ -17,9 +17,10 @@ import contextlib
 import os
 import sys
 import threading
-from typing import Iterator, List, Optional
+from typing import Callable, Dict, Iterator, List, Optional
 
 ESC = "\x1b"
+CTRL_O = "\x0f"
 POLL_SECONDS = 0.05
 
 _active: Optional["KeyListener"] = None
@@ -28,7 +29,13 @@ _active: Optional["KeyListener"] = None
 class KeyListener:
     """Watch for Esc and collect type-ahead while a request runs."""
 
-    def __init__(self) -> None:
+    def __init__(self, actions: Optional[Dict[str, Callable[[], None]]] = None) -> None:
+        """
+        Args:
+            actions: Keys that run a callback instead of being typed ahead,
+                e.g. {CTRL_O: show_more}
+        """
+        self.actions = actions or {}
         self.interrupted = False
         self._typed: List[str] = []
         self._stop = threading.Event()
@@ -99,6 +106,13 @@ class KeyListener:
                     self._stop.set()
                     _thread.interrupt_main()
                     return
+                action = self.actions.get(key)
+                if action is not None:
+                    try:
+                        action()
+                    except Exception:  # a display toggle must never stop the request
+                        pass
+                    continue
                 self._add(key)
 
     def _add(self, key: str) -> None:

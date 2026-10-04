@@ -15,6 +15,7 @@ Press `?` on an empty prompt to see these in the terminal.
 | `Alt+V` | Attach the image in the clipboard (also `/paste`) |
 | `Shift+Tab` | Cycle modes: default → accept edits → plan |
 | `Esc` | Close the menu, or clear the input |
+| `Ctrl+O` | Show the last request's tool output in full (output cut to a few lines is marked "ctrl+o to expand") |
 | `Ctrl+L` | Clear the screen, keeping what you typed |
 | `Ctrl+C` | Clear the input; twice on an empty prompt to exit |
 | `Ctrl+D` | Exit on an empty prompt; otherwise delete the next character |
@@ -25,7 +26,12 @@ Press `?` on an empty prompt to see these in the terminal.
 | Key | Action |
 |-----|--------|
 | `Esc`, `Ctrl+C` | Stop the current request |
+| `Ctrl+O` | Show tool output in full from now on (press again to fold it) |
 | typing | Kept and put in the prompt when the agent finishes |
+
+When a request runs 20 seconds or more, the terminal bell rings when it
+finishes or needs your approval (`notifications: off` to disable,
+`notify_after_seconds` to change the time).
 
 ## Vim mode
 

@@ -250,6 +250,7 @@ See [Keyboard shortcuts](keybindings.md) for the full list. The most used:
 | `Alt+Enter`, `\` + `Enter` | New line (Shift+Enter after `/terminal-setup`) |
 | `Ctrl+G` | Write the prompt in your editor |
 | `Ctrl+R` | Search input history |
+| `Ctrl+O` | Show the last request's tool output in full |
 | `Alt+V` | Attach the image in the clipboard (also `/paste`; needs `pip install pillow`) |
 | `?` | Show shortcuts |
 
@@ -259,7 +260,9 @@ See [Keyboard shortcuts](keybindings.md) for the full list. The most used:
 send a follow-up, or `/rewind` to drop the interrupted request.
 
 The reply appears as it is written, and the line under it shows the elapsed
-time and output tokens so far. Anything you type while the agent works is kept
+time and output tokens so far (or the task in progress from the todo list).
+Tool output is cut to a few lines; `Ctrl+O` shows it in full from then on.
+Anything you type while the agent works is kept
 and appears in the prompt when it finishes, ready to edit and send.
 
 ## Vim Mode

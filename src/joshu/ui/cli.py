@@ -254,6 +254,7 @@ def execute_agent_prompt(
         except ImageError as e:
             Console(stderr=True).print(f"[red]{e}[/red]")
             return 2
+        ui.begin_request()
         response = agent.run(prompt, images=attached)
     except LLMError as e:
         Console(stderr=True).print(f"[red]Model error:[/red] {e}")

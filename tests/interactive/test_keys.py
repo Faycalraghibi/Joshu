@@ -79,6 +79,23 @@ def test_ctrl_r_searches_history():
     assert text == "alpha one"
 
 
+def test_ctrl_o_shows_the_last_output_and_keeps_the_input():
+    shown = []
+    mode = SimpleNamespace(
+        vim_enabled=False,
+        notice="",
+        cycle_mode=lambda: "plan",
+        agent_ui=SimpleNamespace(show_expanded=lambda: shown.append(1)),
+    )
+    with create_pipe_input() as pipe:
+        pipe.send_text("draft\x0f more\r")
+        session = PromptSession(
+            input=pipe, output=DummyOutput(), key_bindings=create_key_bindings(mode)
+        )
+        assert session.prompt("> ") == "draft more"
+    assert shown == [1]
+
+
 def test_vim_mode_uses_normal_mode_motions():
     # Esc to NORMAL, 0 to line start, x deletes a char, A appends at the end
     assert ask("hello" + ESC + "0xA!\r", vim=True)[0] == "ello!"

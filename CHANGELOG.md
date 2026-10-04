@@ -6,6 +6,9 @@ All notable changes to the Joshu project will be documented in this file.
 
 ### Added
 - Replies stream into the terminal as they are written: finished paragraphs, lists and code blocks are printed as Markdown right away, and the line below shows elapsed time and output tokens so far.
+- `Ctrl+O` shows tool output that was cut short: at the prompt, the last request's output in full; while the agent works, everything from then on.
+- The terminal bell rings when a request that ran 20 seconds or more finishes or waits for approval (`notifications`, `notify_after_seconds`).
+- The working line names the task in progress from the todo list.
 - `Ctrl+G` writes the prompt in your editor (`$VISUAL`, `$EDITOR`, Notepad on Windows).
 
 ### Changed
