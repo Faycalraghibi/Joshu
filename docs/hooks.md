@@ -20,16 +20,43 @@ Hooks fail open: a hook that crashes or times out does not block the agent.
 
 Events fired by the agent:
 
-| Event | When | `data` in the payload |
-|-------|------|------------------------|
-| `before_agent` | A request is about to be handled | `prompt` |
-| `after_agent` | The agent finished a request | `prompt`, `response` |
-| `before_tool` | A tool call is about to run (before the permission prompt) | `tool_name`, `arguments` |
-| `after_tool` | A tool call finished | `tool_name`, `result`, `success` |
+| Event | When | `data` in the payload | Blocking it |
+|-------|------|------------------------|-------------|
+| `session_start` | The first request of a session (new or resumed) | `cwd`, `model`, `resumed` | - |
+| `before_agent` | A request is about to be handled | `prompt` | skips the request |
+| `before_tool` | A tool call is about to run (before the permission prompt) | `tool_name`, `arguments` | skips the call; the model is told why |
+| `after_tool` | A tool call finished | `tool_name`, `result`, `success` | - |
+| `subagent_stop` | A sub-agent (`task`) finished | `description`, `response` | - |
+| `pre_compress` | Context is about to be cleared or summarized | `kind` (`clear` / `summarize`), `tokens`, `window` | skips it this time |
+| `notification` | Joshu needs you (an approval) | `message`, `tool_name` | - |
+| `stop` | The agent is about to finish a request | `prompt`, `response`, `continues_so_far` | sends the agent back to work |
+| `after_agent` | The agent finished a request | `prompt`, `response` | - |
+| `session_end` | You leave Joshu, `/clear`, or a `joshu run` ends | `cwd` | - |
 
-Blocking `before_agent` skips the request; blocking `before_tool` skips the call
-and tells the model why. Other event names (`session_start`, `before_model`,
-`pre_compress`, ...) are accepted but not fired yet.
+### Adding context
+
+`session_start` and `before_agent` hooks can add information to the
+conversation: print plain text, or reply with
+`{"additional_context": "..."}`. It is added before the user's request, marked
+`[Context from hooks]`. Typical uses: the current branch and open tickets, the
+date of a code freeze, the output of `git status`.
+
+### Keeping the agent working
+
+A `stop` hook that blocks (exit code 2, or `{"action": "block"}`) sends the
+agent back to work; its message (or stderr) tells the model why, e.g. "Run the
+tests before finishing" or "The linter still reports errors". It can do so at
+most 3 times per request, so a misbehaving hook can't keep the agent running
+forever; `continues_so_far` tells the hook how many times it already did.
+
+```yaml
+hooks:
+  stop:
+    - command: python .joshu/hooks/require_green_tests.py
+      timeout: 120
+  notification:
+    - powershell -c "[console]::beep(880, 200)"
+```
 
 ## Configuration
 
@@ -136,7 +163,8 @@ exit 0
 {
   "action": "allow",
   "modified_data": null,
-  "message": null
+  "message": null,
+  "additional_context": null
 }
 ```
 

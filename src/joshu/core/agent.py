@@ -66,6 +66,8 @@ MAX_PARALLEL_TOOLS = 4
 # (per tool), then end the request (all tools together)
 DENIALS_WARN = 2
 DENIALS_STOP = 6
+# How many times stop hooks may send the agent back to work in one request
+MAX_STOP_CONTINUES = 3
 
 
 @dataclass
@@ -234,6 +236,8 @@ class Agent:
         self._repeats = 0
         # Requests handled in this conversation; checkpoints are tagged with it
         self._request_count = 0
+        # session_start hooks have run for this session
+        self._session_started = False
         # Permission denials per tool in the current request (denial guard)
         self._denials: Dict[str, int] = {}
         self._usage_at_start: Dict[str, int] = {}
@@ -333,6 +337,7 @@ class Agent:
         Start a new conversation in a new session (keeps settings and session
         approvals). The previous conversation stays saved under its own id.
         """
+        self.end_session()
         self.session_id = uuid.uuid4().hex[:12]
         self.created_at = datetime.now().isoformat(timespec="seconds")
         self.messages = [{"role": "system", "content": self._build_system_prompt()}]
@@ -427,24 +432,44 @@ class Agent:
             logger.warning(f"Could not save session {self.session_id}: {e}")
 
     def _run(self, prompt: str, images: Sequence[Path] = ()) -> AgentResponse:
-        from joshu.hooks.dispatcher import dispatch_before_agent
+        from joshu.hooks.dispatcher import dispatch_before_agent, dispatch_session_start
+
+        contexts = []
+        if not self._session_started:
+            self._session_started = True
+            start = dispatch_session_start(
+                self.session_id,
+                {
+                    "cwd": str(self.cwd),
+                    "model": getattr(self.client, "model", None),
+                    "resumed": len(self.messages) > 1,
+                },
+            )
+            if start.context:
+                contexts.append(start.context)
 
         hook = dispatch_before_agent(self.session_id, prompt)
         if hook.should_block:
             message = (hook.response.message if hook.response else None) or "Blocked by hook."
             return AgentResponse(text=message, metadata={"blocked": True})
+        if hook.context:
+            contexts.append(hook.context)
 
         self._request_count += 1
         self.checkpoints.begin(prompt, self._request_count)
         content = prompt
-        if self._pending_notes:
-            content = "\n".join(self._pending_notes) + "\n\n" + prompt
-            self._pending_notes = []
+        notes = list(self._pending_notes)
+        self._pending_notes = []
+        if contexts:
+            notes.append("[Context from hooks]\n" + "\n\n".join(contexts))
+        if notes:
+            content = "\n".join(notes) + "\n\n" + prompt
         self.messages.append({"role": "user", "content": build_user_content(content, images)})
         tool_calls_before = self.tool_call_count
         self._last_call, self._repeats = None, 0
         self._denials = {}
         self._usage_at_start = dict(self.usage)
+        stop_continues = 0
 
         for turn_number in range(1, self.max_turns + 1):
             self._maybe_compact()
@@ -465,6 +490,12 @@ class Agent:
             self.events.on_turn_end(turn)
 
             if not turn.tool_calls:
+                reason = self._stop_hook_reason(prompt, turn.content, stop_continues)
+                if reason is not None:
+                    # A stop hook sent the agent back to work
+                    stop_continues += 1
+                    self.messages.append({"role": "user", "content": f"[Stop hook] {reason}"})
+                    continue
                 return AgentResponse(
                     text=turn.content,
                     metadata=self._metadata(turn_number, tool_calls_before, turn.finish_reason),
@@ -583,6 +614,27 @@ class Agent:
                     {"role": "tool", "tool_call_id": call.id, "content": "Interrupted by user."}
                 )
             raise
+
+    def _stop_hook_reason(self, prompt: str, response: str, continues: int) -> Optional[str]:
+        """Why a stop hook wants the agent to keep working, or None to finish."""
+        from joshu.hooks.dispatcher import dispatch_stop
+
+        if continues >= MAX_STOP_CONTINUES:
+            return None
+        hook = dispatch_stop(self.session_id, prompt, response, continues)
+        if not hook.should_block:
+            return None
+        return (hook.response.message if hook.response else None) or (
+            "A stop hook asked you to keep working before finishing."
+        )
+
+    def end_session(self) -> None:
+        """Tell session_end hooks this conversation is over (if it started)."""
+        from joshu.hooks.dispatcher import dispatch_session_end
+
+        if self._session_started and not self.is_subagent:
+            dispatch_session_end(self.session_id, {"cwd": str(self.cwd)})
+            self._session_started = False
 
     def _note_repeats(self, call: ToolCall, output: str) -> str:
         """Warn the model when it repeats a call that keeps giving the same result."""
@@ -802,6 +854,8 @@ class Agent:
         tokens = estimate_tokens(self.messages)
         # Cheapest first: clear old tool results; summarize only if still too big
         if self.clear_tool_results_at and tokens >= self.clear_tool_results_at:
+            if self._pre_compress_blocked("clear", tokens):
+                return
             from joshu.core.context_editing import clear_old_tool_results
 
             cleared, count, freed = clear_old_tool_results(self.messages)
@@ -811,10 +865,21 @@ class Agent:
                 tokens = estimate_tokens(self.messages)
         if tokens < self.context_window * self.compact_threshold:
             return
+        if self._pre_compress_blocked("summarize", tokens):
+            return
         compacted = compact_messages(self.messages, self.client)
         if compacted is not self.messages:
             self.messages = compacted
             self.events.on_compact(tokens, estimate_tokens(compacted))
+
+    def _pre_compress_blocked(self, kind: str, tokens: int) -> bool:
+        """Run pre_compress hooks; True when one blocks the clearing/summary."""
+        from joshu.hooks.dispatcher import dispatch_pre_compress
+
+        hook = dispatch_pre_compress(
+            self.session_id, {"kind": kind, "tokens": tokens, "window": self.context_window}
+        )
+        return hook.should_block
 
     def _add_usage(self, usage: Dict[str, int]) -> None:
         with self._usage_lock:
@@ -851,6 +916,9 @@ class Agent:
                     max_turns=SUBAGENT_MAX_TURNS,
                 )
             response = sub_agent.run(prompt)
+            from joshu.hooks.dispatcher import dispatch_subagent_stop
+
+            dispatch_subagent_stop(self.session_id, description, response.text)
             self._add_usage(sub_agent.usage)
             with self._usage_lock:
                 self.cost.merge(sub_agent.cost)
