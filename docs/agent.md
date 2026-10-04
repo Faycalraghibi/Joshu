@@ -69,6 +69,33 @@ Set the mode with `--permission-mode`, `-y` (bypass), the `permission_mode`
 config value, or `/permissions <mode>` in interactive mode. `/plan` switches to
 plan mode.
 
+### Secrets
+
+Files that usually hold credentials are protected: `.env` and `.env.*`,
+`*.env`, private keys (`*.pem`, `*.key`, `id_rsa*`, `id_ed25519*`, ...),
+`.npmrc`, `.pypirc`, `.netrc`, `.git-credentials`, `credentials`,
+`service-account*.json`, and everything under `.ssh`, `.aws`, `.gnupg`,
+`.azure`, `.kube` and `.docker`. Templates such as `.env.example` are not.
+
+- Reading or editing a protected file asks first in every mode, bypass and
+  plan included, and the answer applies to that call only.
+- Shell commands that name a protected file (`cat .env`) or print the
+  environment (`env`, `printenv`, `set`, `Get-ChildItem Env:`) ask first too.
+- `search_file_content` skips protected files.
+- API keys, tokens, private keys and `KEY=value` lines with secret-looking
+  names are masked in every tool result (`[redacted NVIDIA key]`), so they
+  never reach the model or saved sessions. Code such as
+  `os.environ["API_KEY"]` is left alone.
+
+```yaml
+protected_paths: ["*.secret.yaml"]   # more patterns
+allow_paths: [".env.test"]           # exceptions
+mask_secrets: true
+```
+
+An allow rule (`permissions: allow: ["read_file(.env.test)"]`) also lets a
+specific protected file through.
+
 ### Permission rules
 
 Rules that last beyond the session go under `permissions` in config:

@@ -196,6 +196,15 @@ class PermissionManager:
         if denied_by is not None:
             return PermissionDecision(False, f"Blocked by the permission rule '{denied_by}'.")
 
+        # Protected files (.env, keys, ...) always need an explicit yes, in every mode
+        from joshu.core.secrets import sensitive_reason
+
+        secret = sensitive_reason(tool_name, arguments)
+        if secret is not None:
+            if self.rules.allows(tool_name, arguments) is not None:
+                return PermissionDecision(True)
+            return self._ask(tool_name, arguments, secret, allow_always=False)
+
         warning = None
         if tool_name == SHELL_TOOL:
             command = str(arguments.get("command", ""))
