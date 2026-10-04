@@ -107,6 +107,9 @@ def test_verbose_shows_output_in_full():
 
 
 def test_bell_rings_only_after_a_long_request(monkeypatch):
+    # A plain terminal: no desktop notifications or progress indicator
+    for name in ("WT_SESSION", "ConEmuPID", "TERM_PROGRAM", "KITTY_WINDOW_ID"):
+        monkeypatch.delenv(name, raising=False)
     ui, out = terminal_ui()
     ui.notify()
     assert "\a" not in text_of(out)  # no request started

@@ -380,6 +380,7 @@ class InteractiveMode:
             return True
         finally:
             self.type_ahead = listener.typed
+            self.agent_ui.end_request()
 
         self.agent_ui.print_footer(response)
         if self.context_provider and response.text:

@@ -5,6 +5,8 @@ All notable changes to the Joshu project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Desktop notifications when a long request finishes or needs approval, in terminals that support them (iTerm2, WezTerm, Ghostty via OSC 9; kitty via OSC 99); other terminals get the bell. `notifications: auto` (default), `desktop`, `bell` or `off`.
+- A busy indicator in the taskbar / tab while a request runs, in Windows Terminal, ConEmu, Ghostty and WezTerm (OSC 9;4).
 - `Esc Esc` on an empty prompt, or `/rewind` without a number, opens a menu of earlier requests: pick one to go back to before it (files the agent edited since are restored). `/rewind n` still drops the last n directly.
 - The bottom bar shows todo progress (`☐ 2/5 Add tests`) and how many background shells are running.
 - Models that stream their reasoning (`reasoning_content` or `reasoning`, e.g. NVIDIA Nemotron, DeepSeek, OpenRouter reasoning models) show it live as dim text while they think; it then folds to one line ("Thought for 3s"), and `Ctrl+O` shows it in full. `on_reasoning` is a new `AgentEvents` callback.

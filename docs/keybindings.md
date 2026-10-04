@@ -30,9 +30,11 @@ Press `?` on an empty prompt to see these in the terminal.
 | `Ctrl+O` | Show tool output in full from now on (press again to fold it) |
 | typing | Kept and put in the prompt when the agent finishes |
 
-When a request runs 20 seconds or more, the terminal bell rings when it
-finishes or needs your approval (`notifications: off` to disable,
-`notify_after_seconds` to change the time).
+When a request runs 20 seconds or more, you get a desktop notification (in
+iTerm2, WezTerm, Ghostty and kitty) or the terminal bell when it finishes or
+needs your approval (`notifications: off` to disable, `notify_after_seconds`
+to change the time). Windows Terminal, ConEmu, Ghostty and WezTerm also show a
+busy indicator on the tab or taskbar while a request runs.
 
 ## Vim mode
 

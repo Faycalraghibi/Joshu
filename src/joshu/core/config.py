@@ -31,8 +31,8 @@ DEFAULT_CONFIG = {
     "theme": "dark",
     "output_style": "default",
     "statusline": "",
-    # Ring the terminal bell when a long request finishes or waits for approval
-    "notifications": "bell",
+    # Desktop notification (or the bell) when a long request finishes or waits
+    "notifications": "auto",
     "notify_after_seconds": 20,
     "persistent_history": True,
     "history_limit": 1000,
@@ -156,7 +156,7 @@ class JoshuConfig:
     theme: str = "dark"
     output_style: str = "default"
     statusline: str = ""
-    notifications: str = "bell"
+    notifications: str = "auto"
     notify_after_seconds: int = 20
     persistent_history: bool = True
     history_limit: int = 1000
