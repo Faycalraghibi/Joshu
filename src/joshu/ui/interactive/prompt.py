@@ -76,20 +76,29 @@ def prompt_message(vim_normal: bool = False, multiline: bool = False) -> Formatt
     return [("class:rule", _rule() + "\n"), (style, marker)]
 
 
-def bottom_toolbar(mode: str, model: str = "", notice: str = "", status: str = "") -> FormattedText:
-    """Bottom rule, then the mode hint on the left and the status line (or model) on the right."""
+def bottom_toolbar(
+    mode: str, model: str = "", notice: str = "", status: str = "", activity: str = ""
+) -> FormattedText:
+    """
+    Bottom rule, then the mode hint and `activity` (todo progress, background
+    shells) on the left and the status line (or model) on the right.
+    """
     hint, style = MODE_HINTS.get(mode, MODE_HINTS["default"])
     if notice:
         hint, style = notice, "class:notice"
     width = max(10, shutil.get_terminal_size((80, 24)).columns - 1)
     left = "  " + hint
+    extra = f"  ·  {activity}" if activity else ""
     room = max(0, width - len(left) - 2)
+    extra = extra if len(extra) <= room // 2 else extra[: max(0, room // 2 - 1)] + "…"
+    room = max(0, room - len(extra))
     model = status or model
     right = model if len(model) <= room else (model[: room - 1] + "…" if room > 1 else "")
-    gap = " " * max(1, width - len(left) - len(right))
+    gap = " " * max(1, width - len(left) - len(extra) - len(right))
     return [
         ("class:rule", _rule() + "\n"),
         (style, left),
+        ("class:hint", extra),
         ("", gap),
         ("class:model", right),
     ]

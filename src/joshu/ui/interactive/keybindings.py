@@ -138,13 +138,34 @@ def create_key_bindings(interactive_mode) -> Optional[KeyBindings]:
         """Ctrl+L clears the screen, keeping what you typed."""
         event.app.renderer.clear()
 
-    @kb.add("escape", filter=~vim_enabled)
-    def _(event):
-        """Esc clears the input (in vim mode it switches to NORMAL instead)."""
+    def rewind_or_clear(event, double: bool) -> None:
         buffer = event.app.current_buffer
         if buffer.complete_state:
             buffer.cancel_completion()
-        else:
+            return
+        if buffer.text:
             buffer.reset()
+            return
+        now = time.monotonic()
+        if double or now - getattr(interactive_mode, "_last_esc", 0.0) < 0.8:
+            interactive_mode._last_esc = 0.0
+            agent = getattr(interactive_mode, "agent", None)
+            if agent is not None and agent.requests():
+                event.app.exit(result="/rewind")
+            else:
+                interactive_mode.notice = "Nothing to rewind"
+                event.app.invalidate()
+            return
+        interactive_mode._last_esc = now
+
+    @kb.add("escape", filter=~vim_enabled)
+    def _(event):
+        """Esc clears the input; twice on an empty prompt opens the rewind menu."""
+        rewind_or_clear(event, double=False)
+
+    @kb.add("escape", "escape", filter=~vim_enabled)
+    def _(event):
+        """Esc Esc (pressed quickly) on an empty prompt opens the rewind menu."""
+        rewind_or_clear(event, double=True)
 
     return kb

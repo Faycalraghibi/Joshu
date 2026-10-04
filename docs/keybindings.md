@@ -15,6 +15,7 @@ Press `?` on an empty prompt to see these in the terminal.
 | `Alt+V` | Attach the image in the clipboard (also `/paste`) |
 | `Shift+Tab` | Cycle modes: default → accept edits → plan |
 | `Esc` | Close the menu, or clear the input |
+| `Esc` `Esc` | On an empty prompt: go back to an earlier request (rewind menu) |
 | `Ctrl+O` | Show the last request's tool output in full (output cut to a few lines is marked "ctrl+o to expand") |
 | `Ctrl+L` | Clear the screen, keeping what you typed |
 | `Ctrl+C` | Clear the input; twice on an empty prompt to exit |

@@ -43,7 +43,7 @@ COMMANDS: List[SlashCommand] = [
         "compact", "Summarize the conversation to free context", "Conversation", "[focus]"
     ),
     SlashCommand(
-        "rewind", "Drop the last n requests and restore their files", "Conversation", "[n]"
+        "rewind", "Go back to an earlier request and restore its files", "Conversation", "[n]"
     ),
     SlashCommand("undo", "Revert the file edits of the last request", "Conversation"),
     SlashCommand("resume", "List saved conversations, or continue one", "Conversation", "[id]"),

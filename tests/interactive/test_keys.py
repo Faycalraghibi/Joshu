@@ -96,6 +96,28 @@ def test_ctrl_o_shows_the_last_output_and_keeps_the_input():
     assert shown == [1]
 
 
+def test_double_escape_on_empty_prompt_opens_rewind():
+    agent = SimpleNamespace(requests=lambda: ["earlier"])
+    mode = SimpleNamespace(vim_enabled=False, notice="", cycle_mode=lambda: "", agent=agent)
+    with create_pipe_input() as pipe:
+        pipe.send_text(ESC + ESC)
+        session = PromptSession(
+            input=pipe, output=DummyOutput(), key_bindings=create_key_bindings(mode)
+        )
+        assert session.prompt("> ") == "/rewind"
+
+
+def test_double_escape_without_history_only_says_so():
+    mode = SimpleNamespace(vim_enabled=False, notice="", cycle_mode=lambda: "", agent=None)
+    with create_pipe_input() as pipe:
+        pipe.send_text(ESC + ESC + "ok\r")
+        session = PromptSession(
+            input=pipe, output=DummyOutput(), key_bindings=create_key_bindings(mode)
+        )
+        assert session.prompt("> ") == "ok"
+    assert mode.notice == "Nothing to rewind"
+
+
 def test_vim_mode_uses_normal_mode_motions():
     # Esc to NORMAL, 0 to line start, x deletes a char, A appends at the end
     assert ask("hello" + ESC + "0xA!\r", vim=True)[0] == "ello!"

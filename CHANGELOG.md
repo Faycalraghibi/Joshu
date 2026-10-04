@@ -5,6 +5,8 @@ All notable changes to the Joshu project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- `Esc Esc` on an empty prompt, or `/rewind` without a number, opens a menu of earlier requests: pick one to go back to before it (files the agent edited since are restored). `/rewind n` still drops the last n directly.
+- The bottom bar shows todo progress (`☐ 2/5 Add tests`) and how many background shells are running.
 - Models that stream their reasoning (`reasoning_content` or `reasoning`, e.g. NVIDIA Nemotron, DeepSeek, OpenRouter reasoning models) show it live as dim text while they think; it then folds to one line ("Thought for 3s"), and `Ctrl+O` shows it in full. `on_reasoning` is a new `AgentEvents` callback.
 - Replies stream into the terminal as they are written: finished paragraphs, lists and code blocks are printed as Markdown right away, and the line below shows elapsed time and output tokens so far.
 - `Ctrl+O` shows tool output that was cut short: at the prompt, the last request's output in full; while the agent works, everything from then on.

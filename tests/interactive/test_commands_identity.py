@@ -198,7 +198,9 @@ def test_slash_menu_has_descriptions():
     completer = get_command_completer([("/deploy", "Ship it")])
     items = {c.text: c for c in complete("/re", completer)}
     assert "/rewind" in items
-    assert items["/rewind"].display_meta_text == "Drop the last n requests and restore their files"
+    assert (
+        items["/rewind"].display_meta_text == "Go back to an earlier request and restore its files"
+    )
     assert items["/rewind"].display_text == "/rewind [n]"
     assert complete("/dep", completer)[0].display_meta_text == "Ship it"
 

@@ -1,6 +1,8 @@
 """Command handlers for interactive mode slash commands."""
 
 import json
+import sys
+from typing import List
 
 from joshu.ui.interactive.commands_extra import ExtraCommands
 from joshu.ui.interactive.commands_more import MoreCommands
@@ -15,6 +17,35 @@ First explore: the README, build and dependency files (pyproject.toml, package.j
 - Anything a newcomer would likely get wrong
 
 Only include facts you verified in the repository; don't invent commands. If AGENTS.md (or JOSHU.md / CLAUDE.md) already exists, read it and improve it rather than starting over, keeping what is still accurate."""
+
+
+def pick_rewind(requests: List[str]) -> int:
+    """Arrow-key menu of past requests, newest first. Returns how many to drop (0: cancel)."""
+    from prompt_toolkit.key_binding import KeyBindings
+    from prompt_toolkit.shortcuts import choice
+
+    bindings = KeyBindings()
+
+    @bindings.add("escape", eager=True)
+    def _(event):
+        event.app.exit(result=0)
+
+    total = len(requests)
+    options = [
+        (total - index, _shorten(text, 90)) for index, text in reversed(list(enumerate(requests)))
+    ]
+    options.append((0, "Cancel"))
+    try:
+        return int(
+            choice(
+                "Rewind to before which request? Files the agent edited since are restored.",
+                options=options,
+                symbol="❯",
+                key_bindings=bindings,
+            )
+        )
+    except (EOFError, KeyboardInterrupt):
+        return 0
 
 
 def _shorten(text: str, limit: int = 80) -> str:
@@ -578,7 +609,17 @@ class CommandHandler(ExtraCommands, MoreCommands):
     def handle_rewind_command(self, command: str) -> bool:
         """/rewind [n]: drop the last n requests and restore the files they changed."""
         agent = self.interactive_mode.agent
-        arg = command[len("/rewind") :].strip() or "1"
+        arg = command[len("/rewind") :].strip()
+        if not arg:
+            # In a terminal, pick how far back; otherwise the last request
+            requests = agent.requests() if agent is not None else []
+            if not requests:
+                self.interactive_mode._show_message("Nothing to rewind.")
+                return True
+            picked = pick_rewind(requests) if sys.stdin.isatty() else 1
+            if not picked:
+                return True
+            arg = str(picked)
         if not arg.isdigit() or int(arg) < 1:
             self.interactive_mode._show_message("Usage: /rewind [n]  (n requests, default 1)")
             return True
