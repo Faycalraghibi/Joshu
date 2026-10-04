@@ -217,6 +217,7 @@ def execute_agent_prompt(
     # Approvals need a person at the terminal
     can_ask = not headless and sys.stdin.isatty()
     agent = None
+    ui = None
     try:
         agent, ui = create_console_agent(
             model=model,
@@ -263,6 +264,8 @@ def execute_agent_prompt(
         Console(stderr=True).print("\nInterrupted.")
         return 130
     finally:
+        if ui is not None:
+            ui.end_request()
         if agent is not None:
             agent.end_session()
 

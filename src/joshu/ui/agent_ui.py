@@ -261,6 +261,7 @@ class ConsoleAgentUI(AgentEvents):
         with self._lock:
             self.expandable = []
             self._request_started = time.monotonic()
+            self._progress(True)
 
     # ---------------------------------------------------------------- events
 
@@ -507,7 +508,7 @@ class ConsoleAgentUI(AgentEvents):
         """Show what the tool will do and ask the user."""
         self._stop_spinner()
         self._end_line()
-        self.notify()
+        self.notify("Joshu needs your approval")
         tool = request.tool_name
         label = TOOL_LABELS.get(tool, tool)
         path = str(request.arguments.get("path", ""))
@@ -618,19 +619,53 @@ class ConsoleAgentUI(AgentEvents):
         with self._lock:
             self.verbose = not self.verbose
 
-    def notify(self) -> None:
-        """Ring the bell when a request that ran a while finishes or needs an answer."""
+    def notify(self, message: str = "Joshu finished") -> None:
+        """
+        Tell the user a request that ran a while finished or needs an answer:
+        a desktop notification where the terminal supports one, else the bell
+        (`notifications`: auto, desktop, bell or off).
+        """
         if self._request_started is None or not self.console.is_terminal or self.quiet:
             return
         config = get_config_manager()
-        if str(config.get("notifications", "bell")).lower() != "bell":
+        mode = str(config.get("notifications", "auto")).lower()
+        if mode in ("off", "false", "none"):
             return
         if time.monotonic() - self._request_started < float(
             config.get("notify_after_seconds", 20) or 0
         ):
             return
-        self.console.file.write("\a")
-        self.console.file.flush()
+        from joshu.ui.terminal_features import notification_sequence
+
+        desktop = notification_sequence(message) if mode in ("auto", "desktop") else ""
+        self._write_control(desktop or "\a")
+
+    def _write_control(self, sequence: str) -> None:
+        """Write an escape sequence straight to the terminal (not through rich)."""
+        try:
+            self.console.file.write(sequence)
+            self.console.file.flush()
+        except Exception:
+            pass
+
+    def _progress(self, busy: bool) -> None:
+        """Taskbar / tab progress indicator while a request runs, where supported."""
+        if not self.rich_mode:
+            return
+        from joshu.ui.terminal_features import (
+            PROGRESS_BUSY,
+            PROGRESS_CLEAR,
+            supports_progress,
+        )
+
+        if supports_progress():
+            self._write_control(PROGRESS_BUSY if busy else PROGRESS_CLEAR)
+
+    def end_request(self) -> None:
+        """The request finished, failed or was interrupted."""
+        with self._lock:
+            self._stop_spinner()
+            self._progress(False)
 
     def _message_block(self, text: str, first: bool) -> Table:
         """Markdown with the reply bullet (first block) or aligned under it."""
