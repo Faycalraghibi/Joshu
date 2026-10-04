@@ -4,13 +4,25 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "joshu"
-version = "0.2.0"
-description = "Joshu - AI command-line assistant"
+version = "0.3.0"
+description = "A coding agent for the terminal that works with any OpenAI-compatible model"
 readme = "README.md"
 requires-python = ">=3.10,<3.15"
 authors = [{ name = "Joshu Community" }]
 license = { file = "LICENSE" }
-keywords = ["cli", "ai", "assistant", "llm"]
+keywords = ["cli", "ai", "agent", "coding-agent", "llm", "terminal"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development",
+]
 dependencies = [
     "openai>=1.54.0",
     "typer==0.20.0",
@@ -60,6 +72,12 @@ use = [
     "chromadb>=0.4.0",
     "sentence-transformers>=2.2.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/Faycalraghibi/Joshu"
+Documentation = "https://github.com/Faycalraghibi/Joshu/tree/main/docs"
+Changelog = "https://github.com/Faycalraghibi/Joshu/blob/main/CHANGELOG.md"
+Issues = "https://github.com/Faycalraghibi/Joshu/issues"
 
 [project.scripts]
 joshu = "joshu.ui.cli:main"

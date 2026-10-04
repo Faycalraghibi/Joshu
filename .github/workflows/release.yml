@@ -1,0 +1,75 @@
+# Push a tag like v0.3.0 to publish that version:
+# builds the package, publishes it to PyPI (trusted publishing, no API token)
+# and creates the GitHub release from the CHANGELOG section.
+#
+# One-time PyPI setup: on pypi.org, Account → Publishing → add a pending
+# publisher: project "joshu", owner "Faycalraghibi", repository "Joshu",
+# workflow "release.yml", environment "pypi".
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check the tag matches the package version
+        run: |
+          version=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          test "v$version" = "$GITHUB_REF_NAME" || { echo "Tag $GITHUB_REF_NAME != version $version"; exit 1; }
+      - name: Build
+        run: |
+          pip install build
+          python -m build
+      - name: Smoke test
+        run: |
+          pip install dist/*.whl
+          joshu --version
+          python -c "from joshu import Session, run; print('sdk ok')"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  pypi:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  github-release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v heading="## [$version]" '
+            index($0, heading) == 1 {found=1; next}
+            found && index($0, "## [") == 1 {exit}
+            found {print}
+          ' CHANGELOG.md > notes.md
+          test -s notes.md || { echo "No CHANGELOG section for $version"; exit 1; }
+          gh release create "$GITHUB_REF_NAME" dist/* --title "Joshu $version" --notes-file notes.md

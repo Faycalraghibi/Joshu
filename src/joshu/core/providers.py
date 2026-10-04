@@ -22,7 +22,7 @@ import os
 from dataclasses import dataclass, field, replace
 from typing import Any, Dict, List, Optional
 
-DEFAULT_PROVIDER = "openrouter"
+DEFAULT_PROVIDER = "nvidia"
 
 
 @dataclass(frozen=True)

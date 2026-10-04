@@ -28,6 +28,23 @@ joshu interactive --provider groq --model <model-id>
 With `--provider` and no `--model`, the provider's default model is used (when
 it has one).
 
+## Choosing a model
+
+The default is NVIDIA's **Nemotron 3.5 Lightning** (`nvidia/nemotron-3.5-lightning-30b-a3b`):
+free with a key from build.nvidia.com, supports tool calling, and is fast. On
+Joshu's benchmark (8 coding tasks, each run 3 times, graded by hidden tests):
+
+| Model | Passed | Avg. tokens per task | Avg. time per task |
+|---|---|---|---|
+| NVIDIA Nemotron 3.5 Lightning | 20/24 (83%) | ~34k | ~64s |
+
+It reliably fixes bugs, renames across files, adds features and edits nested
+code; it is weaker at tasks that need careful reasoning about edge cases
+(Unicode handling, off-by-one). For harder work pick a larger model, e.g.
+`joshu use nvidia/nemotron-3-ultra-550b-a55b -p nvidia`, or a frontier model
+from another provider. Compare models on your own tasks with
+`python benchmarks/run.py --provider <p> --model <m> --repeat 3`.
+
 ## Built-in providers
 
 | Name | Base URL | API key variable | Default model |
