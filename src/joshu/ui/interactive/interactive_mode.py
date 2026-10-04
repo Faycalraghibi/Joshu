@@ -22,7 +22,7 @@ from .completers import get_command_completer, get_path_completer
 from .history import JsonHistory
 from .keybindings import create_key_bindings
 from .modes import AskModeHandler
-from .prompt import get_prompt, get_style
+from .prompt import PLACEHOLDER, SHORTCUTS, bottom_toolbar, get_style, prompt_message
 from .utils import (
     copy_to_clipboard,
     execute_file_content,
@@ -45,6 +45,11 @@ class InteractiveMode:
         self.prompt_history = JsonHistory()
 
         self.vim_mode = "INSERT"
+        # Vim keys only when enabled in config (vim_mode: true)
+        self.vim_enabled = bool(self.config_manager.get("vim_mode", False))
+        # One-line notice shown in place of the mode hint (e.g. "press Ctrl+C again")
+        self.notice = ""
+        self._bypass_cycle = self.config_manager.get("permission_mode", "default") == "bypass"
         self.multiline_mode = False
         self.verbose_mode = verbose
         self.suggestions_enabled = True
@@ -333,7 +338,11 @@ class InteractiveMode:
 
     def _handle_user_input(self, user_input: str) -> bool:
         """Handle user input and return True if session should continue."""
-        if not user_input:
+        self.notice = ""
+        if not user_input or not user_input.strip():
+            return True
+        if user_input.strip() == "?":
+            self.show_shortcuts()
             return True
 
         self._add_to_history(user_input)
@@ -476,15 +485,38 @@ class InteractiveMode:
         """Show a message to the user."""
         print(message)
 
+    # ------------------------------------------------------------------ modes
+
+    def current_mode(self) -> str:
+        """default, accept_edits, bypass, plan or ask."""
+        if self.interaction_mode in ("plan", "ask"):
+            return self.interaction_mode
+        return str(self.config_manager.get("permission_mode", "default") or "default")
+
+    def cycle_mode(self) -> str:
+        """Shift+Tab: default -> accept edits -> plan (-> bypass if started in it)."""
+        order = ["default", "accept_edits", "plan"] + (["bypass"] if self._bypass_cycle else [])
+        current = self.current_mode()
+        following = (
+            order[(order.index(current) + 1) % len(order)] if current in order else "default"
+        )
+        if following == "plan":
+            self.interaction_mode = "plan"
+        else:
+            self.interaction_mode = "agent"
+            # For this session only; /permissions <mode> saves it
+            self.config_manager.set("permission_mode", following)
+        return following
+
+    def model_label(self) -> str:
+        agent_model = getattr(getattr(self.agent, "client", None), "model", None)
+        return str(agent_model or self.model or self.config_manager.get("model") or "")
+
+    def show_shortcuts(self) -> None:
+        self._show_message(SHORTCUTS)
+
     def start(self):
         """Start the interactive mode."""
-        self._show_message("Interactive Mode started. Type /help for commands.")
-        self._show_message(
-            f"Current mode: [{self.interaction_mode.upper()}]. Switch modes with /agent, /ask, or /plan"
-        )
-        self._show_message(
-            "Esc interrupts the agent. Typing while it works prepares your next message."
-        )
         if self.verbose_mode:
             self._show_message("Verbose mode: ON (enabled via -v or --verbose flag)")
 
@@ -492,7 +524,11 @@ class InteractiveMode:
             try:
                 default, self.type_ahead = self.type_ahead, ""
                 user_input = prompt(
-                    get_prompt(self.interaction_mode, self.vim_mode, self.multiline_mode),
+                    prompt_message(self.vim_mode == "NORMAL", self.multiline_mode),
+                    bottom_toolbar=lambda: bottom_toolbar(
+                        self.current_mode(), self.model_label(), self.notice
+                    ),
+                    placeholder=[("class:placeholder", PLACEHOLDER)],
                     default=default,
                     key_bindings=self.key_bindings,
                     style=self.style,

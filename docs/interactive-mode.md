@@ -14,17 +14,45 @@ joshu interactive --model llama-3-70b --verbose
 ## Interface Overview
 
 ```
-Joshu Interactive Mode
-Type /help for commands, /exit to quit
-Mode: AGENT
+╭─────────────────────────────────────────────────────────────╮
+│ ✻ Welcome to Joshu  v0.2.0                                  │
+│                                                             │
+│   /help for help · ? for shortcuts · shift+tab to switch mode │
+│                                                             │
+│   cwd: /home/me/project                                     │
+│   model: nvidia/nemotron-3.5-lightning-30b-a3b (nvidia)     │
+╰─────────────────────────────────────────────────────────────╯
 
-[AGENT] >
+──────────────────────────────────────────────────────────────
+> fix the failing test in calc.py
+──────────────────────────────────────────────────────────────
+  ⏵⏵ accept edits on (shift+tab to cycle)        nvidia/nemotron…
+
+● Read(calc.py)
+  ⎿  Read 6 lines
+
+● Update(calc.py)
+  ⎿  Updated calc.py with 1 addition and 1 removal
+     2 -     return a - b
+     2 +     return a + b
+
+● Bash(python -m pytest -q)
+  ⎿  2 passed in 0.03s
+
+● Fixed: add() subtracted instead of adding.
 ```
 
-**Components:**
-- **Mode indicator**: Shows current mode (AGENT, ASK, PLAN)
-- **Prompt**: Where you type commands
-- **Output area**: Results and responses
+- **Input**: type after `>`; the line below shows the mode and the model.
+  `?` lists shortcuts.
+- **While the agent works**: a `✻ Working… (12s · esc to interrupt)` line.
+- **Tool calls**: `● Tool(argument)` with the result under `⎿`: line counts
+  for reads, a colored diff for edits, the first lines of command output,
+  and a checklist for the agent's todos.
+- **Replies**: rendered as Markdown.
+- **Approvals**: a panel with the diff or command, then a menu (arrow keys,
+  a number, or Esc): *Yes*, *Yes, and don't ask again* for that tool (or
+  command, e.g. `git status`) this session, or *No, and tell Joshu what to
+  do differently*, whose note is passed to the agent.
 
 ## Three Modes
 
@@ -193,9 +221,11 @@ compaction can't be rewound.
 
 | Shortcut | Action |
 |----------|--------|
-| `Esc` | Interrupt the agent (while it works) |
+| `Esc` | Interrupt the agent (while it works); clear the input (at the prompt) |
+| `Shift+Tab` | Cycle modes: default → accept edits → plan |
+| `?` | Show shortcuts |
 | `Ctrl+B` | Background bash |
-| `Ctrl+C` | Interrupt |
+| `Ctrl+C` | Clear the input; twice on an empty prompt to exit |
 | `Ctrl+D` | Exit |
 | `Enter` | Execute |
 

@@ -1,6 +1,9 @@
-"""Prompt generation and styling for interactive mode."""
+"""The input area: prompt line, rules around it and the hint line below."""
 
-from typing import List, Tuple, Union
+from __future__ import annotations
+
+import shutil
+from typing import List, Tuple
 
 try:
     from prompt_toolkit.styles import Style
@@ -10,44 +13,74 @@ except ImportError:
     Style = None
     PROMPT_TOOLKIT_AVAILABLE = False
 
+ACCENT = "#d97757"
+
+FormattedText = List[Tuple[str, str]]
+
+# Mode name -> (hint shown under the input, style class)
+MODE_HINTS = {
+    "default": ("? for shortcuts", "class:hint"),
+    "accept_edits": ("⏵⏵ accept edits on (shift+tab to cycle)", "class:mode-edits"),
+    "plan": ("⏸ plan mode on (shift+tab to cycle)", "class:mode-plan"),
+    "bypass": ("⏵⏵ bypass permissions on (shift+tab to cycle)", "class:mode-bypass"),
+    "ask": ("ask mode: answers without tools (shift+tab for agent mode)", "class:mode-plan"),
+}
+
+SHORTCUTS = """\
+  !  run a shell command        /  commands           @  attach a file or image
+  esc  interrupt the agent      shift+tab  cycle modes (default, accept edits, plan)
+  tab  complete commands        ctrl+r  search history
+  ctrl+c  clear input (twice on an empty prompt to exit)    ctrl+d  exit"""
+
 
 def get_style():
-    """Get prompt_toolkit style configuration."""
+    """prompt_toolkit styles for the input area."""
     if not PROMPT_TOOLKIT_AVAILABLE:
         return None
     return Style.from_dict(
         {
-            "prompt": "#00aa00 bold",
-            "normal-mode": "#0000aa bold",
-            "multiline": "#aa0000 bold",
-            "reverse-search": "#aaaa00 bold",
-            "bash-command": "#aa00aa",
-            "file-injection": "#00aaaa",
+            "prompt": "bold",
+            "rule": "#555555",
+            "hint": "#888888",
+            "model": "#888888",
+            "notice": "#d7af00",
+            "mode-edits": "#af87ff",
+            "mode-plan": "#5fafaf",
+            "mode-bypass": "#ff5f5f",
+            "placeholder": "#666666 italic",
+            "bottom-toolbar": "noreverse",
+            "normal-mode": "#5f87ff bold",
         }
     )
 
 
-def get_prompt(
-    interaction_mode: str, vim_mode: str, multiline_mode: bool
-) -> Union[str, List[Tuple[str, str]]]:
-    """Get the current prompt based on mode."""
-    if not PROMPT_TOOLKIT_AVAILABLE:
-        return f"[{interaction_mode}] > "
+def _rule() -> str:
+    return "─" * max(10, shutil.get_terminal_size((80, 24)).columns - 1)
 
-    mode_indicator = vim_mode[0] if vim_mode == "NORMAL" else ""
-    multiline_indicator = ">" if multiline_mode else ""
-    interaction_mode_display = interaction_mode.upper()
 
-    if vim_mode == "NORMAL":
-        return [
-            (
-                "class:normal-mode",
-                f"NORMAL [{interaction_mode_display}] {mode_indicator}{multiline_indicator} ",
-            )
-        ]
-    elif multiline_mode:
-        return [
-            ("class:multiline", f"MULTILINE [{interaction_mode_display}] {multiline_indicator} ")
-        ]
-    else:
-        return [("class:prompt", f"[{interaction_mode_display}]{multiline_indicator} ")]
+def prompt_message(vim_normal: bool = False, multiline: bool = False) -> FormattedText:
+    """Top rule, then the `>` prompt."""
+    marker = "N " if vim_normal else ("… " if multiline else "> ")
+    style = "class:normal-mode" if vim_normal else "class:prompt"
+    return [("class:rule", _rule() + "\n"), (style, marker)]
+
+
+def bottom_toolbar(mode: str, model: str = "", notice: str = "") -> FormattedText:
+    """Bottom rule, then the mode hint on the left and the model on the right."""
+    hint, style = MODE_HINTS.get(mode, MODE_HINTS["default"])
+    if notice:
+        hint, style = notice, "class:notice"
+    width = max(10, shutil.get_terminal_size((80, 24)).columns - 1)
+    left = "  " + hint
+    room = max(0, width - len(left) - 2)
+    right = model if len(model) <= room else (model[: room - 1] + "…" if room > 1 else "")
+    gap = " " * max(1, width - len(left) - len(right))
+    return [
+        ("class:rule", _rule() + "\n"),
+        (style, left),
+        ("", gap),
+        ("class:model", right),
+    ]
+
+
+PLACEHOLDER = 'Try "explain this codebase" or "fix the failing test"'

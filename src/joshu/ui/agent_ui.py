@@ -4,12 +4,19 @@ from __future__ import annotations
 
 import json
 import sys
-from typing import Any, Dict, Optional
+import time
+from typing import Any, Dict, List, Optional
 
-from rich.console import Console
+from rich.console import Console, Group
+from rich.live import Live
+from rich.markdown import Markdown
 from rich.markup import escape
+from rich.padding import Padding
 from rich.panel import Panel
+from rich.spinner import Spinner
 from rich.syntax import Syntax
+from rich.table import Table
+from rich.text import Text
 
 from joshu.core.agent import Agent, AgentEvents, AgentResponse
 from joshu.core.config import get_config_manager
@@ -22,7 +29,7 @@ from joshu.core.permissions import (
 )
 
 # Argument shown next to the tool name, per tool
-_SUMMARY_KEYS = {
+_SUMMARY_KEYS: Dict[str, Optional[str]] = {
     "read_file": "path",
     "write_file": "path",
     "replace": "path",
@@ -33,11 +40,57 @@ _SUMMARY_KEYS = {
     "web_search": "query",
     "web_fetch": "url",
     "task": "description",
+    "skill": "name",
+    "memory": "name",
+    "write_todos": None,
 }
+
+# How tools are named on screen
+TOOL_LABELS = {
+    "read_file": "Read",
+    "write_file": "Write",
+    "replace": "Update",
+    "run_shell_command": "Bash",
+    "search_file_content": "Search",
+    "glob": "Glob",
+    "list_directory": "List",
+    "web_search": "Web Search",
+    "web_fetch": "Fetch",
+    "task": "Task",
+    "write_todos": "Update Todos",
+    "memory": "Memory",
+    "save_memory": "Memory",
+    "skill": "Skill",
+}
+
+ACCENT = "#d97757"
+RESULT = "  ⎿  "
+RESULT_INDENT = "     "
+MAX_DIFF_LINES = 24
+MAX_OUTPUT_LINES = 4
+
+
+class _Working:
+    """Spinner line with elapsed time, re-rendered by rich.live."""
+
+    def __init__(self, label: str = "Working") -> None:
+        self.started = time.monotonic()
+        self.spinner = Spinner("dots", style=ACCENT)
+        self.label = label
+
+    def __rich_console__(self, console, options):
+        elapsed = int(time.monotonic() - self.started)
+        self.spinner.update(
+            text=Text.assemble(
+                (f"{self.label}… ", ACCENT),
+                (f"({elapsed}s · esc to interrupt)", "dim"),
+            )
+        )
+        yield self.spinner
 
 
 class ConsoleAgentUI(AgentEvents):
-    """Streams the agent's text, shows tool calls, and asks for approval."""
+    """Shows the agent's replies and tool calls, and asks for approval."""
 
     def __init__(self, console: Optional[Console] = None, quiet: bool = False) -> None:
         """
@@ -47,13 +100,26 @@ class ConsoleAgentUI(AgentEvents):
         """
         self.console = console or Console()
         self.quiet = quiet
+        # On a terminal, replies are shown as Markdown when complete (with a
+        # spinner meanwhile); otherwise text is streamed as it arrives
+        self.rich_mode = self.console.is_terminal and not quiet
         self._mid_line = False
         self._streamed = False  # text arrived through on_text this turn
+        self._buffer: List[str] = []
+        self._live: Optional[Live] = None
+        self._arguments: Dict[str, Any] = {}
 
     # ---------------------------------------------------------------- events
 
+    def on_model_start(self) -> None:
+        if self.rich_mode:
+            self._start_spinner()
+
     def on_text(self, delta: str) -> None:
         if self.quiet:
+            return
+        if self.rich_mode:
+            self._buffer.append(delta)
             return
         sys.stdout.write(delta)
         sys.stdout.flush()
@@ -61,8 +127,17 @@ class ConsoleAgentUI(AgentEvents):
         self._streamed = True
 
     def on_turn_end(self, turn: AssistantTurn) -> None:
+        if self.quiet:
+            return
+        if self.rich_mode:
+            self._stop_spinner()
+            text = "".join(self._buffer) or turn.content or ""
+            self._buffer = []
+            if text.strip():
+                self._print_message(text)
+            return
         # A client that doesn't stream delivers the whole text at the end
-        if not self.quiet and not self._streamed and turn.content:
+        if not self._streamed and turn.content:
             sys.stdout.write(turn.content)
             self._mid_line = not turn.content.endswith("\n")
         self._streamed = False
@@ -71,72 +146,184 @@ class ConsoleAgentUI(AgentEvents):
     def on_tool_start(self, name: str, arguments: Dict[str, Any]) -> None:
         if self.quiet:
             return
+        self._stop_spinner()
         self._end_line()
-        summary = escape(summarize_arguments(name.split(" › ")[-1], arguments))
-        self.console.print(f"[bold cyan]●[/bold cyan] [bold]{escape(name)}[/bold]({summary})")
+        self._arguments = arguments
+        prefix, _, tool = name.rpartition(" › ")
+        label = TOOL_LABELS.get(tool, tool)
+        if prefix:
+            label = f"{prefix} › {label}"
+        summary = escape(summarize_arguments(tool, arguments))
+        args = f"({summary})" if summary else ""
+        self.console.print()
+        self.console.print(f"[{ACCENT}]●[/] [bold]{escape(label)}[/bold]{args}")
 
     def on_tool_end(self, name: str, output: str, success: bool) -> None:
         if self.quiet:
             return
-        first_line = escape(_first_line(output, 120))
-        if success:
-            line_count = output.count("\n") + 1
-            summarized = _json_summary(output) is not None
-            more = (
-                f" [dim](+{line_count - 1} lines)[/dim]"
-                if line_count > 1 and not summarized
-                else ""
+        self._stop_spinner()
+        tool = name.rpartition(" › ")[2]
+        if not success:
+            self.console.print(
+                f"[red]{RESULT}{escape(_first_line(output, 160))}[/red]", highlight=False
             )
-            self.console.print(f"  [dim]└ {first_line}[/dim]{more}")
-            if "now has problems. Fix them" in output:
-                self.console.print(
-                    "  [yellow]└ problems found after the edit; the agent will fix them[/yellow]"
-                )
-        else:
-            self.console.print(f"  [red]└ {escape(name)}: {first_line}[/red]")
+            return
+        renderer = {
+            "replace": self._show_edit,
+            "write_file": self._show_write,
+            "run_shell_command": self._show_shell,
+            "write_todos": self._show_todos,
+            "read_file": self._show_read,
+        }.get(tool)
+        if renderer is None or not renderer(output):
+            self._result_line(escape(_first_line(output, 160)))
+        if "now has problems. Fix them" in output:
+            self.console.print(
+                f"[yellow]{RESULT_INDENT}problems found after the edit; the agent will fix them"
+                "[/yellow]"
+            )
 
     def on_compact(self, tokens_before: int, tokens_after: int) -> None:
         if self.quiet:
             return
+        self._stop_spinner()
         self._end_line()
         self.console.print(
-            f"[dim]Context compacted: ~{tokens_before:,} → ~{tokens_after:,} tokens[/dim]"
+            f"[dim]✻ Context compacted: ~{tokens_before:,} → ~{tokens_after:,} tokens[/dim]"
         )
+
+    # ------------------------------------------------------- tool results
+
+    def _result_line(self, markup: str) -> None:
+        self.console.print(f"[dim]{RESULT}[/dim]{markup}", highlight=False)
+
+    def _show_read(self, output: str) -> bool:
+        data = _json(output)
+        if not data or "total_lines" not in data:
+            return False
+        self._result_line(f"Read [bold]{data['total_lines']}[/bold] lines")
+        return True
+
+    def _show_write(self, output: str) -> bool:
+        content = str(self._arguments.get("content") or "")
+        lines = content.count("\n") + (1 if content and not content.endswith("\n") else 0)
+        path = escape(str(self._arguments.get("path", "")))
+        self._result_line(f"Wrote [bold]{lines}[/bold] lines to [bold]{path}[/bold]")
+        return True
+
+    def _show_edit(self, output: str) -> bool:
+        data = _json(output)
+        diff = str((data or {}).get("diff") or "")
+        if not diff:
+            return False
+        added = sum(
+            1 for line in diff.splitlines() if line.startswith("+") and not line.startswith("+++")
+        )
+        removed = sum(
+            1 for line in diff.splitlines() if line.startswith("-") and not line.startswith("---")
+        )
+        path = escape(str(self._arguments.get("path", "")))
+        self._result_line(
+            f"Updated [bold]{path}[/bold] with [bold]{added}[/bold] "
+            f"addition{'s' if added != 1 else ''} and [bold]{removed}[/bold] "
+            f"removal{'s' if removed != 1 else ''}"
+        )
+        self.console.print(Padding(render_diff(diff, MAX_DIFF_LINES), (0, 0, 0, 5)))
+        return True
+
+    def _show_shell(self, output: str) -> bool:
+        data = _json(output)
+        if not data:
+            return False
+        text = "\n".join(
+            part for part in (str(data.get("stdout") or ""), str(data.get("stderr") or "")) if part
+        ).rstrip()
+        lines = text.splitlines()
+        if not lines:
+            code = data.get("exit_code")
+            self._result_line("(no output)" if code in (0, None) else f"exit code {code}")
+            return True
+        style = "" if data.get("exit_code") in (0, None) else "red"
+        for index, line in enumerate(lines[:MAX_OUTPUT_LINES]):
+            lead = RESULT if index == 0 else RESULT_INDENT
+            shown = escape(line[:200])
+            self.console.print(
+                f"[dim]{lead}[/dim]" + (f"[{style}]{shown}[/{style}]" if style else shown),
+                highlight=False,
+            )
+        if len(lines) > MAX_OUTPUT_LINES:
+            self.console.print(
+                f"[dim]{RESULT_INDENT}… +{len(lines) - MAX_OUTPUT_LINES} lines[/dim]"
+            )
+        return True
+
+    def _show_todos(self, output: str) -> bool:
+        todos = self._arguments.get("todos")
+        if not isinstance(todos, list) or not todos:
+            return False
+        for index, todo in enumerate(todos):
+            if not isinstance(todo, dict):
+                continue
+            status = todo.get("status", "pending")
+            text = escape(str(todo.get("description", "")))
+            if status == "completed":
+                item = f"[dim]☒ [strike]{text}[/strike][/dim]"
+            elif status == "in_progress":
+                item = f"[bold]☐ {text}[/bold]"
+            elif status == "cancelled":
+                item = f"[dim]☒ [strike]{text}[/strike] (cancelled)[/dim]"
+            else:
+                item = f"☐ {text}"
+            lead = RESULT if index == 0 else RESULT_INDENT
+            self.console.print(f"[dim]{lead}[/dim]{item}", highlight=False)
+        return True
 
     # -------------------------------------------------------------- approval
 
     def approve(self, request: ApprovalRequest) -> ApprovalChoice:
         """Show what the tool will do and ask the user."""
+        self._stop_spinner()
         self._end_line()
-        title = f"{request.tool_name} wants to run"
-        if request.preview.startswith(("--- ", "diff ")) or "\n@@ " in request.preview:
-            body: Any = Syntax(request.preview, "diff", word_wrap=True)
+        tool = request.tool_name
+        label = TOOL_LABELS.get(tool, tool)
+        path = str(request.arguments.get("path", ""))
+        if tool == "replace":
+            title, question = "Edit file", f"Do you want to make this edit to {path}?"
+        elif tool == "write_file":
+            title, question = "Create file", f"Do you want to create {path}?"
+        elif tool == "run_shell_command":
+            title, question = "Bash command", "Do you want to run this command?"
         else:
-            body = escape(request.preview)
-        self.console.print(Panel(body, title=escape(title), border_style="yellow"))
+            title, question = label, f"Do you want to allow {label}?"
 
-        if request.warning:
-            self.console.print(f"[bold red]Warning:[/bold red] {escape(request.warning)}")
-            options = "[y]es / [n]o"
+        preview = request.preview
+        if preview.startswith(("--- ", "diff ")) or "\n@@ " in preview:
+            body: Any = render_diff(preview, 60)
+        elif tool == "run_shell_command":
+            body = Syntax(str(request.arguments.get("command", preview)), "bash", word_wrap=True)
         else:
-            options = "[y]es / [a]lways this session / [n]o"
+            body = Text(preview)
+        parts: List[Any] = [Text(title, style="bold"), Text(""), body]
+        if request.warning:
+            parts += [Text(""), Text.assemble(("Warning: ", "bold red"), request.warning)]
+        self.console.print()
+        self.console.print(Panel(Group(*parts), border_style=ACCENT, padding=(0, 1)))
+
+        options = [(ApprovalChoice.YES, "Yes")]
+        what = _always_scope(tool, label, request.arguments)
+        if not request.warning and what:
+            options.append(
+                (ApprovalChoice.ALWAYS, f"Yes, and don't ask again for {what} this session")
+            )
+        options.append((ApprovalChoice.NO, "No, and tell Joshu what to do differently (esc)"))
 
         from joshu.ui.key_listener import paused
 
-        while True:
-            try:
-                # Esc / type-ahead listening stops while the answer is read
-                with paused():
-                    answer = self.console.input(f"Allow? {escape(options)}: ").strip().lower()
-            except (EOFError, KeyboardInterrupt):
-                self.console.print()
-                return ApprovalChoice.NO
-            if answer in ("y", "yes"):
-                return ApprovalChoice.YES
-            if answer in ("a", "always") and not request.warning:
-                return ApprovalChoice.ALWAYS
-            if answer in ("", "n", "no"):
-                return ApprovalChoice.NO
+        with paused():
+            answer = _choose(question, options)
+            if answer == ApprovalChoice.NO:
+                request.feedback = _ask_feedback()
+        return answer
 
     # --------------------------------------------------------------- helpers
 
@@ -144,6 +331,7 @@ class ConsoleAgentUI(AgentEvents):
         """Dim line with turn and token counts."""
         if self.quiet:
             return
+        self._stop_spinner()
         meta = response.metadata
         usage = meta.get("usage", {})
         tokens = usage.get("prompt_tokens", 0) + usage.get("completion_tokens", 0)
@@ -156,6 +344,35 @@ class ConsoleAgentUI(AgentEvents):
             parts.append(str(meta["model"]))
         self.console.print(f"[dim]{' · '.join(parts)}[/dim]")
 
+    def _print_message(self, text: str) -> None:
+        grid = Table.grid(padding=(0, 1))
+        grid.add_column(width=1, no_wrap=True)
+        grid.add_column()
+        grid.add_row(Text("●"), Markdown(text.strip()))
+        self.console.print()
+        self.console.print(grid)
+
+    def _start_spinner(self) -> None:
+        if self._live is not None:
+            return
+        self._live = Live(
+            _Working(),
+            console=self.console,
+            refresh_per_second=8,
+            transient=True,
+        )
+        try:
+            self._live.start()
+        except Exception:  # never let the indicator break a request
+            self._live = None
+
+    def _stop_spinner(self) -> None:
+        if self._live is not None:
+            try:
+                self._live.stop()
+            finally:
+                self._live = None
+
     def _end_line(self) -> None:
         if self._mid_line:
             sys.stdout.write("\n")
@@ -163,8 +380,131 @@ class ConsoleAgentUI(AgentEvents):
             self._mid_line = False
 
 
+def _always_scope(tool: str, label: str, arguments: Dict[str, Any]) -> str:
+    """What "don't ask again" covers (see PermissionManager._remember), or "" if nothing."""
+    from joshu.core.permissions import command_key
+
+    if tool == "run_shell_command":
+        key = command_key(str(arguments.get("command", "")))
+        return f"`{key}` commands" if key else ""
+    if tool == "replace":
+        return "file edits"
+    if tool == "write_file":
+        return "creating files"
+    return label
+
+
+def render_diff(diff: str, limit: int) -> Any:
+    """A unified diff with line numbers, additions green and removals red."""
+    table = Table.grid(padding=(0, 1))
+    table.add_column(justify="right", style="dim", no_wrap=True)
+    table.add_column(no_wrap=False)
+    old_no = new_no = 0
+    shown = 0
+    hidden = 0
+    for line in diff.splitlines():
+        if line.startswith(("---", "+++")):
+            continue
+        if line.startswith("@@"):
+            try:
+                ranges = line.split("@@")[1].split()
+                old_no = int(ranges[0].split(",")[0].lstrip("-")) - 1
+                new_no = int(ranges[1].split(",")[0].lstrip("+")) - 1
+            except (IndexError, ValueError):
+                pass
+            if shown:
+                table.add_row("", Text("⋮", style="dim"))
+            continue
+        if shown >= limit:
+            hidden += 1
+            continue
+        if line.startswith("+"):
+            new_no += 1
+            table.add_row(str(new_no), Text("+ " + line[1:], style="green"))
+        elif line.startswith("-"):
+            old_no += 1
+            table.add_row(str(old_no), Text("- " + line[1:], style="red"))
+        else:
+            old_no += 1
+            new_no += 1
+            table.add_row(str(new_no), Text("  " + line[1:], style="dim"))
+        shown += 1
+    if hidden:
+        table.add_row("", Text(f"… +{hidden} lines", style="dim"))
+    return table
+
+
+def _choose(question: str, options: List[tuple]) -> ApprovalChoice:
+    """Arrow-key menu (prompt_toolkit), or a typed number without a terminal."""
+    try:
+        from prompt_toolkit.key_binding import KeyBindings
+        from prompt_toolkit.shortcuts import choice
+
+        bindings = KeyBindings()
+
+        @bindings.add("escape", eager=True)
+        def _(event):
+            event.app.exit(result=ApprovalChoice.NO)
+
+        for number, (value, _label) in enumerate(options, start=1):
+
+            def pick(event, value=value):
+                event.app.exit(result=value)
+
+            bindings.add(str(number))(pick)
+
+        if sys.stdin.isatty() and sys.stdout.isatty():
+            labels = [(value, f"{n}. {label}") for n, (value, label) in enumerate(options, 1)]
+            return choice(question, options=labels, symbol="❯", key_bindings=bindings)
+    except (EOFError, KeyboardInterrupt):
+        return ApprovalChoice.NO
+    except ImportError:
+        pass
+
+    print(question)
+    for number, (_value, label) in enumerate(options, start=1):
+        print(f"  {number}. {label}")
+    while True:
+        try:
+            answer = input("> ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            return ApprovalChoice.NO
+        if answer in ("", "1", "y", "yes"):
+            return options[0][0]
+        if answer.isdigit() and 1 <= int(answer) <= len(options):
+            return options[int(answer) - 1][0]
+        if answer in ("n", "no"):
+            return ApprovalChoice.NO
+        if answer in ("a", "always") and len(options) == 3:
+            return options[1][0]
+
+
+def _ask_feedback() -> Optional[str]:
+    """Optional note for the model after declining (Enter to skip)."""
+    try:
+        note = input("  Tell Joshu what to do differently (Enter to skip): ").strip()
+    except (EOFError, KeyboardInterrupt):
+        print()
+        return None
+    return note or None
+
+
+def _json(output: str) -> Optional[Dict[str, Any]]:
+    text = output.lstrip()
+    if not text.startswith("{"):
+        return None
+    try:
+        data, _ = json.JSONDecoder().raw_decode(text)
+    except ValueError:
+        return None
+    return data if isinstance(data, dict) else None
+
+
 def summarize_arguments(tool_name: str, arguments: Dict[str, Any], limit: int = 80) -> str:
     """One-line summary of a tool call's arguments."""
+    if tool_name in _SUMMARY_KEYS and _SUMMARY_KEYS[tool_name] is None:
+        return ""
     key = _SUMMARY_KEYS.get(tool_name)
     if key and key in arguments:
         value = str(arguments[key])
