@@ -358,16 +358,20 @@ class ConsoleAgentUI(AgentEvents):
     # --------------------------------------------------------------- helpers
 
     def print_footer(self, response: AgentResponse) -> None:
-        """Dim line with turn and token counts."""
+        """Dim line with this request's tokens (and how many the provider cached)."""
         if self.quiet:
             return
         self._stop_spinner()
         meta = response.metadata
-        usage = meta.get("usage", {})
-        tokens = usage.get("prompt_tokens", 0) + usage.get("completion_tokens", 0)
-        parts = [f"{meta.get('tool_calls', 0)} tool calls"]
-        if tokens:
-            parts.append(f"{tokens:,} tokens this session")
+        usage = meta.get("request_usage") or meta.get("usage", {})
+        prompt = usage.get("prompt_tokens", 0)
+        cached = usage.get("cached_tokens", 0)
+        parts = []
+        if prompt:
+            cached_note = f" ({_short(cached)} cached)" if cached else ""
+            parts.append(f"↑ {_short(prompt)} in{cached_note}")
+            parts.append(f"↓ {_short(usage.get('completion_tokens', 0))} out")
+        parts.append(f"{meta.get('tool_calls', 0)} tool calls")
         if meta.get("cost_usd") is not None:
             parts.append(f"${meta['cost_usd']:.4f}")
         if meta.get("model"):
@@ -422,6 +426,15 @@ def _always_scope(tool: str, label: str, arguments: Dict[str, Any]) -> str:
     if tool == "write_file":
         return "creating files"
     return label
+
+
+def _short(tokens: int) -> str:
+    """1234 -> 1.2k, 12345 -> 12k."""
+    if tokens < 1000:
+        return str(tokens)
+    if tokens < 10000:
+        return f"{tokens / 1000:.1f}k"
+    return f"{round(tokens / 1000)}k"
 
 
 def render_diff(diff: str, limit: int) -> Any:

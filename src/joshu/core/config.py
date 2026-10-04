@@ -49,6 +49,7 @@ DEFAULT_CONFIG = {
     "web_search_timeout": 10,
     # MCP Server settings
     "mcp_enabled": True,
+    "defer_mcp_tools": "auto",
     "mcp_discovery_on_startup": True,
     "mcp_servers": {},
     # Model provider settings (see joshu.core.providers)
@@ -76,6 +77,9 @@ DEFAULT_CONFIG = {
 }
 
 
+TRI_STATE_KEYS = {"defer_mcp_tools"}
+
+
 def _coerce_config_value(key: str, value: Any) -> Tuple[bool, Any]:
     """
     Check a value against the type of its default and coerce compatible numbers.
@@ -87,6 +91,15 @@ def _coerce_config_value(key: str, value: Any) -> Tuple[bool, Any]:
         return True, value
 
     default = DEFAULT_CONFIG[key]
+
+    # auto / always / never settings that also accept true / false
+    if key in TRI_STATE_KEYS:
+        if isinstance(value, bool):
+            return True, "always" if value else "never"
+        text = str(value).strip().lower()
+        aliases = {"true": "always", "false": "never", "on": "always", "off": "never"}
+        text = aliases.get(text, text)
+        return text in ("auto", "always", "never"), text
 
     # Optional[bool] settings (default None)
     if default is None:
@@ -148,6 +161,7 @@ class JoshuConfig:
     web_search_timeout: int = 10
     # MCP Server settings
     mcp_enabled: bool = True
+    defer_mcp_tools: str = "auto"
     mcp_discovery_on_startup: bool = True
     mcp_servers: Dict[str, Any] = field(default_factory=dict)
     # Model provider settings (see joshu.core.providers)

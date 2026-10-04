@@ -105,7 +105,7 @@ to your user config.
 | `memory` | Save, read or delete notes kept across sessions | no |
 | `skill` | Load a skill's instructions (when skills exist) | no |
 | `task` | Delegate research to a read-only sub-agent | no |
-| MCP tools | Tools from configured MCP servers | yes |
+| MCP tools | Tools from configured MCP servers (loaded on demand with `load_tools` when there are many) | yes |
 
 ### Recovering from tool-call mistakes
 

@@ -191,8 +191,32 @@ request_timeout: 120   # seconds to wait for a response
 
 ## Request size
 
-Every tool's description is sent with every request, including the tools of
-each MCP server. Many MCP tools can add tens of thousands of tokens per request,
-which uses up free-tier limits fast. Keep only the tools you need with
-`include_tools` / `exclude_tools` per server (see [MCP servers](mcp-servers.md)),
-or turn MCP off with `joshu config --set mcp_enabled=false`.
+Each request carries the system prompt and the definition of every tool the
+model may call, so a task of 15 steps sends them 15 times. Joshu keeps that
+fixed part small:
+
+- **MCP tools are loaded on demand.** When MCP tool definitions would cost
+  more than ~1,500 tokens per request, only their names go into the system
+  prompt; the model loads the ones it needs with `load_tools`, and they stay
+  available for the rest of the session. `defer_mcp_tools`: `auto` (default),
+  `always` or `never`.
+- **Tool results are compact JSON**, and built-in tool descriptions are short.
+- **Repeated denials stop early**: when a tool keeps being denied in one request
+  the model is told to stop calling it, and after 6 denials the request ends.
+
+Measured on a small bug-fix task with two MCP servers (34 tools) configured:
+
+| | First request | Requests for the task | Prompt tokens for the task |
+|---|---|---|---|
+| Before | 10,661 | 32 | 424,762 |
+| After | 3,782 | 14 | 72,498 |
+
+The footer under each reply shows that request's tokens (`↑ 3.8k in (2.2k
+cached) · ↓ 43 out`); `/context` shows what the context is made of, and
+`/cost` the session totals. Providers with prompt caching (NVIDIA, OpenAI,
+DeepSeek, Anthropic, ...) serve the repeated prefix from cache, which is
+cheaper or faster.
+
+To trim further, keep only the MCP tools you need with `include_tools` /
+`exclude_tools` per server (see [MCP servers](mcp-servers.md)), or turn MCP off
+with `joshu config --set mcp_enabled=false`.

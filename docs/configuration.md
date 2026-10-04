@@ -128,6 +128,7 @@ In interactive mode: `/config`, `/config <key>`, `/config <key> <value>`;
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `auto_memory` | boolean | `true` | Agent keeps notes across sessions (`memory` tool) |
+| `defer_mcp_tools` | string | `auto` | Load MCP tool definitions on demand: `auto`, `always`, `never` |
 | `theme` | string | `dark` | Color theme: `dark`, `light`, `colorblind`, `plain` |
 | `output_style` | string | `default` | Reply style: `default`, `concise`, `explanatory`, `learning` or a custom one |
 | `statusline` | string | `""` | Command whose output is shown under the input |

@@ -155,14 +155,7 @@ class FileEntry:
 
 @register_tool(
     name="list_directory",
-    description="""List files and subdirectories within a specified path.
-
-Use this tool to:
-- Explore directory structure
-- Find files in a location
-- View directory contents
-
-The tool respects .gitignore rules by default and can filter using glob patterns.""",
+    description="List a directory's files and subdirectories (respects .gitignore).",
     parameters={
         "type": "object",
         "properties": {
@@ -263,16 +256,7 @@ def list_directory_tool(
 
 @register_tool(
     name="read_file",
-    description="""Read content from a file.
-
-Use this tool to:
-- Read source code files
-- Read configuration files
-- Read documentation
-- Read specific line ranges from large files
-
-Supports text files and returns content as string.
-For binary files, returns base64-encoded content.""",
+    description="Read a file (optionally a line range with start_line/end_line). Read a file before editing it.",
     parameters={
         "type": "object",
         "properties": {
@@ -385,15 +369,7 @@ def read_file_tool(
 
 @register_tool(
     name="write_file",
-    description="""Write content to a file, creating or overwriting it.
-
-Use this tool to:
-- Create new files
-- Overwrite existing files with new content
-- Save generated code or configuration
-
-Creates parent directories if they don't exist.
-REQUIRES USER CONFIRMATION - a diff will be shown for existing files.""",
+    description="Create a file or overwrite one completely. Prefer replace for changes to existing files. The user may be asked to approve.",
     parameters={
         "type": "object",
         "properties": {
@@ -479,14 +455,7 @@ def write_file_tool(
 
 @register_tool(
     name="glob",
-    description="""Find files matching glob patterns.
-
-Use this tool to:
-- Find all files of a certain type (e.g., '*.py', '*.js')
-- Search for files by name pattern
-- Find files in specific directories
-
-Results are sorted by modification time (newest first).""",
+    description="Find files by glob pattern (e.g. '**/*.py'), newest first.",
     parameters={
         "type": "object",
         "properties": {
@@ -589,15 +558,7 @@ def glob_tool(
 
 @register_tool(
     name="search_file_content",
-    description="""Search for a pattern (regex) within file contents.
-
-Use this tool to:
-- Find code by content
-- Search for function/class definitions
-- Find usages of variables or imports
-- Search across multiple files
-
-Uses git grep when available for performance.""",
+    description="Search file contents with a regex; returns matching lines with file paths and line numbers.",
     parameters={
         "type": "object",
         "properties": {
@@ -799,18 +760,7 @@ def _closest_match(content: str, old_string: str, max_lines: int = 20000) -> Dic
 
 @register_tool(
     name="replace",
-    description="""Replace text within a file.
-
-Use this tool to:
-- Make targeted code changes
-- Update configuration values
-- Fix typos or errors
-- Refactor code
-
-Requires the old text to match exactly (with context).
-REQUIRES USER CONFIRMATION - a diff will be shown before changes are applied.
-
-For best results, include surrounding context in old_string to ensure unique matching.""",
+    description="Replace exact text in a file. old_string must match the file exactly, including indentation; include enough context to be unique (or set all_occurrences). The user may be asked to approve.",
     parameters={
         "type": "object",
         "properties": {

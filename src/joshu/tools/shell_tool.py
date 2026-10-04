@@ -444,19 +444,7 @@ def stop_background_process(process_id: str) -> Dict[str, Any]:
 # Register the tool
 @register_tool(
     name="run_shell_command",
-    description="""Execute shell commands.
-
-Use this tool to:
-- Run build commands (npm, pip, make)
-- Execute scripts
-- Check system status
-- Run tests
-- Git operations
-
-Returns stdout, stderr, and exit code.
-Some dangerous commands are blocked for safety.
-
-For long-running commands, use background=true to start them in the background.""",
+    description="Run a shell command; returns stdout, stderr and exit code. Use background=true for long-running commands (servers, watchers), then bash_output to read their output. The user may be asked to approve.",
     parameters={
         "type": "object",
         "properties": {
@@ -514,10 +502,7 @@ def run_shell_command_tool(
 
 @register_tool(
     name="bash_output",
-    description="""Read the output of a command started with run_shell_command(background=true).
-
-Returns the output written since the last read, whether the process is still
-running, and its exit code once it has finished.""",
+    description="Read new output, status and exit code of a background command.",
     parameters={
         "type": "object",
         "properties": {

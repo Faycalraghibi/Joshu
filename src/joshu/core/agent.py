@@ -13,7 +13,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence, Set
 
 from joshu.core.auto_memory import TYPES as MEMORY_TYPES
 from joshu.core.auto_memory import memory_prompt, run_memory_tool
@@ -47,6 +47,10 @@ SUBAGENT_MAX_TURNS = 25
 # Identical calls with identical results in a row: warn the model, then stop
 LOOP_WARN = 3
 LOOP_STOP = 5
+# Permission denials in one request: tell the model to stop using that tool
+# (per tool), then end the request (all tools together)
+DENIALS_WARN = 2
+DENIALS_STOP = 6
 
 
 @dataclass
@@ -155,6 +159,9 @@ class Agent:
         self._formatter = ToolExecutor(self._registry)
         self._tool_names = set(tool_names) if tool_names is not None else None
         self._local_tools: Dict[str, ToolSpec] = {}
+        # Deferred (MCP) tools whose definitions the model has loaded
+        self._loaded_tools: Set[str] = set()
+        self._defer_mode = config.get("defer_mcp_tools", "auto")
         self.subagents: Dict[str, SubagentSpec] = {}
         self.skills: Dict[str, Skill] = {}
         self.auto_memory = False
@@ -193,6 +200,9 @@ class Agent:
         self._repeats = 0
         # Requests handled in this conversation; checkpoints are tagged with it
         self._request_count = 0
+        # Permission denials per tool in the current request (denial guard)
+        self._denials: Dict[str, int] = {}
+        self._usage_at_start: Dict[str, int] = {}
 
     # ------------------------------------------------------------------ public
 
@@ -296,7 +306,25 @@ class Agent:
         self._request_count = 0
 
     def tool_specs(self) -> List[ToolSpec]:
-        """Tools offered to the model."""
+        """Tools offered to the model (deferred tools only once loaded)."""
+        specs = self._all_tool_specs()
+        deferred = self.deferred_tools(specs)
+        if not deferred:
+            return specs
+        hidden = {spec.name for spec in deferred}
+        return [spec for spec in specs if spec.name not in hidden] + [self._load_tools_spec()]
+
+    def deferred_tools(self, specs: Optional[List[ToolSpec]] = None) -> List[ToolSpec]:
+        """Tools whose definitions aren't sent until the model loads them."""
+        from joshu.core.deferred_tools import server_of, should_defer
+
+        specs = specs if specs is not None else self._all_tool_specs()
+        mcp = [spec for spec in specs if server_of(spec)]
+        if self.is_subagent or not should_defer(self._defer_mode, mcp):
+            return []
+        return [spec for spec in mcp if spec.name not in self._loaded_tools]
+
+    def _all_tool_specs(self) -> List[ToolSpec]:
         specs = [
             spec
             for spec in self._registry.get_available_tools(enabled_only=True)
@@ -369,6 +397,8 @@ class Agent:
         self.messages.append({"role": "user", "content": build_user_content(content, images)})
         tool_calls_before = self.tool_call_count
         self._last_call, self._repeats = None, 0
+        self._denials = {}
+        self._usage_at_start = dict(self.usage)
 
         for turn_number in range(1, self.max_turns + 1):
             self._maybe_compact()
@@ -395,6 +425,18 @@ class Agent:
                 )
 
             self._run_tool_calls(turn.tool_calls)
+            if sum(self._denials.values()) >= DENIALS_STOP:
+                note = (
+                    "[Stopped: tool calls kept being denied. Allow them (e.g. /permissions) "
+                    "or rephrase the request.]"
+                )
+                return AgentResponse(
+                    text=f"{turn.content}\n\n{note}".strip(),
+                    metadata={
+                        **self._metadata(turn_number, tool_calls_before, "denied"),
+                        "stopped": "denied",
+                    },
+                )
             if self._repeats >= LOOP_STOP:
                 note = (
                     f"[Stopped: the same tool call returned the same result {self._repeats} "
@@ -497,6 +539,13 @@ class Agent:
         decision = self.permissions.check(call.name, arguments, spec.requires_approval)
         if not decision.allowed:
             output = f"Permission denied: {decision.reason}"
+            self._denials[call.name] = self._denials.get(call.name, 0) + 1
+            if self._denials[call.name] >= DENIALS_WARN:
+                output += (
+                    f" This is denial number {self._denials[call.name]} for {call.name} in this "
+                    f"request: don't call {call.name} again. Continue without it, or finish "
+                    "and tell the user what you need them to allow."
+                )
             self.events.on_tool_end(call.name, output, False)
             return output
 
@@ -504,6 +553,8 @@ class Agent:
             self._snapshot_target(arguments)
 
         self.events.on_tool_start(call.name, arguments)
+        # A deferred tool the model called directly stays offered from now on
+        self._loaded_tools.add(call.name)
         success, output = self._invoke(spec, arguments, self._formatter)
         if success and call.name in EDIT_TOOLS and self.diagnostics_enabled:
             output += self._diagnose(arguments)
@@ -548,6 +599,8 @@ class Agent:
     def _find_tool(self, name: str) -> Optional[ToolSpec]:
         if self._tool_names is not None and name not in self._tool_names:
             return None
+        if name == "load_tools":
+            return self._load_tools_spec() if self.deferred_tools() else None
         spec = self._local_tools.get(name) or self._registry.get_tool(name)
         if spec is None or not spec.enabled:
             return None
@@ -596,6 +649,11 @@ class Agent:
             sections.append(skills_prompt(self.skills))
         if self.auto_memory:
             sections.append(memory_prompt(self.cwd))
+        deferred = self.deferred_tools()
+        if deferred:
+            from joshu.core.deferred_tools import index_prompt
+
+            sections.append(index_prompt(deferred))
         return build_system_prompt(
             self.cwd,
             plan_mode=self.permissions.mode == PermissionMode.PLAN,
@@ -622,6 +680,10 @@ class Agent:
             "tool_calls": self.tool_call_count - tool_calls_before,
             "finish_reason": finish_reason,
             "usage": dict(self.usage),
+            "request_usage": {
+                key: self.usage.get(key, 0) - self._usage_at_start.get(key, 0)
+                for key in ("prompt_tokens", "completion_tokens", "cached_tokens")
+            },
             "cost_usd": round(self.cost.total_usd, 6) if self.cost.known else None,
             "model": getattr(self.client, "model", None),
             "session_id": self.session_id,
@@ -683,6 +745,40 @@ class Agent:
                 "required": ["description", "prompt"],
             },
             function=task,
+            requires_approval=False,
+        )
+
+    def _load_tools_spec(self) -> ToolSpec:
+        from joshu.core.deferred_tools import (
+            LOAD_TOOLS,
+            LOAD_TOOLS_DESCRIPTION,
+            LOAD_TOOLS_PARAMETERS,
+            match,
+        )
+
+        def load_tools(names: Optional[List[str]] = None, query: str = "") -> Dict[str, Any]:
+            deferred = self.deferred_tools()
+            if isinstance(names, str):
+                names = [names]
+            found = match(deferred, names or [], query or "")
+            if not found:
+                return {
+                    "success": False,
+                    "error": "No matching tools. Not yet loaded: "
+                    + ", ".join(sorted(s.name for s in deferred)),
+                }
+            self._loaded_tools.update(spec.name for spec in found)
+            return {
+                "success": True,
+                "loaded": [spec.name for spec in found],
+                "message": "These tools are now available; call them directly.",
+            }
+
+        return ToolSpec(
+            name=LOAD_TOOLS,
+            description=LOAD_TOOLS_DESCRIPTION,
+            parameters=LOAD_TOOLS_PARAMETERS,
+            function=load_tools,
             requires_approval=False,
         )
 
