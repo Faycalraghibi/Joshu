@@ -261,7 +261,8 @@ send a follow-up, or `/rewind` to drop the interrupted request.
 
 The reply appears as it is written, and the line under it shows the elapsed
 time and output tokens so far (or the task in progress from the todo list).
-Tool output is cut to a few lines; `Ctrl+O` shows it in full from then on.
+Models that stream their reasoning show it as dim text while they think; it
+then folds to one line ("Thought for 3s"). Tool output is cut to a few lines; `Ctrl+O` shows it in full from then on.
 Anything you type while the agent works is kept
 and appears in the prompt when it finishes, ready to edit and send.
 

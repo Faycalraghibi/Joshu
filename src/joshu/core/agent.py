@@ -87,6 +87,9 @@ class AgentEvents:
     def on_text(self, delta: str) -> None:
         """Streamed model text."""
 
+    def on_reasoning(self, delta: str) -> None:
+        """Streamed reasoning, from models that show their thinking."""
+
     def on_turn_end(self, turn: AssistantTurn) -> None:
         """A model response finished (text and any tool calls are complete)."""
 
@@ -483,6 +486,7 @@ class Agent:
                 max_tokens=self.max_tokens,
                 temperature=self.temperature,
                 on_text=self.events.on_text if self.stream else None,
+                on_reasoning=self.events.on_reasoning if self.stream else None,
             )
             self._add_usage(turn.usage)
             self.cost.add(

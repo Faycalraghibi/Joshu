@@ -165,6 +165,10 @@ class _StreamView:
         self.working = working
 
     def __rich_console__(self, console, options):
+        thinking = self.ui._thinking_tail(options.max_width)
+        if thinking is not None:
+            yield thinking
+            yield Text()
         tail = self.ui._pending.strip()
         if tail:
             yield self.ui._message_block(tail, first=not self.ui._reply_started)
@@ -246,6 +250,9 @@ class ConsoleAgentUI(AgentEvents):
         self._call = ""
         self._todo = ""  # task in progress, shown in the working line
         self._request_started: Optional[float] = None
+        # Reasoning streamed by models that show their thinking, this response
+        self._thinking = ""
+        self._thinking_started: Optional[float] = None
 
     def begin_request(self) -> None:
         """A new request starts: forget the previous one's output, start its clock."""
@@ -259,6 +266,18 @@ class ConsoleAgentUI(AgentEvents):
     def on_model_start(self) -> None:
         if self.rich_mode:
             self._start_spinner()
+
+    @_locked
+    def on_reasoning(self, delta: str) -> None:
+        if self.quiet or not self.rich_mode:
+            return
+        if self._thinking_started is None:
+            self._thinking_started = time.monotonic()
+        self._thinking += delta
+        if self._live is None:
+            self._start_spinner()
+        if self._working is not None:
+            self._working.chars += len(delta)
 
     @_locked
     def on_text(self, delta: str) -> None:
@@ -278,6 +297,7 @@ class ConsoleAgentUI(AgentEvents):
         if self.quiet:
             return
         if self.rich_mode:
+            self._finish_thinking()
             streamed = bool(self._buffer)
             self._buffer = []
             if streamed:
@@ -626,8 +646,37 @@ class ConsoleAgentUI(AgentEvents):
         self.console.print(self._message_block(text, first=not self._reply_started))
         self._reply_started = True
 
+    def _thinking_tail(self, width: int, lines: int = 3) -> Optional[Text]:
+        """The last few lines of the reasoning being streamed, dim."""
+        if not self._thinking.strip():
+            return None
+        rows = [row for row in self._thinking.strip().splitlines() if row.strip()][-lines:]
+        room = max(10, width - 4)
+        shown = [row if len(row) <= room else "…" + row[-(room - 1) :] for row in rows]
+        return Text("\n".join("  " + row for row in shown), style="dim italic")
+
+    def _finish_thinking(self) -> None:
+        """Replace the live reasoning with one line (the full text stays for Ctrl+O)."""
+        text, self._thinking = self._thinking.strip(), ""
+        started, self._thinking_started = self._thinking_started, None
+        if not text:
+            return
+        seconds = max(1, round(time.monotonic() - (started or time.monotonic())))
+        self.expandable.append(("Thinking", text))
+        self.console.print()
+        if self.verbose:
+            self.console.print(f"[dim]✻ Thinking ({_elapsed(seconds)})[/dim]")
+            self._print_full(text)
+        else:
+            self.console.print(
+                f"[dim]✻ Thought for {_elapsed(seconds)} (ctrl+o to expand)[/dim]",
+                highlight=False,
+            )
+
     def _stream(self, delta: str) -> None:
         """Show streamed text: print finished blocks, redraw the one being written."""
+        if self._thinking:
+            self._finish_thinking()
         self._pending += delta
         done, self._pending = split_complete_blocks(self._pending)
         if done.strip():

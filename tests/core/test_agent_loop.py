@@ -36,7 +36,9 @@ class FakeClient:
         self.requests: List[List[Dict[str, Any]]] = []
         self.tools_offered: List[Any] = []
 
-    def complete(self, messages, tools=None, *, max_tokens=4096, temperature=0.1, on_text=None):
+    def complete(
+        self, messages, tools=None, *, max_tokens=4096, temperature=0.1, on_text=None, **kwargs
+    ):
         self.requests.append([dict(m) for m in messages])
         self.tools_offered.append(tools)
         if not self.turns:
@@ -434,6 +436,36 @@ def test_streaming_accumulates_text_and_tool_call_fragments():
     assert turn.tool_calls[0].parsed_arguments() == {"path": "a.py"}
     assert turn.finish_reason == "tool_calls"
     assert turn.usage["total_tokens"] == 15
+
+
+def test_streaming_passes_reasoning_on_separately():
+    def chunk(**delta):
+        fields = {"content": None, "tool_calls": None, **delta}
+        return SimpleNamespace(
+            choices=[SimpleNamespace(delta=SimpleNamespace(**fields), finish_reason=None)],
+            usage=None,
+        )
+
+    extra = SimpleNamespace(content=None, tool_calls=None, model_extra={"reasoning": "hmm"})
+    chunks = [
+        chunk(reasoning_content="7 × 13"),
+        SimpleNamespace(choices=[SimpleNamespace(delta=extra, finish_reason=None)], usage=None),
+        chunk(content="Not prime."),
+    ]
+    client = OpenAIChatClient.__new__(OpenAIChatClient)
+    client.model = "m"
+    client.extra_headers = {}
+    client.extra_body = {}
+    client.cache_breakpoints = False
+    client._client = SimpleNamespace(
+        chat=SimpleNamespace(completions=SimpleNamespace(create=lambda **kw: iter(chunks)))
+    )
+    text, thoughts = [], []
+
+    turn = client.complete([], on_text=text.append, on_reasoning=thoughts.append)
+
+    assert thoughts == ["7 × 13", "hmm"]
+    assert text == ["Not prime."] and turn.content == "Not prime."
 
 
 # ------------------------------------------------------------ shell blocklist
