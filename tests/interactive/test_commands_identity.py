@@ -161,7 +161,7 @@ def test_vim_toggle(mode, screen):
     run(mode, "/vim")
     assert mode.vim_enabled and mode.config_manager.get("vim_mode") is True
     run(mode, "/vim")
-    assert not mode.vim_enabled and mode.vim_mode == "INSERT"
+    assert not mode.vim_enabled
 
 
 def test_doctor_reports_missing_key(mode, screen, monkeypatch):

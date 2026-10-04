@@ -241,46 +241,26 @@ compaction can't be rewound.
 
 ## Keyboard Shortcuts
 
-### Navigation
-
-| Shortcut | Action |
-|----------|--------|
-| `Ctrl+R` | Reverse search |
-| `Ctrl+J` | Line down |
-| `Ctrl+K` | Line up |
-| `Up/Down` | History navigation |
-
-### Execution
+See [Keyboard shortcuts](keybindings.md) for the full list. The most used:
 
 | Shortcut | Action |
 |----------|--------|
 | `Esc` | Interrupt the agent (while it works); clear the input (at the prompt) |
 | `Shift+Tab` | Cycle modes: default → accept edits → plan |
 | `Alt+Enter`, `\` + `Enter` | New line (Shift+Enter after `/terminal-setup`) |
+| `Ctrl+G` | Write the prompt in your editor |
+| `Ctrl+R` | Search input history |
 | `Alt+V` | Attach the image in the clipboard (also `/paste`; needs `pip install pillow`) |
 | `?` | Show shortcuts |
-| `Ctrl+B` | Background bash |
-| `Ctrl+C` | Clear the input; twice on an empty prompt to exit |
-| `Ctrl+D` | Exit |
-| `Enter` | Execute |
-
-### Editing
-
-| Shortcut | Action |
-|----------|--------|
-| `Ctrl+L` | Clear screen |
-| `Ctrl+T` | Toggle suggestions |
-| `Ctrl+A` | Beginning of line |
-| `Ctrl+E` | End of line |
 
 ### While the agent works
 
 `Esc` (or `Ctrl+C`) stops the current request. The conversation stays usable:
 send a follow-up, or `/rewind` to drop the interrupted request.
 
-Anything you type while the agent works is kept and appears in the prompt when
-it finishes, ready to edit and send. Approval prompts read their answer as
-usual.
+The reply appears as it is written, and the line under it shows the elapsed
+time and output tokens so far. Anything you type while the agent works is kept
+and appears in the prompt when it finishes, ready to edit and send.
 
 ## Vim Mode
 
@@ -290,18 +270,8 @@ Toggle with `/vim`, or set in `~/.joshu/config.yaml`:
 vim_mode: true
 ```
 
-### Modes
-
-- `ESC` — NORMAL mode
-- `i` — INSERT mode
-- `:` — COMMAND mode
-
-### Navigation (NORMAL mode)
-
-- `h/j/k/l` — Left/Down/Up/Right
-- `w/b` — Word forward/backward
-- `0/$` — Line start/end
-- `gg/G` — File start/end
+The input then uses vi editing: `Esc` for NORMAL mode (the prompt shows `N`),
+the usual motions and edits, and `i` / `a` to insert again.
 
 ## Auto-Completion
 

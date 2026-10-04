@@ -4,6 +4,19 @@ All notable changes to the Joshu project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Replies stream into the terminal as they are written: finished paragraphs, lists and code blocks are printed as Markdown right away, and the line below shows elapsed time and output tokens so far.
+- `Ctrl+G` writes the prompt in your editor (`$VISUAL`, `$EDITOR`, Notepad on Windows).
+
+### Changed
+- Vim mode uses prompt_toolkit's vi editing (full motions, operators, undo) instead of a handful of custom keys.
+
+### Fixed
+- `Ctrl+D` exited even with text in the prompt; it now deletes the next character and exits only on an empty prompt.
+- `Ctrl+R` opened a second prompt inside the running one; it now uses the built-in history search.
+- `Ctrl+L` ran `cls`/`clear` in a subprocess behind the prompt; it now redraws the screen.
+- Removed key bindings that did nothing (`Ctrl+B`, `Ctrl+J`, `Ctrl+K`, `Ctrl+T`, the custom vim keys).
+
 ## [0.3.0] - 2026-10-04
 
 ### Added

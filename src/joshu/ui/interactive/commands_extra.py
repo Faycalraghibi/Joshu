@@ -461,11 +461,13 @@ class ExtraCommands:
     def cmd_vim(self, arg: str = "") -> bool:
         mode = self.interactive_mode
         mode.vim_enabled = not getattr(mode, "vim_enabled", False)
-        if not mode.vim_enabled:
-            mode.vim_mode = "INSERT"
         self.config_manager.set("vim_mode", mode.vim_enabled)
         self.config_manager.save_config()
-        state = "on: Esc for NORMAL mode, i to insert" if mode.vim_enabled else "off"
+        state = (
+            "on from the next prompt: Esc for NORMAL mode, i to insert"
+            if mode.vim_enabled
+            else "off"
+        )
         _console().print(f"Vim keys {state}.", highlight=False)
         return True
 

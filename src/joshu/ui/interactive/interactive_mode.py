@@ -1,6 +1,5 @@
 """Main interactive mode implementation."""
 
-import subprocess
 import time
 from pathlib import Path
 from typing import Optional
@@ -20,14 +19,10 @@ from joshu.tools.shell import run_command
 from .commands import CommandHandler
 from .completers import get_command_completer, get_path_completer
 from .history import JsonHistory
-from .keybindings import create_key_bindings
+from .keybindings import create_key_bindings, vi_normal_mode
 from .modes import AskModeHandler
 from .prompt import PLACEHOLDER, SHORTCUTS, bottom_toolbar, get_style, prompt_message
-from .utils import (
-    copy_to_clipboard,
-    execute_file_content,
-    paste_from_clipboard,
-)
+from .utils import execute_file_content
 
 
 class InteractiveMode:
@@ -44,7 +39,6 @@ class InteractiveMode:
 
         self.prompt_history = JsonHistory()
 
-        self.vim_mode = "INSERT"
         # Vim keys only when enabled in config (vim_mode: true)
         self.vim_enabled = bool(self.config_manager.get("vim_mode", False))
         # One-line notice shown in place of the mode hint (e.g. "press Ctrl+C again")
@@ -127,111 +121,6 @@ class InteractiveMode:
                 self.command_history.append(command)
                 if len(self.command_history) > self.max_history_entries:
                     self.command_history = self.command_history[-self.max_history_entries :]
-
-    def _navigate_history(self, direction: str):
-        """Navigate through command history."""
-        if not self.command_history:
-            return
-
-        if direction == "up" and self._history_index < len(self.command_history) - 1:
-            self._history_index += 1
-        elif direction == "down" and self._history_index > -1:
-            self._history_index -= 1
-
-        if hasattr(self, "buffer") and self._history_index >= 0:
-            self.buffer.text = self.command_history[-(self._history_index + 1)]
-        elif hasattr(self, "buffer"):
-            self.buffer.text = ""
-
-    def _start_reverse_search(self):
-        """Start reverse search mode."""
-        if not PROMPT_TOOLKIT_AVAILABLE:
-            print("Reverse search not available without prompt_toolkit")
-            return
-
-        search_term = prompt(
-            [("class:reverse-search", "reverse-search: ")],
-            key_bindings=self.key_bindings,
-            style=self.style,
-        )
-
-        if search_term:
-            matches = [cmd for cmd in reversed(self.command_history) if search_term in cmd]
-            if hasattr(self, "buffer") and matches:
-                self.buffer.text = matches[0]
-
-    def _send_to_background(self, command: str):
-        """Send command to background bash."""
-        try:
-            self.bash_history.append(command)
-            subprocess.Popen(
-                command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-            )
-            self._show_message(f"Command sent to background: {command}")
-            if hasattr(self, "buffer"):
-                self.buffer.text = ""
-        except Exception as e:
-            self._show_message(f"Error: {str(e)}")
-
-    def _move_cursor(self, direction: str):
-        """Move cursor in various directions."""
-        if not hasattr(self, "buffer"):
-            return
-
-        cursor_pos = self.buffer.cursor_position
-        text = self.buffer.text
-
-        if direction == "left" and cursor_pos > 0:
-            self.buffer.cursor_position = cursor_pos - 1
-        elif direction == "right" and cursor_pos < len(text):
-            self.buffer.cursor_position = cursor_pos + 1
-        elif direction == "word-forward":
-            next_space = text.find(" ", cursor_pos)
-            if next_space != -1:
-                self.buffer.cursor_position = next_space + 1
-        elif direction == "word-backward":
-            prev_space = text.rfind(" ", 0, cursor_pos)
-            if prev_space != -1:
-                self.buffer.cursor_position = prev_space
-
-    def _enter_command_mode(self):
-        """Enter Vim command mode."""
-        if not PROMPT_TOOLKIT_AVAILABLE:
-            return
-
-        command = prompt(":", key_bindings=self.key_bindings, style=self.style)
-        if command:
-            self._handle_vim_command_mode(command)
-
-    def _handle_vim_command_mode(self, command: str):
-        """Handle Vim command mode commands."""
-        if command == "w":
-            self._show_message("Buffer saved")
-        elif command == "q":
-            self._show_message("Use Ctrl+D to exit")
-        elif command == "wq":
-            self._show_message("Buffer saved. Use Ctrl+D to exit")
-        elif command.startswith("!"):
-            self._handle_bash_command(f"!{command[1:]}")
-
-    def _start_vim_delete(self):
-        """Start a Vim delete command."""
-        if hasattr(self, "buffer"):
-            self.buffer.delete()
-
-    def _start_vim_yank(self):
-        """Start a Vim yank command."""
-        if hasattr(self, "buffer"):
-            if copy_to_clipboard(self.buffer.text):
-                self._show_message("Copied to clipboard")
-
-    def _paste_from_clipboard(self):
-        """Paste from clipboard."""
-        clipboard_text = paste_from_clipboard()
-        if clipboard_text and hasattr(self, "buffer"):
-            self.buffer.insert_text(clipboard_text)
-        elif not clipboard_text:
-            self._show_message("Could not paste from clipboard")
 
     def _handle_bash_command(self, command: str):
         """Handle bash command with ! prefix."""
@@ -557,7 +446,7 @@ class InteractiveMode:
             try:
                 default, self.type_ahead = self.type_ahead, ""
                 user_input = prompt(
-                    prompt_message(self.vim_mode == "NORMAL", self.multiline_mode),
+                    lambda: prompt_message(vi_normal_mode(), self.multiline_mode),
                     bottom_toolbar=lambda: bottom_toolbar(
                         self.current_mode(), self.model_label(), self.notice, self.status_text()
                     ),
@@ -569,6 +458,7 @@ class InteractiveMode:
                     history=self.prompt_history,
                     multiline=self.multiline_mode,
                     complete_while_typing=True,
+                    vi_mode=self.vim_enabled,
                 )
 
                 if not self._handle_user_input(user_input):

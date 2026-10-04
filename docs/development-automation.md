@@ -195,7 +195,6 @@ python scripts/generate_settings_schema.py
 
 ```bash
 python scripts/generate_settings_docs.py      # → docs/settings.md
-python scripts/generate_keybindings_docs.py   # → docs/keybindings.md
 ```
 
 ---
@@ -327,7 +326,6 @@ scripts/
 ├── build_sandbox.py            # Container image builder
 ├── sandbox_command.py          # Sandbox CLI wrapper
 ├── generate_git_info.py        # Version embedder
-├── generate_keybindings_docs.py # Keybindings doc (AST introspection)
 ├── generate_settings_docs.py   # Settings documentation
 ├── generate_settings_schema.py # JSON schema generator
 ├── telemetry.py                # Telemetry management
