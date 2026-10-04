@@ -222,6 +222,16 @@ class ConsoleAgentUI(AgentEvents):
             f"[dim]{GLYPH} Context compacted: ~{tokens_before:,} → ~{tokens_after:,} tokens[/dim]"
         )
 
+    def on_context_cleared(self, items: int, tokens_freed: int) -> None:
+        if self.quiet:
+            return
+        self._stop_spinner()
+        self._end_line()
+        self.console.print(
+            f"[dim]{GLYPH} Cleared {items} old tool result{'s' if items != 1 else ''} "
+            f"(~{tokens_freed:,} tokens); the agent can re-run a tool to see one again[/dim]"
+        )
+
     # ------------------------------------------------------- tool results
 
     def _result_line(self, markup: str) -> None:

@@ -80,6 +80,9 @@ class AgentEvents:
     def on_compact(self, tokens_before: int, tokens_after: int) -> None:
         """Older turns were summarized to free context."""
 
+    def on_context_cleared(self, items: int, tokens_freed: int) -> None:
+        """Old tool results were replaced by short notes to free context."""
+
 
 @dataclass
 class Rewind:
@@ -147,7 +150,11 @@ class Agent:
             or config.get("context_window", 128000)
         )
         self.compact_threshold = compact_threshold or config.get("compact_threshold", 0.8)
-        self.tool_output_limit = tool_output_limit or config.get("tool_output_limit", 30000)
+        self.tool_output_limit = tool_output_limit or config.get("tool_output_limit", 16000)
+        # Estimated tokens at which old tool results get cleared (0: never): the
+        # setting, but never more than half the context window
+        clear_at = int(config.get("clear_tool_results_at", 60000) or 0)
+        self.clear_tool_results_at = min(clear_at, self.context_window // 2) if clear_at else 0
         self.cwd = cwd or Path.cwd()
         self.session_id = session_id or uuid.uuid4().hex[:12]
         self.created_at = datetime.now().isoformat(timespec="seconds")
@@ -558,7 +565,13 @@ class Agent:
         success, output = self._invoke(spec, arguments, self._formatter)
         if success and call.name in EDIT_TOOLS and self.diagnostics_enabled:
             output += self._diagnose(arguments)
-        output = truncate_output(output, self.tool_output_limit)
+        # read_file limits itself to whole lines; don't cut its result in the middle
+        limit = self.tool_output_limit
+        if call.name == "read_file":
+            from joshu.tools.filesystem_tools import READ_MAX_CHARS
+
+            limit = max(limit, READ_MAX_CHARS + READ_MAX_CHARS // 2)
+        output = truncate_output(output, limit)
 
         dispatch_after_tool(self.session_id, call.name, output, success)
         self.events.on_tool_end(call.name, output, success)
@@ -663,6 +676,15 @@ class Agent:
 
     def _maybe_compact(self) -> None:
         tokens = estimate_tokens(self.messages)
+        # Cheapest first: clear old tool results; summarize only if still too big
+        if self.clear_tool_results_at and tokens >= self.clear_tool_results_at:
+            from joshu.core.context_editing import clear_old_tool_results
+
+            cleared, count, freed = clear_old_tool_results(self.messages)
+            if count:
+                self.messages = cleared
+                self.events.on_context_cleared(count, freed)
+                tokens = estimate_tokens(self.messages)
         if tokens < self.context_window * self.compact_threshold:
             return
         compacted = compact_messages(self.messages, self.client)

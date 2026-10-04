@@ -49,7 +49,7 @@ permission_mode: default        # default | accept_edits | plan | bypass
 agent_max_turns: 50
 context_window: 128000
 compact_threshold: 0.8
-tool_output_limit: 30000
+tool_output_limit: 16000
 sandbox_enabled: true
 
 # Interactive mode
@@ -111,8 +111,9 @@ In interactive mode: `/config`, `/config <key>`, `/config <key> <value>`;
 | `permission_mode` | string | `default` | `default`, `accept_edits`, `plan` or `bypass` |
 | `agent_max_turns` | integer | `50` | Model calls per request before stopping |
 | `context_window` | integer | `128000` | Model context size in tokens |
+| `clear_tool_results_at` | integer | `60000` | Clear old tool results past this many tokens (at most half the window; 0 = never) |
 | `compact_threshold` | float | `0.8` | Fraction of the window that triggers compaction |
-| `tool_output_limit` | integer | `30000` | Max characters of one tool result sent to the model |
+| `tool_output_limit` | integer | `16000` | Max characters of one tool result sent to the model |
 | `sandbox_enabled` | boolean | `true` | Stricter shell safety check (flags all destructive commands) |
 | `permissions` | dict | `{allow: [], deny: []}` | Persistent permission rules (see [Agent](agent.md#permissions)) |
 | `trusted_projects` | list | `[]` | Projects whose `.joshu/config.yaml` applies (`joshu trust`) |
