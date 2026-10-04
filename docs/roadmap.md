@@ -6,7 +6,7 @@ a live check against a real model.
 
 ## Phase 1: Safety and speed
 
-### A. Secret protection
+### A. Secret protection (done)
 - Protected paths (`.env*`, private keys, `~/.ssh`, cloud credentials, ...):
   reading or editing one needs explicit approval in every mode; search results
   skip them; shell commands that name one or print the environment ask first.
@@ -14,7 +14,7 @@ a live check against a real model.
 - API keys, tokens and private keys in tool output are masked before the model
   or a saved session sees them (`mask_secrets`).
 
-### B. Parallel read-only tools
+### B. Parallel read-only tools (done)
 - Several read-only calls in one turn (read, search, glob, list, web, `task`)
   run concurrently (up to 4); results keep their order. Edits and shell
   commands stay sequential. Several `task` calls run sub-agents in parallel.
@@ -25,12 +25,12 @@ a live check against a real model.
 
 ## Phase 2: Extensibility
 
-### D. More hook events
+### D. More hook events (done)
 - `user_prompt_submit`, `session_start`, `pre_compact`, `stop`,
   `subagent_stop`, `notification`. Hook output can block, add context to the
   conversation, or (for `stop`) send the agent back to work with a reason.
 
-### E. Editing tools
+### E. Editing tools (done)
 - `multi_edit`: several replacements in one file, applied atomically.
 - `notebook_edit`: edit `.ipynb` cells by id.
 - Paste clipboard images into the input (Ctrl+V), with Pillow as an optional
@@ -42,7 +42,7 @@ a live check against a real model.
 
 ## Phase 3: Code intelligence
 
-### G. Language-server client
+### G. Language-server client (done)
 - Detect installed servers (pyright / basedpyright, typescript-language-server,
   gopls, rust-analyzer; configurable with `lsp:`). After edits, real type and
   compile errors go back to the model. A `code_nav` tool (loaded on demand) for
