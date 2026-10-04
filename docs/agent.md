@@ -99,7 +99,7 @@ to your user config.
 | `replace` | Exact-string edit | yes |
 | `write_file` | Create or overwrite a file | yes |
 | `run_shell_command` | Run a command (fresh shell each call; `background: true` for long-running ones) | yes |
-| `bash_output`, `kill_bash` | Read the output of / stop a background command | no |
+| `bash_output`, `kill_bash` | Read the output of / stop a background command (loaded when one starts) | no |
 | `web_search` / `web_fetch` | Search the web / fetch a URL | no / yes |
 | `write_todos` | Track steps | no |
 | `memory` | Save, read or delete notes kept across sessions | no |

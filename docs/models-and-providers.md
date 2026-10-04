@@ -200,7 +200,15 @@ fixed part small:
   prompt; the model loads the ones it needs with `load_tools`, and they stay
   available for the rest of the session. `defer_mcp_tools`: `auto` (default),
   `always` or `never`.
-- **Tool results are compact JSON**, and built-in tool descriptions are short.
+- **Tool results are compact JSON**, and tool definitions are trimmed before
+  sending: short descriptions, and rarely used optional parameters left out
+  (the tools still accept them).
+- **Rarely used built-ins load on demand too**: `web_fetch`, `web_search`,
+  `bash_output` and `kill_bash` (the last two load by themselves when a
+  background command starts).
+- **The system prompt is short**, and the memory guide is one line while no
+  memories exist. A plain "hi" costs about 2k tokens (1.9k with Gemini, 2.4k
+  with NVIDIA lightning, whose tokenizer counts more).
 - **Repeated denials stop early**: when a tool keeps being denied in one request
   the model is told to stop calling it, and after 6 denials the request ends.
 - **Old tool results are cleared in long sessions**: past `clear_tool_results_at`
