@@ -21,6 +21,9 @@ from joshu.core.tool_registry import register_tool
 
 logger = logging.getLogger(__name__)
 
+# read_file without a line range returns at most this many characters (whole lines)
+READ_MAX_CHARS = 40000
+
 # Default workspace root (can be overridden)
 _workspace_root: Optional[Path] = None
 # More directories the tools may use (/add-dir), by absolute path
@@ -345,6 +348,26 @@ def read_file_tool(
                 "start_line": start + 1,
                 "end_line": min(end, total_lines),
                 "total_lines": total_lines,
+            }
+
+        if len(content) > READ_MAX_CHARS:
+            # Whole lines up to the limit, and how to read the rest
+            shown, size = 0, 0
+            for line in lines:
+                if size + len(line) + 1 > READ_MAX_CHARS and shown:
+                    break
+                size += len(line) + 1
+                shown += 1
+            return {
+                "success": True,
+                "path": path,
+                "content": "\n".join(lines[:shown]),
+                "is_binary": False,
+                "start_line": 1,
+                "end_line": shown,
+                "total_lines": total_lines,
+                "note": f"Large file: showing lines 1-{shown} of {total_lines}. Read more "
+                f"with start_line={shown + 1}, or search_file_content to find what you need.",
             }
 
         return {

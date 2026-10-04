@@ -64,7 +64,8 @@ DEFAULT_CONFIG = {
     "permission_mode": "default",
     "context_window": 128000,
     "compact_threshold": 0.8,
-    "tool_output_limit": 30000,
+    "tool_output_limit": 16000,
+    "clear_tool_results_at": 60000,
     "save_sessions": True,
     "hooks": {},
     "model_pricing": {},
@@ -176,7 +177,8 @@ class JoshuConfig:
     permission_mode: str = "default"
     context_window: int = 128000
     compact_threshold: float = 0.8
-    tool_output_limit: int = 30000
+    tool_output_limit: int = 16000
+    clear_tool_results_at: int = 60000
     save_sessions: bool = True
     hooks: Dict[str, Any] = field(default_factory=dict)
     model_pricing: Dict[str, Any] = field(default_factory=dict)

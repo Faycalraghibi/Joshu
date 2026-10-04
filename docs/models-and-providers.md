@@ -203,6 +203,20 @@ fixed part small:
 - **Tool results are compact JSON**, and built-in tool descriptions are short.
 - **Repeated denials stop early**: when a tool keeps being denied in one request
   the model is told to stop calling it, and after 6 denials the request ends.
+- **Old tool results are cleared in long sessions**: past `clear_tool_results_at`
+  tokens (default 60,000, at most half the context window) the outputs of all
+  but the 6 most recent tool calls become one-line notes (the model can run the
+  tool again), in one batch so the prompt cache is rebuilt only once.
+  Summarizing (`compact_threshold`) stays the last resort. In measured
+  5-question sessions this kept peak context about 30% lower.
+- **Large files are read in whole lines**: `read_file` returns up to ~40,000
+  characters of complete lines and says how to read the rest.
+
+What dominates a session's total is how many steps the model takes: every step
+re-sends the conversation. Small models take many small steps (the same
+session took 9 requests in one run and 21 in the next), so a stronger model is
+often the biggest saving; in the benchmark, OmniRoute's `auto/coding:free`
+used about a quarter of the tokens of a 30B model for the same tasks.
 
 Measured on a small bug-fix task with two MCP servers (34 tools) configured:
 
