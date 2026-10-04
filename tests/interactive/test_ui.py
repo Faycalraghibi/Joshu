@@ -34,7 +34,7 @@ def test_reply_is_rendered_as_markdown_with_bullet():
     ui.on_model_start()
     ui.on_text("Use **bold** and\n\n- one\n- two")
     ui.on_turn_end(AssistantTurn())
-    shown = text_of(out)
+    shown = " ".join(text_of(out).split())  # spacing differs between rich versions
     assert "● Use bold and" in shown and "• one" in shown
     assert ui._live is None  # spinner stopped
 

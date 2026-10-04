@@ -345,10 +345,10 @@ class ConsoleAgentUI(AgentEvents):
         self.console.print(f"[dim]{' · '.join(parts)}[/dim]")
 
     def _print_message(self, text: str) -> None:
-        grid = Table.grid(padding=(0, 1))
-        grid.add_column(width=1, no_wrap=True)
+        grid = Table.grid(padding=0)
+        grid.add_column(width=2, no_wrap=True)
         grid.add_column()
-        grid.add_row(Text("●"), Markdown(text.strip()))
+        grid.add_row(Text("● "), Markdown(text.strip()))
         self.console.print()
         self.console.print(grid)
 
