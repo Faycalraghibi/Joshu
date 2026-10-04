@@ -257,6 +257,7 @@ compaction can't be rewound.
 | `Esc` | Interrupt the agent (while it works); clear the input (at the prompt) |
 | `Shift+Tab` | Cycle modes: default → accept edits → plan |
 | `Alt+Enter`, `\` + `Enter` | New line (Shift+Enter after `/terminal-setup`) |
+| `Alt+V` | Attach the image in the clipboard (also `/paste`; needs `pip install pillow`) |
 | `?` | Show shortcuts |
 | `Ctrl+B` | Background bash |
 | `Ctrl+C` | Clear the input; twice on an empty prompt to exit |

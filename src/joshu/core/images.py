@@ -27,7 +27,8 @@ MAX_IMAGE_BYTES = 5 * 1024 * 1024
 IMAGE_TOKEN_ESTIMATE = 1500
 
 # @path tokens: "@shot.png", "@docs/ui flow.png" is not supported (no spaces)
-_REF_PATTERN = re.compile(r"(?<![\w@])@([^\s@]+)")
+# @path, or @"path with spaces"
+_REF_PATTERN = re.compile(r'(?<![\w@])@(?:"([^"]+)"|([^\s@]+))')
 
 Content = Union[str, List[Dict[str, Any]]]
 
@@ -76,8 +77,9 @@ def find_image_refs(text: str, cwd: Optional[Path] = None) -> Tuple[str, List[Pa
     paths: List[Path] = []
 
     def replace(match: re.Match) -> str:
-        raw = match.group(1).rstrip(".,;:!?)")
-        trailing = match.group(1)[len(raw) :]
+        reference = match.group(1) or match.group(2)
+        raw = reference if match.group(1) else reference.rstrip(".,;:!?)")
+        trailing = "" if match.group(1) else reference[len(raw) :]
         if not is_image_path(raw):
             return match.group(0)
         path = Path(raw).expanduser()

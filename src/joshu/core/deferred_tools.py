@@ -23,7 +23,14 @@ DEFER_THRESHOLD = 1500  # estimated tokens of MCP tool definitions per request
 LOAD_TOOLS = "load_tools"
 # Built-in tools needed rarely enough to load on demand
 # (bash_output and kill_bash load by themselves when a background command starts)
-DEFERRED_BUILTINS = {"web_fetch", "web_search", "bash_output", "kill_bash"}
+DEFERRED_BUILTINS = {
+    "web_fetch",
+    "web_search",
+    "bash_output",
+    "kill_bash",
+    "multi_edit",
+    "notebook_edit",
+}
 
 
 def server_of(spec: ToolSpec) -> Optional[str]:

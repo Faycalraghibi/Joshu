@@ -244,6 +244,7 @@ def get_tool_registry() -> ToolRegistry:
 # Modules whose @register_tool decorators define the built-in tools
 BUILTIN_TOOL_MODULES = (
     "joshu.tools.filesystem_tools",
+    "joshu.tools.edit_tools",
     "joshu.tools.shell_tool",
     "joshu.tools.todos",
     "joshu.tools.memory",

@@ -51,6 +51,7 @@ COMMANDS: List[SlashCommand] = [
     SlashCommand(
         "session", "Manage saved sessions (list, switch, delete)", "Conversation", "[...]"
     ),
+    SlashCommand("paste", "Attach the image in the clipboard (or press Alt+V)", "Conversation"),
     # Context
     SlashCommand("context", "Show how much of the context window is used", "Context"),
     SlashCommand("cost", "Tokens and cost of this conversation", "Context"),

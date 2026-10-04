@@ -32,7 +32,7 @@ READ_ONLY_TOOLS: Set[str] = {
     "task",
 }
 
-EDIT_TOOLS: Set[str] = {"replace", "write_file"}
+EDIT_TOOLS: Set[str] = {"replace", "write_file", "multi_edit", "notebook_edit"}
 
 SHELL_TOOL = "run_shell_command"
 
@@ -325,6 +325,10 @@ def build_preview(tool_name: str, arguments: Dict[str, Any]) -> str:
     try:
         if tool_name == "replace":
             return _replace_preview(arguments)
+        if tool_name == "multi_edit":
+            return _multi_edit_preview(arguments)
+        if tool_name == "notebook_edit":
+            return _notebook_preview(arguments)
         if tool_name == "write_file":
             return _write_preview(arguments)
         if tool_name == SHELL_TOOL:
@@ -337,6 +341,30 @@ def build_preview(tool_name: str, arguments: Dict[str, Any]) -> str:
 
     lines = [f"{key}: {_short(value)}" for key, value in arguments.items()]
     return "\n".join(lines) if lines else "(no arguments)"
+
+
+def _multi_edit_preview(arguments: Dict[str, Any]) -> str:
+    from joshu.tools.edit_tools import apply_edits
+    from joshu.tools.filesystem_tools import generate_diff, resolve_path
+
+    resolved = resolve_path(str(arguments.get("path", "")))
+    content = resolved.read_bytes().decode("utf-8")
+    try:
+        updated = apply_edits(content, list(arguments.get("edits") or []))
+    except ValueError as e:
+        return f"(the edits can't be applied: {e})"
+    return generate_diff(
+        content.replace("\r\n", "\n"), updated.replace("\r\n", "\n"), resolved.name
+    )
+
+
+def _notebook_preview(arguments: Dict[str, Any]) -> str:
+    mode = arguments.get("edit_mode") or "replace"
+    where = arguments.get("cell_id") or arguments.get("cell_index")
+    lines = [f"{mode} cell {where if where is not None else '(start)'} in {arguments.get('path')}"]
+    if mode != "delete":
+        lines += ["", str(arguments.get("new_source", ""))[:2000]]
+    return "\n".join(lines)
 
 
 def _replace_preview(arguments: Dict[str, Any]) -> str:

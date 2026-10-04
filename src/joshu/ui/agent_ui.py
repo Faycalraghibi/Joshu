@@ -35,6 +35,8 @@ _SUMMARY_KEYS: Dict[str, Optional[str]] = {
     "read_file": "path",
     "write_file": "path",
     "replace": "path",
+    "multi_edit": "path",
+    "notebook_edit": "path",
     "list_directory": "path",
     "glob": "pattern",
     "search_file_content": "pattern",
@@ -52,6 +54,8 @@ TOOL_LABELS = {
     "read_file": "Read",
     "write_file": "Write",
     "replace": "Update",
+    "multi_edit": "Update",
+    "notebook_edit": "Edit Notebook",
     "run_shell_command": "Bash",
     "search_file_content": "Search",
     "glob": "Glob",
@@ -203,7 +207,13 @@ class ConsoleAgentUI(AgentEvents):
         summary = escape(summarize_arguments(tool, arguments))
         args = f"({summary})" if summary else ""
         self.console.print()
-        self.console.print(f"[{_s('accent')}]●[/] [bold]{escape(label)}[/bold]{args}")
+        # One line: cut with … at the edge rather than wrapping the label away from ●
+        self.console.print(
+            f"[{_s('accent')}]●[/] [bold]{escape(label)}[/bold]{args}",
+            no_wrap=True,
+            overflow="ellipsis",
+            highlight=False,
+        )
         self._start_spinner(activity_label(tool, arguments))
 
     @_locked
@@ -219,6 +229,7 @@ class ConsoleAgentUI(AgentEvents):
             return
         renderer = {
             "replace": self._show_edit,
+            "multi_edit": self._show_edit,
             "write_file": self._show_write,
             "run_shell_command": self._show_shell,
             "write_todos": self._show_todos,
@@ -357,7 +368,7 @@ class ConsoleAgentUI(AgentEvents):
         path = str(request.arguments.get("path", ""))
         if tool == "read_file":
             title, question = "Read file", f"Do you want to let Joshu read {path}?"
-        elif tool == "replace":
+        elif tool in ("replace", "multi_edit", "notebook_edit"):
             title, question = "Edit file", f"Do you want to make this edit to {path}?"
         elif tool == "write_file":
             title, question = "Create file", f"Do you want to create {path}?"
@@ -462,8 +473,8 @@ def _always_scope(tool: str, label: str, arguments: Dict[str, Any]) -> str:
     if tool == "run_shell_command":
         key = command_key(str(arguments.get("command", "")))
         return f"`{key}` commands" if key else ""
-    if tool == "replace":
-        return "file edits"
+    if tool in ("replace", "multi_edit", "notebook_edit"):
+        return f"{label} edits" if tool == "notebook_edit" else "file edits"
     if tool == "write_file":
         return "creating files"
     return label
@@ -585,6 +596,16 @@ def _json(output: str) -> Optional[Dict[str, Any]]:
     return data if isinstance(data, dict) else None
 
 
+def _relative(path: str) -> str:
+    """A path under the working directory, shown relative to it."""
+    from pathlib import Path
+
+    try:
+        return str(Path(path).resolve().relative_to(Path.cwd().resolve()))
+    except (ValueError, OSError):
+        return path
+
+
 def summarize_arguments(tool_name: str, arguments: Dict[str, Any], limit: int = 80) -> str:
     """One-line summary of a tool call's arguments."""
     if tool_name in _SUMMARY_KEYS and _SUMMARY_KEYS[tool_name] is None:
@@ -592,6 +613,8 @@ def summarize_arguments(tool_name: str, arguments: Dict[str, Any], limit: int = 
     key = _SUMMARY_KEYS.get(tool_name)
     if key and key in arguments:
         value = str(arguments[key])
+        if key == "path":
+            value = _relative(value)
     elif arguments:
         value = json.dumps(arguments, ensure_ascii=False)
     else:
