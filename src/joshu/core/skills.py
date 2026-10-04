@@ -141,8 +141,8 @@ def skills_prompt(skills: Dict[str, Skill]) -> str:
         return ""
     lines = [
         "Skills: packaged instructions for specific kinds of tasks. When a task "
-        "matches a skill's description, call the `skill` tool with its name before "
-        "starting, and follow the instructions it returns.",
+        "matches a skill's description, your first step is to call the `skill` tool "
+        "with its name; then follow the instructions it returns.",
     ]
     lines += [f"- {s.name}: {s.description}" for s in skills.values()]
     return "\n".join(lines)
@@ -162,11 +162,26 @@ def run_skill_tool(skills: Dict[str, Skill], name: str, file: Optional[str] = No
         return f"Error: no skill named '{name}'. Available skills: {available}."
     try:
         if file:
-            return skill.read_file(file)
-        body = skill.instructions()
+            text = skill.read_file(file)
+            return f"File '{file}' of skill '{skill.name}':\n\n{text}"
+        return skill_instructions(skill)
     except (OSError, SkillError) as e:
         return f"Error: {e}"
+
+
+def skill_instructions(skill: Skill) -> str:
+    """A skill's instructions, with where it lives and its supporting files."""
+    body = skill.instructions()
+    lines = [
+        f"Skill '{skill.name}' (directory: {skill.path.resolve()}). "
+        "Follow these instructions; scripts and files they mention are in that directory.",
+        "",
+        body,
+    ]
     files = skill.files()
     if files:
-        body += "\n\nSupporting files (read with the skill tool and `file`): " + ", ".join(files)
-    return f"Skill '{skill.name}':\n\n{body}"
+        lines += [
+            "",
+            "Supporting files (read with the skill tool and `file`): " + ", ".join(files),
+        ]
+    return "\n".join(lines)

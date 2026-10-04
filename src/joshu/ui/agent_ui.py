@@ -832,25 +832,10 @@ def render_diff(diff: str, limit: int) -> Any:
 def _choose(question: str, options: List[tuple]) -> ApprovalChoice:
     """Arrow-key menu (prompt_toolkit), or a typed number without a terminal."""
     try:
-        from prompt_toolkit.key_binding import KeyBindings
-        from prompt_toolkit.shortcuts import choice
-
-        bindings = KeyBindings()
-
-        @bindings.add("escape", eager=True)
-        def _(event):
-            event.app.exit(result=ApprovalChoice.NO)
-
-        for number, (value, _label) in enumerate(options, start=1):
-
-            def pick(event, value=value):
-                event.app.exit(result=value)
-
-            bindings.add(str(number))(pick)
+        from joshu.ui.menu import menu
 
         if sys.stdin.isatty() and sys.stdout.isatty():
-            labels = [(value, f"{n}. {label}") for n, (value, label) in enumerate(options, 1)]
-            return choice(question, options=labels, symbol="❯", key_bindings=bindings)
+            return menu(question, options, cancel=ApprovalChoice.NO)
     except (EOFError, KeyboardInterrupt):
         return ApprovalChoice.NO
     except ImportError:

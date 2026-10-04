@@ -249,10 +249,10 @@ class MoreCommands:
 
     def _pick(self, question: str, options: List[tuple], default: Optional[str]) -> Optional[str]:
         try:
-            from prompt_toolkit.shortcuts import choice
+            from joshu.ui.menu import menu
 
             if sys.stdin.isatty() and sys.stdout.isatty():
-                return choice(question, options=options, default=default, symbol="❯")
+                return menu(question, options, default=default)
         except (EOFError, KeyboardInterrupt):
             return None
         except ImportError:

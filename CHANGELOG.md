@@ -18,9 +18,14 @@ All notable changes to the Joshu project will be documented in this file.
 - `Ctrl+G` writes the prompt in your editor (`$VISUAL`, `$EDITOR`, Notepad on Windows).
 
 ### Changed
+- `/<skill>` puts the skill's instructions straight into the request instead of asking the model to load them (one model call less, and small models can't skip it). The `skill` tool says where the skill's directory is (for its scripts) and labels supporting files it returns.
+- Model API errors are short: HTTP status and the provider's message, without the raw error body (which can include account metadata).
 - Vim mode uses prompt_toolkit's vi editing (full motions, operators, undo) instead of a handful of custom keys.
 
 ### Fixed
+- Number keys in approval prompts and pickers only moved the selection, and Esc did nothing; a number now picks its option, Esc declines or cancels, and options are no longer numbered twice ("1. 1. Yes").
+- A `SyntaxWarning` about `"\+"` printed on the first start.
+- MCP servers are disconnected at the same time on exit, and their pipes closed, so a slow server no longer leaves "Task was destroyed but it is pending" and closed-pipe errors at exit.
 - `Ctrl+O` before the first request did nothing; it now says there is no tool output yet.
 - `Ctrl+D` exited even with text in the prompt; it now deletes the next character and exits only on an empty prompt.
 - `Ctrl+R` opened a second prompt inside the running one; it now uses the built-in history search.

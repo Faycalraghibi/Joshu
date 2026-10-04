@@ -53,12 +53,17 @@ def _shutdown() -> None:
     loop = _loop
     if loop is None or loop.is_closed():
         return
+    future = None
     try:
         from joshu.mcp.registry import get_mcp_registry
 
-        asyncio.run_coroutine_threadsafe(get_mcp_registry().disconnect_all(), loop).result(5)
+        future = asyncio.run_coroutine_threadsafe(get_mcp_registry().disconnect_all(), loop)
+        future.result(8)
     except Exception:
-        pass
+        # Too slow: cancel it rather than leave a pending task behind, which
+        # asyncio reports as "Task was destroyed but it is pending" at exit
+        if future is not None:
+            future.cancel()
     loop.call_soon_threadsafe(loop.stop)
 
 

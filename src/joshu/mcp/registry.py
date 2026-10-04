@@ -228,9 +228,11 @@ class MCPServerRegistry:
         return results
 
     async def disconnect_all(self) -> None:
-        """Disconnect from all servers."""
-        for name in list(self._transports.keys()):
-            await self._disconnect_server(name)
+        """Disconnect from all servers (at the same time: each may wait for its process)."""
+        await asyncio.gather(
+            *(self._disconnect_server(name) for name in list(self._transports.keys())),
+            return_exceptions=True,
+        )
 
     def get_transport(self, name: str) -> Optional[MCPTransport]:
         """
