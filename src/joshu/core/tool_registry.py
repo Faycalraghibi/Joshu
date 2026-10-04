@@ -245,6 +245,7 @@ def get_tool_registry() -> ToolRegistry:
 BUILTIN_TOOL_MODULES = (
     "joshu.tools.filesystem_tools",
     "joshu.tools.edit_tools",
+    "joshu.tools.code_nav",
     "joshu.tools.shell_tool",
     "joshu.tools.todos",
     "joshu.tools.memory",

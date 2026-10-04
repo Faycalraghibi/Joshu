@@ -129,6 +129,7 @@ In interactive mode: `/config`, `/config <key>`, `/config <key> <value>`;
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `auto_memory` | boolean | `true` | Agent keeps notes across sessions (`memory` tool) |
+| `lsp` | map / `false` | `{}` | Language server command per language (`""` disables one); `false` turns them off |
 | `parallel_tools` | boolean | `true` | Run several read-only tool calls from one turn at the same time |
 | `protected_paths` | list | `[]` | More file patterns that need approval to read or edit |
 | `allow_paths` | list | `[]` | Exceptions to the protected file patterns |

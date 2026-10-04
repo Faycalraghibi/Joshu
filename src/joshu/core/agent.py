@@ -61,6 +61,8 @@ PARALLEL_SAFE_TOOLS = {
     "task",
 }
 MAX_PARALLEL_TOOLS = 4
+# Language-server errors shown to the model after an edit
+MAX_LSP_ERRORS = 15
 
 # Permission denials in one request: tell the model to stop using that tool
 # (per tool), then end the request (all tools together)
@@ -764,11 +766,30 @@ class Agent:
             return ""
         problems = check_file(path, self._diagnostic_commands)
         if not problems:
+            problems = self._language_server_errors(path)
+        if not problems:
             return ""
         return (
             f"\n\nThe edit was applied, but {self._display_path(path)} now has problems. "
             f"Fix them before moving on:\n{problems}"
         )
+
+    def _language_server_errors(self, path: Path) -> Optional[str]:
+        """Errors a language server reports for the file, if one handles it."""
+        from joshu.core.lsp import get_lsp_manager
+
+        try:
+            found = get_lsp_manager(self.cwd).diagnostics(path)
+        except Exception as e:  # a language server problem must never break an edit
+            logger.warning(f"Language server check failed: {e}")
+            return None
+        if not found:
+            return None
+        label = str(self._display_path(path))
+        lines = [d.format(label) for d in found[:MAX_LSP_ERRORS]]
+        if len(found) > MAX_LSP_ERRORS:
+            lines.append(f"... and {len(found) - MAX_LSP_ERRORS} more")
+        return "\n".join(lines)
 
     def _snapshot_target(self, arguments: Dict[str, Any]) -> None:
         """Record the file an edit tool is about to change, for undo."""

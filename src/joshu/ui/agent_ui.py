@@ -37,6 +37,7 @@ _SUMMARY_KEYS: Dict[str, Optional[str]] = {
     "replace": "path",
     "multi_edit": "path",
     "notebook_edit": "path",
+    "code_nav": "symbol",
     "list_directory": "path",
     "glob": "pattern",
     "search_file_content": "pattern",
@@ -56,6 +57,7 @@ TOOL_LABELS = {
     "replace": "Update",
     "multi_edit": "Update",
     "notebook_edit": "Edit Notebook",
+    "code_nav": "Navigate",
     "run_shell_command": "Bash",
     "search_file_content": "Search",
     "glob": "Glob",
@@ -285,7 +287,7 @@ class ConsoleAgentUI(AgentEvents):
     def _show_write(self, output: str) -> bool:
         content = str(self._arguments.get("content") or "")
         lines = content.count("\n") + (1 if content and not content.endswith("\n") else 0)
-        path = escape(str(self._arguments.get("path", "")))
+        path = escape(_relative(str(self._arguments.get("path", ""))))
         self._result_line(f"Wrote [bold]{lines}[/bold] lines to [bold]{path}[/bold]")
         return True
 
@@ -300,7 +302,7 @@ class ConsoleAgentUI(AgentEvents):
         removed = sum(
             1 for line in diff.splitlines() if line.startswith("-") and not line.startswith("---")
         )
-        path = escape(str(self._arguments.get("path", "")))
+        path = escape(_relative(str(self._arguments.get("path", ""))))
         self._result_line(
             f"Updated [bold]{path}[/bold] with [bold]{added}[/bold] "
             f"addition{'s' if added != 1 else ''} and [bold]{removed}[/bold] "

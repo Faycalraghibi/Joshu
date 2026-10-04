@@ -30,6 +30,7 @@ DEFERRED_BUILTINS = {
     "kill_bash",
     "multi_edit",
     "notebook_edit",
+    "code_nav",
 }
 
 

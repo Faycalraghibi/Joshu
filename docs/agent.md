@@ -127,6 +127,7 @@ to your user config.
 | `write_file` | Create or overwrite a file | yes |
 | `multi_edit` | Several exact-text edits to one file, all or nothing (loaded on demand) | yes |
 | `notebook_edit` | Replace, insert or delete a Jupyter notebook cell (loaded on demand) | yes |
+| `code_nav` | Definition, references or hover from the language server (loaded on demand) | no |
 | `run_shell_command` | Run a command (fresh shell each call; `background: true` for long-running ones) | yes |
 | `bash_output`, `kill_bash` | Read the output of / stop a background command (loaded when one starts) | no |
 | `web_search` / `web_fetch` | Search the web / fetch a URL | no / yes |
@@ -348,6 +349,33 @@ diagnostics:
 ```
 
 `diagnostics_enabled: false` turns checking off.
+
+### Language servers
+
+When a language server is installed, Joshu starts it the first time it's
+needed and keeps it running for the session. After an edit that passes the
+checks above, the server's **errors** for the file (type errors, wrong
+arguments, missing imports, ...) go back to the model the same way:
+
+| Language | Servers looked for |
+|---|---|
+| Python | `basedpyright-langserver`, `pyright-langserver`, `pylsp` |
+| JavaScript / TypeScript | `typescript-language-server` |
+| Go | `gopls` |
+| Rust | `rust-analyzer` |
+
+Install one, e.g. `pip install basedpyright` or `npm install -g pyright`;
+`/doctor` shows which are found. The `code_nav` tool (loaded on demand) asks the
+server for a symbol's **definition**, its **references** or **hover**
+information (type and docs); the model can give the symbol's name instead of an
+exact position.
+
+```yaml
+lsp:
+  python: pylsp        # pick the command for a language
+  rust: ""             # don't use a server for Rust
+# lsp: false           # no language servers at all
+```
 
 ## Shell sandbox
 

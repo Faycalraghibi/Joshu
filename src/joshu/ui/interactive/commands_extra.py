@@ -237,6 +237,12 @@ class ExtraCommands:
             found = shutil.which(tool)
             console.print(_check(True if found else None, tool, found or f"not found ({purpose})"))
 
+        from joshu.core.lsp import get_lsp_manager
+
+        for language, state in get_lsp_manager().status().items():
+            ok = True if state.startswith(("running", "available")) else None
+            console.print(_check(ok, f"Language server ({language})", state))
+
         untrusted = getattr(config, "untrusted_project_config", None)
         if untrusted is not None:
             console.print(_check(None, "Project config", f"{untrusted} ignored: run joshu trust"))

@@ -54,6 +54,7 @@ DEFAULT_CONFIG = {
     "allow_paths": [],
     "mask_secrets": True,
     "parallel_tools": True,
+    "lsp": {},
     "mcp_discovery_on_startup": True,
     "mcp_servers": {},
     # Model provider settings (see joshu.core.providers)
@@ -96,6 +97,10 @@ def _coerce_config_value(key: str, value: Any) -> Tuple[bool, Any]:
         return True, value
 
     default = DEFAULT_CONFIG[key]
+
+    # lsp: false, or {language: command}
+    if key == "lsp":
+        return value is False or value is True or isinstance(value, dict), value
 
     # auto / always / never settings that also accept true / false
     if key in TRI_STATE_KEYS:
@@ -171,6 +176,7 @@ class JoshuConfig:
     allow_paths: List[str] = field(default_factory=list)
     mask_secrets: bool = True
     parallel_tools: bool = True
+    lsp: Any = field(default_factory=dict)
     mcp_discovery_on_startup: bool = True
     mcp_servers: Dict[str, Any] = field(default_factory=dict)
     # Model provider settings (see joshu.core.providers)
