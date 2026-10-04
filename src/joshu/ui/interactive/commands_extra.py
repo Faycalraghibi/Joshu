@@ -256,7 +256,7 @@ class ExtraCommands:
 
         window = int(agent.context_window or 128000)
         system = estimate_tokens(agent.messages[:1])
-        tools = len(json.dumps([s.to_openai_format() for s in agent.tool_specs()])) // 4
+        tools = len(json.dumps(agent.request_tools())) // 4
         conversation = estimate_tokens(agent.messages[1:])
         used = system + tools + conversation
         threshold = int(window * agent.compact_threshold)

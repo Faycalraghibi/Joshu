@@ -92,7 +92,7 @@ def test_status_shows_model_and_mode(mode, screen):
 def test_context_breakdown(mode, screen):
     agent = MagicMock(context_window=10000, compact_threshold=0.8)
     agent.messages = [{"role": "system", "content": "s" * 400}, {"role": "user", "content": "hi"}]
-    agent.tool_specs.return_value = []
+    agent.request_tools.return_value = []
     mode.agent = agent
     run(mode, "/context")
     shown = screen.getvalue()

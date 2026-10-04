@@ -82,7 +82,7 @@ def test_deferred_tools_are_listed_in_the_system_prompt(workspace, mcp_tools):
 
     agent = Agent(client=FakeClient([]), permissions=PermissionManager(), cwd=workspace)
     prompt = agent.messages[0]["content"]
-    assert "More tools are available but not loaded" in prompt
+    assert "More tools (call `load_tools`" in prompt
     assert "- github: gh_tool_0" in prompt
 
 
@@ -131,7 +131,7 @@ def test_deferral_can_be_turned_off(workspace, mcp_tools):
     try:
         client = FakeClient([text("hi")])
         make_agent(client).run("hi")
-        assert "gh_tool_0" in offered(client) and "load_tools" not in offered(client)
+        assert "gh_tool_0" in offered(client)  # load_tools stays for the deferred built-ins
     finally:
         get_config_manager().set("defer_mcp_tools", "auto")
 

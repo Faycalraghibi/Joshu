@@ -183,9 +183,17 @@ def memory_prompt(cwd: Optional[Path] = None) -> str:
                 lines.append(f"- {memory.name}: {memory.description} (read for details)")
         if lines:
             sections.append(f"{title}:\n" + "\n".join(lines))
-    body = "\n\n".join(sections) if sections else "No memories saved yet."
-    return MEMORY_GUIDE + "\n\n" + body
+    if not sections:
+        return SHORT_MEMORY_GUIDE
+    return MEMORY_GUIDE + "\n\n" + "\n\n".join(sections)
 
+
+# Used while there are no memories yet (keeps every request small)
+SHORT_MEMORY_GUIDE = (
+    "Memory: no notes saved yet. Use the `memory` tool to save what will matter in future "
+    "sessions (when asked to remember something, or a lasting preference, decision or fact "
+    "not in the code)."
+)
 
 INLINE_BUDGET = 6_000
 MAX_INLINE_CHARS = 500

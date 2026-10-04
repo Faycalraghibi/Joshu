@@ -321,15 +321,24 @@ class Agent:
         hidden = {spec.name for spec in deferred}
         return [spec for spec in specs if spec.name not in hidden] + [self._load_tools_spec()]
 
+    def request_tools(self) -> List[Dict[str, Any]]:
+        """The tool definitions sent with a request (trimmed, see joshu.core.tool_schema)."""
+        from joshu.core.tool_schema import lean_definition
+
+        return [lean_definition(spec.to_openai_format()) for spec in self.tool_specs()]
+
     def deferred_tools(self, specs: Optional[List[ToolSpec]] = None) -> List[ToolSpec]:
         """Tools whose definitions aren't sent until the model loads them."""
-        from joshu.core.deferred_tools import server_of, should_defer
+        from joshu.core.deferred_tools import DEFERRED_BUILTINS, server_of, should_defer
 
+        if self.is_subagent:
+            return []
         specs = specs if specs is not None else self._all_tool_specs()
         mcp = [spec for spec in specs if server_of(spec)]
-        if self.is_subagent or not should_defer(self._defer_mode, mcp):
-            return []
-        return [spec for spec in mcp if spec.name not in self._loaded_tools]
+        deferred = [spec for spec in specs if spec.name in DEFERRED_BUILTINS]
+        if should_defer(self._defer_mode, mcp):
+            deferred += mcp
+        return [spec for spec in deferred if spec.name not in self._loaded_tools]
 
     def _all_tool_specs(self) -> List[ToolSpec]:
         specs = [
@@ -413,7 +422,7 @@ class Agent:
             self.events.on_model_start()
             turn = self.client.complete(
                 self.messages,
-                tools=[spec.to_openai_format() for spec in self.tool_specs()] or None,
+                tools=self.request_tools() or None,
                 max_tokens=self.max_tokens,
                 temperature=self.temperature,
                 on_text=self.events.on_text if self.stream else None,
@@ -562,6 +571,8 @@ class Agent:
         self.events.on_tool_start(call.name, arguments)
         # A deferred tool the model called directly stays offered from now on
         self._loaded_tools.add(call.name)
+        if call.name == "run_shell_command" and arguments.get("background"):
+            self._loaded_tools.update({"bash_output", "kill_bash"})
         success, output = self._invoke(spec, arguments, self._formatter)
         if success and call.name in EDIT_TOOLS and self.diagnostics_enabled:
             output += self._diagnose(arguments)
@@ -731,11 +742,9 @@ class Agent:
             return response.text or "(the sub-agent returned no answer)"
 
         description = (
-            "Delegate a focused task to a sub-agent. Without `agent`, a general sub-agent "
-            "with read-only tools (read, list, glob, search, web search) handles it: use it "
-            "for broad searches across many files, so their contents don't fill this "
-            "conversation. The sub-agent sees only `prompt`, so make it self-contained; you "
-            "get back its final answer."
+            "Delegate a focused task to a read-only sub-agent (e.g. a broad search across "
+            "many files) and get back its answer. It sees only `prompt`: make it "
+            "self-contained."
         )
         properties: Dict[str, Any] = {
             "description": {

@@ -21,6 +21,9 @@ from joshu.core.tool_registry import ToolSpec
 
 DEFER_THRESHOLD = 1500  # estimated tokens of MCP tool definitions per request
 LOAD_TOOLS = "load_tools"
+# Built-in tools needed rarely enough to load on demand
+# (bash_output and kill_bash load by themselves when a background command starts)
+DEFERRED_BUILTINS = {"web_fetch", "web_search", "bash_output", "kill_bash"}
 
 
 def server_of(spec: ToolSpec) -> Optional[str]:
@@ -51,12 +54,8 @@ def index_prompt(specs: List[ToolSpec]) -> str:
     """System prompt section listing deferred tools by server."""
     by_server: Dict[str, List[str]] = {}
     for spec in specs:
-        by_server.setdefault(server_of(spec) or "other", []).append(spec.name)
-    lines = [
-        "More tools are available but not loaded, to keep requests small. To use one, "
-        f"first call `{LOAD_TOOLS}` with its name (or a search word); it then stays "
-        "available for the rest of the session."
-    ]
+        by_server.setdefault(server_of(spec) or "built-in", []).append(spec.name)
+    lines = [f"More tools (call `{LOAD_TOOLS}` with names or a search word first):"]
     for server, names in sorted(by_server.items()):
         lines.append(f"- {server}: {', '.join(sorted(names))}")
     return "\n".join(lines)
