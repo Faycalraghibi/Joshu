@@ -822,7 +822,7 @@ def main() -> None:
         sys.argv.append("interactive")
     if len(sys.argv) > 1:
         first_arg = sys.argv[1]
-        if first_arg not in subcommand_names() and not first_arg.startswith("-"):
+        if first_arg not in SUBCOMMANDS and not first_arg.startswith("-"):
             prompt = " ".join(sys.argv[1:])
 
             global context_provider, _current_model
@@ -841,6 +841,10 @@ def main() -> None:
             )
 
     app()
+
+
+# Every command is registered by now (main() may run with `app` swapped out in tests)
+SUBCOMMANDS = subcommand_names()
 
 
 if __name__ == "__main__":
