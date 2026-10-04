@@ -66,9 +66,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           version="${GITHUB_REF_NAME#v}"
-          awk -v v="$version" '
-            $0 ~ "^## \[" v "\]" {found=1; next}
-            found && /^## \[/ {exit}
+          awk -v heading="## [$version]" '
+            index($0, heading) == 1 {found=1; next}
+            found && index($0, "## [") == 1 {exit}
             found {print}
           ' CHANGELOG.md > notes.md
+          test -s notes.md || { echo "No CHANGELOG section for $version"; exit 1; }
           gh release create "$GITHUB_REF_NAME" dist/* --title "Joshu $version" --notes-file notes.md

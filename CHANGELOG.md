@@ -4,6 +4,8 @@ All notable changes to the Joshu project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-04
+
 ### Added
 - Layered configuration: built-in defaults, `config/config.yaml` in a source checkout, the user config `~/.joshu/config.yaml` (written by `joshu config --set`, only the keys you set) and a project `.joshu/config.yaml`; `joshu config --list` shows where settings come from.
 - `joshu trust`: a project's config only applies once the project is trusted, since it can run commands (hooks, diagnostics) and choose providers.
@@ -46,6 +48,8 @@ All notable changes to the Joshu project will be documented in this file.
 - Benchmark tasks and runner (`benchmarks/`): pass rate, turns and tokens per model on small real coding tasks, graded by hidden tests.
 
 ### Changed
+- The default model is NVIDIA's free Nemotron 3.5 Lightning (`provider: nvidia`, key from build.nvidia.com); OpenRouter remains available with `joshu use <model> -p openrouter`.
+- Install from PyPI: `pipx install joshu`; tagged releases publish there automatically.
 - `/clear` starts a new conversation (as `/reset` did); clearing the input history is now `/history clear`.
 
 ### Fixed

@@ -39,8 +39,8 @@ can't add itself to `trusted_projects`.
 
 ```yaml
 # Model
-provider: openrouter
-model: poolside/laguna-s-2.1:free
+provider: nvidia
+model: nvidia/nemotron-3.5-lightning-30b-a3b
 max_tokens: 4096
 temperature: 0.1
 
@@ -94,8 +94,8 @@ In interactive mode: `/config`, `/config <key>`, `/config <key> <value>`;
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `provider` | string | `openrouter` | Model provider (see `joshu providers`) |
-| `model` | string | `poolside/laguna-s-2.1:free` | Model id for the provider |
+| `provider` | string | `nvidia` | Model provider (see `joshu providers`) |
+| `model` | string | `nvidia/nemotron-3.5-lightning-30b-a3b` | Model id for the provider |
 | `providers` | dict | `{}` | Custom providers and overrides of built-in ones |
 | `fallback_providers` | list | `[]` | Providers or named models tried when the main model can't serve a request |
 | `models` | map | `{}` | Named models: `provider`, `model`, `context_window` |

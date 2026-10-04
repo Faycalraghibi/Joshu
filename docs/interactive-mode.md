@@ -14,7 +14,7 @@ joshu --continue          # pick up the last conversation here
 
 ```
 ╭──────────────────────────────────────────────────────────────────────────╮
-│     ✦     ✦ Welcome to Joshu  v0.2.0                                     │
+│     ✦     ✦ Welcome to Joshu  v0.3.0                                     │
 │   ╭─┴─╮   /help for commands · ? for shortcuts · shift+tab to switch mode│
 │   │•‿•│                                                                  │
 │   ╰───╯   cwd    /home/me/project                                        │
@@ -378,7 +378,7 @@ Input history cleared.
 [Shows all configuration]
 
 > /config model
-model: poolside/laguna-s-2.1:free
+model: nvidia/nemotron-3.5-lightning-30b-a3b
 
 > /config model llama-3-70b
 Set model = llama-3-70b
