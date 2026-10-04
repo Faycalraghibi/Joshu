@@ -6,7 +6,6 @@ Provides CLI commands for managing MCP server integrations.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import Optional
 
@@ -15,6 +14,7 @@ from rich.console import Console
 from rich.table import Table
 
 from joshu.core.config import get_config_manager
+from joshu.mcp.loop import run as run_on_mcp_loop
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -238,7 +238,7 @@ def _show_server_details(name: str, server, registry) -> None:
         transport = registry.get_transport(name)
         if transport:
             try:
-                tools = asyncio.run(transport.list_tools())
+                tools = run_on_mcp_loop(transport.list_tools())
                 console.print(f"  Tools ({len(tools)}):")
                 for tool in tools[:5]:
                     console.print(f"    - {tool.name}")
@@ -265,7 +265,7 @@ def mcp_connect(name: Optional[str] = None) -> None:
             raise typer.Exit(1)
 
         try:
-            success = asyncio.run(registry.connect_server(name))
+            success = run_on_mcp_loop(registry.connect_server(name))
             if success:
                 console.print(f"[green]✓ Connected to {name}[/green]")
             else:
@@ -275,7 +275,7 @@ def mcp_connect(name: Optional[str] = None) -> None:
             raise typer.Exit(1)
     else:
         console.print("Connecting to all enabled servers...")
-        results = asyncio.run(registry.connect_all())
+        results = run_on_mcp_loop(registry.connect_all())
         for server_name, success in results.items():
             if success:
                 console.print(f"  [green]✓ {server_name}[/green]")
@@ -295,14 +295,14 @@ def mcp_disconnect(name: Optional[str] = None) -> None:
     registry = get_mcp_registry()
 
     if name:
-        success = asyncio.run(registry.disconnect_server(name))
+        success = run_on_mcp_loop(registry.disconnect_server(name))
         if success:
             console.print(f"[green]✓ Disconnected from {name}[/green]")
         else:
             console.print(f"[yellow]Server {name} was not connected[/yellow]")
     else:
         console.print("Disconnecting from all servers...")
-        asyncio.run(registry.disconnect_all())
+        run_on_mcp_loop(registry.disconnect_all())
         console.print("[green]✓ Disconnected from all servers[/green]")
 
 
@@ -318,7 +318,7 @@ def mcp_discover() -> None:
     console.print("Discovering tools from MCP servers...")
 
     try:
-        tools = asyncio.run(discover_mcp_tools(connect_if_needed=True))
+        tools = run_on_mcp_loop(discover_mcp_tools(connect_if_needed=True))
 
         if not tools:
             console.print("[yellow]No tools discovered.[/yellow]")
@@ -515,7 +515,7 @@ def initialize_mcp_on_startup() -> None:
         from joshu.mcp.discovery import register_mcp_tools_with_joshu
 
         try:
-            count = asyncio.run(register_mcp_tools_with_joshu())
+            count = run_on_mcp_loop(register_mcp_tools_with_joshu())
             if count > 0:
                 logger.info(f"Registered {count} MCP tools on startup")
         except Exception as e:

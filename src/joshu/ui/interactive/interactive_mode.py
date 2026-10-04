@@ -93,14 +93,22 @@ class InteractiveMode:
         try:
             from joshu.core.custom_commands import discover_commands
             from joshu.core.skills import discover_skills
+            from joshu.mcp.extras import list_prompts
 
-            custom = [
-                (f"/{name}", command.description or "custom command")
-                for name, command in discover_commands().items()
-            ] + [
-                (f"/{name}", f"skill: {skill.description}")
-                for name, skill in discover_skills().items()
-            ]
+            custom = (
+                [
+                    (f"/{name}", command.description or "custom command")
+                    for name, command in discover_commands().items()
+                ]
+                + [
+                    (f"/{p.command}", f"MCP prompt: {p.description}".strip(": "))
+                    for p in list_prompts()
+                ]
+                + [
+                    (f"/{name}", f"skill: {skill.description}")
+                    for name, skill in discover_skills().items()
+                ]
+            )
         except Exception:  # a broken command file shouldn't stop the REPL
             custom = []
         self.command_completer = get_command_completer(custom)
@@ -458,8 +466,10 @@ class InteractiveMode:
             self.agent.set_mode(mode)
 
         from joshu.core.images import ImageError, find_image_refs
+        from joshu.mcp.extras import with_resources
 
         prompt, images = find_image_refs(user_input)
+        prompt = with_resources(prompt)
         if images:
             self._show_message("Attached: " + ", ".join(path.name for path in images))
 

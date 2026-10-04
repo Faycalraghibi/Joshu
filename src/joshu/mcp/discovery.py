@@ -7,11 +7,11 @@ with the Joshu tool registry.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import Any, Dict, List, Optional, Set
 
 from joshu.mcp.exceptions import MCPToolExecutionError
+from joshu.mcp.loop import run as run_on_mcp_loop
 from joshu.mcp.registry import MCPServerRegistry, get_mcp_registry
 from joshu.mcp.schemas import (
     MCPPromptDefinition,
@@ -125,25 +125,9 @@ class DiscoveredMCPTool:
             }
 
     def __call__(self, **arguments: Any) -> Dict[str, Any]:
-        """
-        Synchronous wrapper for tool execution.
-
-        Creates event loop if needed for sync context.
-        """
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            loop = None
-
-        if loop and loop.is_running():
-            # Already in async context, create task
-            asyncio.ensure_future(self.execute(**arguments))
-            # This is a compromise - we can't truly block in async
-            # The caller should use execute() directly
-            return {"success": False, "error": "Use execute() in async context"}
-        else:
-            # Create new event loop for sync call
-            return asyncio.run(self.execute(**arguments))
+        """Synchronous wrapper for tool execution."""
+        # On the shared MCP loop: the server's connection lives there
+        return run_on_mcp_loop(self.execute(**arguments))
 
     def to_tool_spec_dict(self) -> Dict[str, Any]:
         """
@@ -296,7 +280,7 @@ def discover_tools_sync(
     Returns:
         List of discovered tools.
     """
-    return asyncio.run(discover_mcp_tools(registry))
+    return run_on_mcp_loop(discover_mcp_tools(registry))
 
 
 async def discover_mcp_resources(

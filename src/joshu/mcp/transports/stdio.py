@@ -78,14 +78,18 @@ class StdioTransport(MCPTransport):
             import sys
 
             # On Windows, commands like npx need shell execution
+            # stderr isn't read: a server that logs a lot would fill the pipe and hang
             if sys.platform == "win32":
-                # Use shell execution for Windows to handle .cmd/.bat scripts
-                full_command = f"{self.config.command} {' '.join(self.config.args)}"
+                # Shell execution handles .cmd/.bat scripts such as npx; quote the
+                # parts so paths with spaces survive
+                import subprocess
+
+                full_command = subprocess.list2cmdline([self.config.command, *self.config.args])
                 self._process = await asyncio.create_subprocess_shell(
                     full_command,
                     stdin=asyncio.subprocess.PIPE,
                     stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.DEVNULL,
                     env=env,
                 )
             else:
@@ -94,7 +98,7 @@ class StdioTransport(MCPTransport):
                     *self.config.args,
                     stdin=asyncio.subprocess.PIPE,
                     stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.DEVNULL,
                     env=env,
                 )
 
