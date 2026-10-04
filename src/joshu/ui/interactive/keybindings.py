@@ -6,6 +6,7 @@ import time
 from typing import Optional
 
 try:
+    from prompt_toolkit.application import get_app
     from prompt_toolkit.filters import Condition
     from prompt_toolkit.key_binding import KeyBindings
 
@@ -13,6 +14,7 @@ try:
 except ImportError:
     KeyBindings = None
     Condition = None
+    get_app = None
     PROMPT_TOOLKIT_AVAILABLE = False
 
 
@@ -61,6 +63,21 @@ def create_key_bindings(interactive_mode) -> Optional[KeyBindings]:
         interactive_mode._last_ctrl_c = now
         interactive_mode.notice = "Press Ctrl+C again to exit"
         event.app.invalidate()
+
+    @kb.add("escape", "enter")
+    def _(event):
+        """Alt+Enter (or Shift+Enter set up with /terminal-setup) inserts a new line."""
+        event.current_buffer.insert_text("\n")
+
+    @kb.add(
+        "enter",
+        filter=Condition(lambda: get_app().current_buffer.text.endswith("\\")),
+    )
+    def _(event):
+        """A backslash at the end of the line continues on the next line."""
+        buffer = event.current_buffer
+        buffer.delete_before_cursor(1)
+        buffer.insert_text("\n")
 
     @kb.add("s-tab")
     def _(event):

@@ -98,7 +98,8 @@ to your user config.
 | `read_file`, `list_directory`, `glob`, `search_file_content` | Explore the workspace | no |
 | `replace` | Exact-string edit | yes |
 | `write_file` | Create or overwrite a file | yes |
-| `run_shell_command` | Run a command (fresh shell each call) | yes |
+| `run_shell_command` | Run a command (fresh shell each call; `background: true` for long-running ones) | yes |
+| `bash_output`, `kill_bash` | Read the output of / stop a background command | no |
 | `web_search` / `web_fetch` | Search the web / fetch a URL | no / yes |
 | `write_todos` | Track steps | no |
 | `memory` | Save, read or delete notes kept across sessions | no |

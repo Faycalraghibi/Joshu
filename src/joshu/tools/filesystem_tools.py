@@ -23,6 +23,23 @@ logger = logging.getLogger(__name__)
 
 # Default workspace root (can be overridden)
 _workspace_root: Optional[Path] = None
+# More directories the tools may use (/add-dir), by absolute path
+_extra_dirs: List[Path] = []
+
+
+def add_workspace_dir(path: Union[str, Path]) -> Path:
+    """Allow file tools to work in another directory too; returns its resolved path."""
+    resolved = Path(path).expanduser().resolve()
+    if not resolved.is_dir():
+        raise ValueError(f"Not a directory: {path}")
+    if resolved not in _extra_dirs:
+        _extra_dirs.append(resolved)
+    return resolved
+
+
+def workspace_dirs() -> List[Path]:
+    """The workspace root followed by any added directories."""
+    return [get_workspace_root(), *_extra_dirs]
 
 
 def set_workspace_root(root: Union[str, Path]) -> None:
@@ -55,13 +72,14 @@ def resolve_path(path: str) -> Path:
     workspace = get_workspace_root()
     resolved = (workspace / path).resolve()
 
-    # Security: ensure path is within workspace
-    try:
-        resolved.relative_to(workspace)
-    except ValueError:
-        raise ValueError(f"Path '{path}' is outside workspace root")
-
-    return resolved
+    # Security: ensure path is within the workspace (or a directory added with /add-dir)
+    for root in (workspace, *_extra_dirs):
+        try:
+            resolved.relative_to(root)
+            return resolved
+        except ValueError:
+            continue
+    raise ValueError(f"Path '{path}' is outside workspace root")
 
 
 def is_gitignored(path: Path) -> bool:

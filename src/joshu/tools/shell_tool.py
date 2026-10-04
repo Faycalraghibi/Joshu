@@ -14,8 +14,10 @@ import logging
 import os
 import re
 import subprocess
+import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from uuid import uuid4
 
@@ -88,6 +90,9 @@ class ProcessInfo:
     pid: int
     started_at: str
     process: subprocess.Popen
+    # stdout and stderr go to this file, so output can be read while it runs
+    log_path: Optional[Path] = None
+    read_offset: int = 0
 
 
 # Background process registry
@@ -300,23 +305,26 @@ def start_background_process(
         if env:
             process_env.update(env)
 
-        process = subprocess.Popen(
-            _sandboxed(command, cwd),
-            shell=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            cwd=cwd,
-            env=process_env,
-            text=True,
-        )
-
         process_id = str(uuid4())[:8]
+        log_path = Path(tempfile.gettempdir()) / f"joshu-bg-{process_id}.log"
+        with open(log_path, "wb") as log:
+            process = subprocess.Popen(
+                _sandboxed(command, cwd),
+                shell=True,
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                stdin=subprocess.DEVNULL,
+                cwd=cwd,
+                env=process_env,
+            )
+
         info = ProcessInfo(
             process_id=process_id,
             command=command,
             pid=process.pid,
             started_at=datetime.now().isoformat(),
             process=process,
+            log_path=log_path,
         )
         _background_processes[process_id] = info
 
@@ -356,28 +364,37 @@ def get_process_status(process_id: str) -> Dict[str, Any]:
 
     info = _background_processes[process_id]
     poll = info.process.poll()
+    result: Dict[str, Any] = {
+        "success": True,
+        "process_id": process_id,
+        "status": "running" if poll is None else "completed",
+        "pid": info.pid,
+        "command": info.command,
+        "started_at": info.started_at,
+        "output": read_process_output(info),
+    }
+    if poll is not None:
+        result["exit_code"] = poll
+    return result
 
-    if poll is None:
-        return {
-            "success": True,
-            "process_id": process_id,
-            "status": "running",
-            "pid": info.pid,
-            "command": info.command,
-            "started_at": info.started_at,
-        }
-    else:
-        stdout, stderr = info.process.communicate()
-        return {
-            "success": True,
-            "process_id": process_id,
-            "status": "completed",
-            "exit_code": poll,
-            "stdout": stdout,
-            "stderr": stderr,
-            "pid": info.pid,
-            "command": info.command,
-        }
+
+def read_process_output(info: ProcessInfo, new_only: bool = True, limit: int = 20000) -> str:
+    """Output written by a background process (since the last read when new_only)."""
+    if info.log_path is None or not info.log_path.is_file():
+        return ""
+    data = info.log_path.read_bytes()
+    start = info.read_offset if new_only else 0
+    chunk = data[start:]
+    info.read_offset = len(data)
+    text = strip_ansi_codes(chunk.decode("utf-8", errors="replace"))
+    if len(text) > limit:
+        text = "[... earlier output omitted]\n" + text[-limit:]
+    return text
+
+
+def list_background_processes() -> List[ProcessInfo]:
+    """Background processes started in this session, oldest first."""
+    return list(_background_processes.values())
 
 
 def stop_background_process(process_id: str) -> Dict[str, Any]:
@@ -397,6 +414,9 @@ def stop_background_process(process_id: str) -> Dict[str, Any]:
         }
 
     info = _background_processes[process_id]
+    if info.process.poll() is not None:
+        del _background_processes[process_id]
+        return {"success": True, "message": f"Process {process_id} had already finished"}
 
     try:
         info.process.terminate()
@@ -490,3 +510,46 @@ def run_shell_command_tool(
         return start_background_process(command, cwd=working_directory)
     else:
         return run_shell_command(command, timeout=timeout, cwd=working_directory)
+
+
+@register_tool(
+    name="bash_output",
+    description="""Read the output of a command started with run_shell_command(background=true).
+
+Returns the output written since the last read, whether the process is still
+running, and its exit code once it has finished.""",
+    parameters={
+        "type": "object",
+        "properties": {
+            "process_id": {
+                "type": "string",
+                "description": "The process_id returned when the command was started",
+            }
+        },
+        "required": ["process_id"],
+    },
+    enabled=True,
+    requires_approval=False,
+)
+def bash_output_tool(process_id: str) -> Dict[str, Any]:
+    return get_process_status(process_id)
+
+
+@register_tool(
+    name="kill_bash",
+    description="Stop a command started with run_shell_command(background=true).",
+    parameters={
+        "type": "object",
+        "properties": {
+            "process_id": {
+                "type": "string",
+                "description": "The process_id returned when the command was started",
+            }
+        },
+        "required": ["process_id"],
+    },
+    enabled=True,
+    requires_approval=False,
+)
+def kill_bash_tool(process_id: str) -> Dict[str, Any]:
+    return stop_background_process(process_id)

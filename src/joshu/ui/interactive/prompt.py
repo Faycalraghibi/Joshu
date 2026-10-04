@@ -26,6 +26,7 @@ MODE_HINTS = {
 
 SHORTCUTS = """\
   !  run a shell command        /  commands           @  attach a file or image
+  alt+enter or \+enter  new line
   esc  interrupt the agent      shift+tab  cycle modes (default, accept edits, plan)
   tab  complete commands        ctrl+r  search history
   ctrl+c  clear input (twice on an empty prompt to exit)    ctrl+d  exit"""
@@ -73,14 +74,15 @@ def prompt_message(vim_normal: bool = False, multiline: bool = False) -> Formatt
     return [("class:rule", _rule() + "\n"), (style, marker)]
 
 
-def bottom_toolbar(mode: str, model: str = "", notice: str = "") -> FormattedText:
-    """Bottom rule, then the mode hint on the left and the model on the right."""
+def bottom_toolbar(mode: str, model: str = "", notice: str = "", status: str = "") -> FormattedText:
+    """Bottom rule, then the mode hint on the left and the status line (or model) on the right."""
     hint, style = MODE_HINTS.get(mode, MODE_HINTS["default"])
     if notice:
         hint, style = notice, "class:notice"
     width = max(10, shutil.get_terminal_size((80, 24)).columns - 1)
     left = "  " + hint
     room = max(0, width - len(left) - 2)
+    model = status or model
     right = model if len(model) <= room else (model[: room - 1] + "…" if room > 1 else "")
     gap = " " * max(1, width - len(left) - len(right))
     return [

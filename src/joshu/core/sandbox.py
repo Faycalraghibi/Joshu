@@ -200,6 +200,11 @@ def resolve_sandbox(
     )
 
 
+def backend_available(name: str) -> bool:
+    """Whether the sandbox backend `name` can run on this machine."""
+    return _available(name)
+
+
 def _available(name: str) -> bool:
     system = platform.system()
     if name == "bubblewrap":

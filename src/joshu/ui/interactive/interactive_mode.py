@@ -49,6 +49,9 @@ class InteractiveMode:
         self.vim_enabled = bool(self.config_manager.get("vim_mode", False))
         # One-line notice shown in place of the mode hint (e.g. "press Ctrl+C again")
         self.notice = ""
+        from .statusline import StatusLine
+
+        self.statusline = StatusLine()
         self._bypass_cycle = self.config_manager.get("permission_mode", "default") == "bypass"
         self.multiline_mode = False
         self.verbose_mode = verbose
@@ -514,6 +517,20 @@ class InteractiveMode:
             self.config_manager.set("permission_mode", following)
         return following
 
+    def status_text(self) -> str:
+        """Output of the configured status line command, if any."""
+        command = self.config_manager.get("statusline")
+        if not command:
+            return ""
+        context = {
+            "model": self.model_label(),
+            "cwd": str(Path.cwd()),
+            "mode": self.current_mode(),
+            "session_id": getattr(self.agent, "session_id", None),
+            "theme": self.config_manager.get("theme"),
+        }
+        return self.statusline.text(command, context)
+
     def model_label(self) -> str:
         agent_model = getattr(getattr(self.agent, "client", None), "model", None)
         return str(agent_model or self.model or self.config_manager.get("model") or "")
@@ -532,7 +549,7 @@ class InteractiveMode:
                 user_input = prompt(
                     prompt_message(self.vim_mode == "NORMAL", self.multiline_mode),
                     bottom_toolbar=lambda: bottom_toolbar(
-                        self.current_mode(), self.model_label(), self.notice
+                        self.current_mode(), self.model_label(), self.notice, self.status_text()
                     ),
                     placeholder=[("class:placeholder", PLACEHOLDER)],
                     default=default,
