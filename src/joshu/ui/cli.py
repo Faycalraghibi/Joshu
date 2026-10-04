@@ -114,6 +114,7 @@ def execute_agent_prompt(
 
     # Approvals need a person at the terminal
     can_ask = not headless and sys.stdin.isatty()
+    agent = None
     try:
         agent, ui = create_console_agent(
             model=model,
@@ -156,6 +157,9 @@ def execute_agent_prompt(
     except KeyboardInterrupt:
         Console(stderr=True).print("\nInterrupted.")
         return 130
+    finally:
+        if agent is not None:
+            agent.end_session()
 
     if output_format == "json":
         payload = {"result": response.text, **response.metadata}

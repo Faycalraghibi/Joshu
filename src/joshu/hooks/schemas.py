@@ -64,6 +64,8 @@ class HookResponse:
     action: Literal["allow", "block", "modify"] = "allow"
     modified_data: Optional[Dict[str, Any]] = None
     message: Optional[str] = None
+    # Text added to the conversation for the model (before_agent, session_start)
+    additional_context: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
@@ -76,10 +78,12 @@ class HookResponse:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "HookResponse":
         """Create from dictionary."""
+        context = data.get("additional_context", data.get("context"))
         return cls(
             action=data.get("action", "allow"),
             modified_data=data.get("modified_data"),
             message=data.get("message"),
+            additional_context=str(context) if context else None,
         )
 
 
@@ -106,6 +110,11 @@ class HookResult:
     def should_block(self) -> bool:
         """Check if the hook wants to block execution."""
         return not self.allowed or (self.response is not None and self.response.action == "block")
+
+    @property
+    def context(self) -> Optional[str]:
+        """Context the hooks want added to the conversation, if any."""
+        return self.response.additional_context if self.response else None
 
     @property
     def modified_data(self) -> Optional[Dict[str, Any]]:

@@ -21,6 +21,9 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_HOOK_TIMEOUT = 10
 
+# Events whose hooks may add context to the conversation with plain stdout
+CONTEXT_EVENTS = {HookEvent.BEFORE_AGENT, HookEvent.SESSION_START}
+
 
 @dataclass
 class HookConfig:
@@ -197,9 +200,12 @@ class HookDispatcher:
         if not script_hooks and not python_hooks:
             return HookResult(success=True, allowed=True)
 
+        contexts: List[str] = []
         for handler in python_hooks:
             try:
                 response = handler(payload)
+                if response.additional_context:
+                    contexts.append(response.additional_context)
                 if response.action == "block":
                     return HookResult(
                         success=True,
@@ -222,6 +228,8 @@ class HookDispatcher:
 
             if result.modified_data:
                 payload.data.update(result.modified_data)
+            if result.context:
+                contexts.append(result.context)
 
         return HookResult(
             success=True,
@@ -229,6 +237,7 @@ class HookDispatcher:
             response=HookResponse(
                 action="allow",
                 modified_data=payload.data if payload.data else None,
+                additional_context="\n\n".join(contexts) or None,
             ),
         )
 
@@ -273,9 +282,15 @@ class HookDispatcher:
             if result.stdout.strip():
                 try:
                     response_data = json.loads(result.stdout)
+                    if not isinstance(response_data, dict):
+                        raise json.JSONDecodeError("not an object", result.stdout, 0)
                     response = HookResponse.from_dict(response_data)
                 except json.JSONDecodeError:
-                    logger.warning(f"Invalid JSON from hook: {result.stdout[:100]}")
+                    if payload.event in CONTEXT_EVENTS:
+                        # Plain text from these hooks is context for the model
+                        response = HookResponse(additional_context=result.stdout.strip()[:10000])
+                    else:
+                        logger.warning(f"Invalid JSON from hook: {result.stdout[:100]}")
 
             allowed = exit_code != HookExitCode.BLOCK
             if not allowed and (response is None or not response.message):
@@ -419,6 +434,42 @@ def dispatch_after_tool(
         },
     )
     return get_hook_dispatcher().dispatch(HookEvent.AFTER_TOOL, payload)
+
+
+def dispatch_stop(session_id: str, prompt: str, response: str, continues: int) -> HookResult:
+    """Dispatch STOP: the agent is about to finish; blocking sends it back to work."""
+    payload = HookPayload(
+        event=HookEvent.STOP,
+        session_id=session_id,
+        data={"prompt": prompt, "response": response, "continues_so_far": continues},
+    )
+    return get_hook_dispatcher().dispatch(HookEvent.STOP, payload)
+
+
+def dispatch_subagent_stop(session_id: str, description: str, response: str) -> HookResult:
+    """Dispatch SUBAGENT_STOP: a sub-agent finished its task."""
+    payload = HookPayload(
+        event=HookEvent.SUBAGENT_STOP,
+        session_id=session_id,
+        data={"description": description, "response": response},
+    )
+    return get_hook_dispatcher().dispatch(HookEvent.SUBAGENT_STOP, payload)
+
+
+def dispatch_pre_compress(session_id: str, data: Dict[str, Any]) -> HookResult:
+    """Dispatch PRE_COMPRESS: context is about to be cleared or summarized."""
+    payload = HookPayload(event=HookEvent.PRE_COMPRESS, session_id=session_id, data=data)
+    return get_hook_dispatcher().dispatch(HookEvent.PRE_COMPRESS, payload)
+
+
+def dispatch_notification(session_id: str, message: str, data: Dict[str, Any]) -> HookResult:
+    """Dispatch NOTIFICATION: Joshu needs the user (e.g. an approval)."""
+    payload = HookPayload(
+        event=HookEvent.NOTIFICATION,
+        session_id=session_id,
+        data={"message": message, **data},
+    )
+    return get_hook_dispatcher().dispatch(HookEvent.NOTIFICATION, payload)
 
 
 def dispatch_session_end(session_id: str, data: Dict[str, Any]) -> HookResult:

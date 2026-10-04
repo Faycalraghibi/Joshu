@@ -570,6 +570,8 @@ class InteractiveMode:
             except EOFError:
                 break
 
+        if self.agent is not None:
+            self.agent.end_session()
         self._show_message("Goodbye!")
 
 

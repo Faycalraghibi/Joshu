@@ -48,6 +48,11 @@ class HookEvent(str, Enum):
     # Notifications
     NOTIFICATION = "notification"
 
+    # The agent is about to finish a request (a hook can send it back to work)
+    STOP = "stop"
+    # A sub-agent finished its task
+    SUBAGENT_STOP = "subagent_stop"
+
     @classmethod
     def from_string(cls, value: str) -> "HookEvent":
         """Create HookEvent from string value."""

@@ -269,6 +269,11 @@ class PermissionManager:
             preview=build_preview(tool_name, arguments),
             warning=warning,
         )
+        from joshu.hooks.dispatcher import dispatch_notification
+
+        dispatch_notification(
+            "", f"Joshu needs your approval to run {tool_name}", {"tool_name": tool_name}
+        )
         choice = self.approver(request)
 
         if choice == ApprovalChoice.NO:
