@@ -235,7 +235,7 @@ def test_slash_command_completion():
     completer = get_command_completer(["/deploy"])
     names = lambda text: [c.text for c in completer.get_completions(Document(text), None)]  # noqa: E731
 
-    assert names("/re") == ["/reset", "/resume", "/review", "/rewind"]
+    assert names("/re") == ["/release-notes", "/reset", "/resume", "/review", "/rewind"]
     assert names("/dep") == ["/deploy"]
     assert names("hello /re") == []
     assert names("/rewind 2") == []

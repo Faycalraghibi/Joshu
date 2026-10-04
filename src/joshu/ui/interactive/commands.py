@@ -3,6 +3,7 @@
 import json
 
 from joshu.ui.interactive.commands_extra import ExtraCommands
+from joshu.ui.interactive.commands_more import MoreCommands
 
 INIT_PROMPT = """Create or update AGENTS.md at the root of this repository: instructions for AI coding agents working here.
 
@@ -21,7 +22,7 @@ def _shorten(text: str, limit: int = 80) -> str:
     return text if len(text) <= limit else text[: limit - 3] + "..."
 
 
-class CommandHandler(ExtraCommands):
+class CommandHandler(ExtraCommands, MoreCommands):
     """Handler for slash commands."""
 
     def __init__(self, interactive_mode):

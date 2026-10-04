@@ -578,10 +578,20 @@ class Agent:
 
     # ---------------------------------------------------------------- helpers
 
+    def refresh_system_prompt(self) -> None:
+        """Rebuild the system prompt (after settings such as the output style change)."""
+        if self.messages and self.messages[0].get("role") == "system":
+            self.messages[0] = {"role": "system", "content": self._build_system_prompt()}
+
     def _build_system_prompt(self) -> str:
         if self._system_prompt_override is not None:
             return self._system_prompt_override
         sections = []
+        from joshu.core.output_styles import style_instructions
+
+        style = style_instructions(get_config_manager().get("output_style"), self.cwd)
+        if style and not self.is_subagent:
+            sections.append(style)
         if self.skills:
             sections.append(skills_prompt(self.skills))
         if self.auto_memory:

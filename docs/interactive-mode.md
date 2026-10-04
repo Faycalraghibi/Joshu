@@ -166,6 +166,11 @@ list. Custom commands (`.joshu/commands/`) and skills appear there too.
 | Command | What it does |
 |---|---|
 | `/review [focus]` | Have the agent review the current changes for bugs |
+| `/security-review [focus]` | Review the current changes for security issues (injection, auth, secrets, ...) |
+| `/pr-comments [number]` | Bring a pull request's review comments into the chat (uses `gh`) |
+| `/add-dir <path>` | Let the agent read and edit files in another directory this session |
+| `/bashes [kill <id>]` | Commands the agent started in the background; stop one |
+| `/hooks [add <event> <command> \| remove <event> <n>]` | Show, add or remove hooks |
 | `/skills`, `/agents`, `/commands` | List skills, sub-agents, custom commands |
 | `/mcp` | MCP servers, whether they're connected and how many tools each has |
 | `/search <query>` | Search the web |
@@ -179,8 +184,36 @@ list. Custom commands (`.joshu/commands/`) and skills appear there too.
 | `/config [key [value]]` | Show or set a setting |
 | `/theme [name]` | Choose the color theme (dark, light, colorblind, plain) |
 | `/vim` | Toggle vim keys in the input |
+| `/output-style [name]` | How replies are written: `default`, `concise`, `explanatory`, `learning`, or your own |
+| `/statusline [command\|off]` | Show a command's output under the input |
+| `/sandbox [mode]` | Show or set the shell sandbox (`off`, `auto`, `bubblewrap`, `seatbelt`, `docker`) |
+| `/terminal-setup` | How to make Shift+Enter insert a new line in your terminal |
 
-**Other**: `/help`, `/history [clear]`, `/exit` (or `/quit`).
+**Other**: `/help`, `/history [clear]`, `/release-notes`, `/exit` (or `/quit`).
+
+### Output styles
+
+Custom styles are Markdown files in `.joshu/output-styles/` or
+`~/.joshu/output-styles/`; the file name is the style name, an optional first
+line `description: ...` describes it, and the rest is added to the system
+prompt.
+
+### Status line
+
+`/statusline <command>` runs the command (at most every 5 seconds, 1 second
+timeout) with the session as JSON on stdin (`model`, `cwd`, `mode`,
+`session_id`, `theme`) and shows its first output line at the right of the
+line under the input, e.g.:
+
+```
+/statusline git branch --show-current
+```
+
+### Background commands
+
+The agent can start long-running commands (dev servers, watchers, long test
+runs) with `background: true`, read their output while they run
+(`bash_output`) and stop them (`kill_bash`). `/bashes` lists them.
 
 `/rewind` removes the requests and everything the agent did for them from the
 conversation, restores files the agent edited meanwhile, and puts the first
@@ -223,6 +256,7 @@ compaction can't be rewound.
 |----------|--------|
 | `Esc` | Interrupt the agent (while it works); clear the input (at the prompt) |
 | `Shift+Tab` | Cycle modes: default → accept edits → plan |
+| `Alt+Enter`, `\` + `Enter` | New line (Shift+Enter after `/terminal-setup`) |
 | `?` | Show shortcuts |
 | `Ctrl+B` | Background bash |
 | `Ctrl+C` | Clear the input; twice on an empty prompt to exit |

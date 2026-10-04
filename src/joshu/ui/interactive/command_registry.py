@@ -75,14 +75,35 @@ COMMANDS: List[SlashCommand] = [
     SlashCommand("commands", "List custom commands", "Project"),
     SlashCommand("mcp", "MCP servers and their tools", "Project"),
     SlashCommand("search", "Search the web", "Project", "<query>"),
+    SlashCommand(
+        "security-review", "Review the current changes for security issues", "Project", "[focus]"
+    ),
+    SlashCommand(
+        "pr-comments", "Bring a pull request's review comments into the chat", "Project", "[number]"
+    ),
+    SlashCommand("add-dir", "Let the agent work in another directory too", "Project", "<path>"),
+    SlashCommand("bashes", "Background commands (kill <id> stops one)", "Project", "[kill <id>]"),
+    SlashCommand("hooks", "Show, add or remove hooks", "Project", "[add|remove ...]"),
     # Settings
     SlashCommand("status", "Version, model, mode and loaded configuration", "Settings"),
     SlashCommand("doctor", "Check the setup: API key, model, tools", "Settings"),
     SlashCommand("config", "Show or set a setting", "Settings", "[key [value]]"),
     SlashCommand("theme", "Choose the color theme", "Settings", "[name]"),
     SlashCommand("vim", "Toggle vim keys in the input", "Settings"),
+    SlashCommand(
+        "output-style",
+        "How replies are written: concise, explanatory, learning",
+        "Settings",
+        "[name]",
+    ),
+    SlashCommand(
+        "statusline", "Show a command's output under the input", "Settings", "[command|off]"
+    ),
+    SlashCommand("sandbox", "Show or set the shell sandbox", "Settings", "[mode]"),
+    SlashCommand("terminal-setup", "Set up Shift+Enter for new lines", "Settings"),
     # Other
     SlashCommand("help", "Show commands and shortcuts", "Other"),
+    SlashCommand("release-notes", "What's new in this version", "Other"),
     SlashCommand("history", "Show your recent input (clear to erase it)", "Other", "[clear]"),
     SlashCommand("exit", "Leave Joshu", "Other", aliases=("quit",)),
 ]
