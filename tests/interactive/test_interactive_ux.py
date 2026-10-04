@@ -155,6 +155,28 @@ def test_esc_interrupts_the_main_thread():
     assert listener.typed == "hi"
 
 
+def test_action_keys_run_instead_of_being_typed():
+    keys = iter([None, "a", key_listener.CTRL_O, "b", ESC])
+    toggled = []
+
+    def fake_read(timeout):
+        time.sleep(0.01)
+        return next(keys, None)
+
+    with (
+        patch.object(key_listener, "_is_terminal", return_value=True),
+        patch.object(KeyListener, "_enter_raw"),
+        patch.object(KeyListener, "_leave_raw"),
+        patch.object(key_listener, "_read_key", side_effect=fake_read),
+    ):
+        listener = KeyListener({key_listener.CTRL_O: lambda: toggled.append(1)})
+        with pytest.raises(KeyboardInterrupt):
+            with listener:
+                for _ in range(500):
+                    time.sleep(0.01)
+    assert toggled == [1] and listener.typed == "ab"
+
+
 def test_paused_listener_reads_no_keys():
     reads = []
 

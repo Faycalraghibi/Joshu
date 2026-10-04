@@ -7,7 +7,7 @@ import json
 import sys
 import threading
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from rich.console import Console, Group
 from rich.live import Live
@@ -226,8 +226,8 @@ class ConsoleAgentUI(AgentEvents):
         """
         self.console = console or Console()
         self.quiet = quiet
-        # On a terminal, replies are shown as Markdown when complete (with a
-        # spinner meanwhile); otherwise text is streamed as it arrives
+        # On a terminal, replies are rendered as Markdown while they stream;
+        # otherwise text is written as it arrives
         self.rich_mode = self.console.is_terminal and not quiet
         self._mid_line = False
         self._streamed = False  # text arrived through on_text this turn
@@ -240,6 +240,18 @@ class ConsoleAgentUI(AgentEvents):
         self._live: Optional[Live] = None
         self._arguments: Dict[str, Any] = {}
         self._lock = threading.RLock()
+        # Tool output cut short this request, for Ctrl+O: (call, full text)
+        self.expandable: List[Tuple[str, str]] = []
+        self.verbose = False  # Ctrl+O while the agent works: show output in full
+        self._call = ""
+        self._todo = ""  # task in progress, shown in the working line
+        self._request_started: Optional[float] = None
+
+    def begin_request(self) -> None:
+        """A new request starts: forget the previous one's output, start its clock."""
+        with self._lock:
+            self.expandable = []
+            self._request_started = time.monotonic()
 
     # ---------------------------------------------------------------- events
 
@@ -295,7 +307,9 @@ class ConsoleAgentUI(AgentEvents):
         label = TOOL_LABELS.get(tool, tool)
         if prefix:
             label = f"{prefix} › {label}"
-        summary = escape(summarize_arguments(tool, arguments))
+        plain = summarize_arguments(tool, arguments)
+        self._call = f"{label}({plain})" if plain else label
+        summary = escape(plain)
         args = f"({summary})" if summary else ""
         self.console.print()
         # One line: cut with … at the edge rather than wrapping the label away from ●
@@ -314,8 +328,10 @@ class ConsoleAgentUI(AgentEvents):
         self._stop_spinner()
         tool = name.rpartition(" › ")[2]
         if not success:
+            hint = self._fold(output)
             self.console.print(
-                f"[{_s('error')}]{RESULT}{escape(_first_line(output, 160))}[/]", highlight=False
+                f"[{_s('error')}]{RESULT}{escape(_first_line(output, 160))}[/]{hint}",
+                highlight=False,
             )
             return
         renderer = {
@@ -327,7 +343,8 @@ class ConsoleAgentUI(AgentEvents):
             "read_file": self._show_read,
         }.get(tool)
         if renderer is None or not renderer(output):
-            self._result_line(escape(_first_line(output, 160)))
+            hint = self._fold(output)
+            self._result_line(escape(_first_line(output, 160)) + hint)
         if "now has problems. Fix them" in output:
             self.console.print(
                 f"[{_s('warning')}]{RESULT_INDENT}problems found after the edit; "
@@ -413,16 +430,19 @@ class ConsoleAgentUI(AgentEvents):
             self._result_line("(no output)" if code in (0, None) else f"exit code {code}")
             return True
         failed = data.get("exit_code") not in (0, None)
-        for index, line in enumerate(lines[:MAX_OUTPUT_LINES]):
+        limit = len(lines) if self.verbose else MAX_OUTPUT_LINES
+        if len(lines) > MAX_OUTPUT_LINES:
+            self.expandable.append((self._call, text))
+        for index, line in enumerate(lines[:limit]):
             lead = RESULT if index == 0 else RESULT_INDENT
             shown = escape(line[:200])
             self.console.print(
                 f"[dim]{lead}[/dim]" + (f"[{_s('error')}]{shown}[/]" if failed else shown),
                 highlight=False,
             )
-        if len(lines) > MAX_OUTPUT_LINES:
+        if len(lines) > limit:
             self.console.print(
-                f"[dim]{RESULT_INDENT}… +{len(lines) - MAX_OUTPUT_LINES} lines[/dim]"
+                f"[dim]{RESULT_INDENT}… +{len(lines) - limit} lines (ctrl+o to expand)[/dim]"
             )
         return True
 
@@ -430,6 +450,14 @@ class ConsoleAgentUI(AgentEvents):
         todos = self._arguments.get("todos")
         if not isinstance(todos, list) or not todos:
             return False
+        self._todo = next(
+            (
+                str(todo.get("description", ""))
+                for todo in todos
+                if isinstance(todo, dict) and todo.get("status") == "in_progress"
+            ),
+            "",
+        )
         for index, todo in enumerate(todos):
             if not isinstance(todo, dict):
                 continue
@@ -454,6 +482,7 @@ class ConsoleAgentUI(AgentEvents):
         """Show what the tool will do and ask the user."""
         self._stop_spinner()
         self._end_line()
+        self.notify()
         tool = request.tool_name
         label = TOOL_LABELS.get(tool, tool)
         path = str(request.arguments.get("path", ""))
@@ -519,7 +548,64 @@ class ConsoleAgentUI(AgentEvents):
             parts.append(f"${meta['cost_usd']:.4f}")
         if meta.get("model"):
             parts.append(str(meta["model"]))
+        if self.expandable and self.rich_mode:
+            parts.append("ctrl+o for full output")
         self.console.print(f"[dim]{' · '.join(parts)}[/dim]")
+        self.notify()
+
+    # ------------------------------------------------- expand and notify
+
+    def _fold(self, output: str) -> str:
+        """Keep output shown as one line for Ctrl+O; the hint to add, or the full text."""
+        text = output.strip()
+        if len(text) <= 160 and "\n" not in text:
+            return ""
+        self.expandable.append((self._call, text))
+        if self.verbose:
+            self._print_full(text)
+            return ""
+        return " [dim](ctrl+o to expand)[/dim]"
+
+    def _print_full(self, text: str, limit: int = 400) -> None:
+        lines = text.splitlines()
+        for line in lines[:limit]:
+            self.console.print(Text(RESULT_INDENT + line, style="dim"), soft_wrap=True)
+        if len(lines) > limit:
+            self.console.print(f"[dim]{RESULT_INDENT}… +{len(lines) - limit} lines[/dim]")
+
+    def show_expanded(self) -> None:
+        """Ctrl+O at the prompt: the last request's tool output in full."""
+        if not self.expandable:
+            self.console.print("[dim]Nothing was cut short in the last request.[/dim]")
+            return
+        for call, text in self.expandable:
+            self.console.print()
+            self.console.print(
+                f"[{_s('accent')}]●[/] [bold]{escape(call)}[/bold]",
+                highlight=False,
+                no_wrap=True,
+                overflow="ellipsis",
+            )
+            self._print_full(text)
+
+    def toggle_verbose(self) -> None:
+        """Ctrl+O while the agent works: show the rest of this request's output in full."""
+        with self._lock:
+            self.verbose = not self.verbose
+
+    def notify(self) -> None:
+        """Ring the bell when a request that ran a while finishes or needs an answer."""
+        if self._request_started is None or not self.console.is_terminal or self.quiet:
+            return
+        config = get_config_manager()
+        if str(config.get("notifications", "bell")).lower() != "bell":
+            return
+        if time.monotonic() - self._request_started < float(
+            config.get("notify_after_seconds", 20) or 0
+        ):
+            return
+        self.console.file.write("\a")
+        self.console.file.flush()
 
     def _message_block(self, text: str, first: bool) -> Table:
         """Markdown with the reply bullet (first block) or aligned under it."""
@@ -559,6 +645,8 @@ class ConsoleAgentUI(AgentEvents):
     def _start_spinner(self, label: str = "Thinking") -> None:
         if not self.rich_mode or self._live is not None:
             return
+        if label == "Thinking" and self._todo:
+            label = self._todo
         self._working = _Working(label)
         self._live = Live(
             _StreamView(self, self._working),

@@ -29,7 +29,8 @@ SHORTCUTS = """\
   alt+enter or \+enter  new line          alt+v  paste an image
   esc  interrupt the agent      shift+tab  cycle modes (default, accept edits, plan)
   tab  complete commands        ctrl+r  search history        ctrl+g  edit in $EDITOR
-  ctrl+l  clear the screen      ctrl+c  clear input (twice on an empty prompt to exit)
+  ctrl+o  full tool output      ctrl+l  clear the screen
+  ctrl+c  clear input (twice on an empty prompt to exit)
   ctrl+d  exit"""
 
 

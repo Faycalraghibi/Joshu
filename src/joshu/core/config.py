@@ -31,6 +31,9 @@ DEFAULT_CONFIG = {
     "theme": "dark",
     "output_style": "default",
     "statusline": "",
+    # Ring the terminal bell when a long request finishes or waits for approval
+    "notifications": "bell",
+    "notify_after_seconds": 20,
     "persistent_history": True,
     "history_limit": 1000,
     # Semantic memory settings
@@ -153,6 +156,8 @@ class JoshuConfig:
     theme: str = "dark"
     output_style: str = "default"
     statusline: str = ""
+    notifications: str = "bell"
+    notify_after_seconds: int = 20
     persistent_history: bool = True
     history_limit: int = 1000
     # Semantic memory settings
