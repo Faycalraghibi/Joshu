@@ -213,6 +213,7 @@ class Agent:
             self.skills = discover_skills(self.cwd)
             if model_skills(self.skills):
                 self._local_tools["skill"] = self._make_skill_tool()
+            self._local_tools["install_skill"] = self._make_install_skill_tool()
             self.auto_memory = bool(config.get("auto_memory", True))
             if self.auto_memory:
                 self._local_tools["memory"] = self._make_memory_tool()
@@ -727,6 +728,14 @@ class Agent:
 
         if call.name in EDIT_TOOLS:
             self._snapshot_target(arguments)
+        if call.name == "run_shell_command" and "install_skill" in self._local_tools:
+            from joshu.core.skill_install import skills_add_part
+
+            command = skills_add_part(str(arguments.get("command", "")))
+            if command is not None:
+                # `npx skills add` would install for every agent it knows; Joshu's
+                # installer fetches the same thing and puts it where Joshu looks
+                return _Prepared(call, self._local_tools["install_skill"], {"source": command})
         return _Prepared(call, spec, arguments)
 
     def _start(self, prepared: "_Prepared") -> None:
@@ -1020,6 +1029,74 @@ class Agent:
             parameters=LOAD_TOOLS_PARAMETERS,
             function=load_tools,
             requires_approval=False,
+        )
+
+    def reload_skills(self) -> None:
+        """Pick up skills installed or removed during the session."""
+        if self.is_subagent:
+            return
+        self.skills = discover_skills(self.cwd)
+        if model_skills(self.skills):
+            self._local_tools["skill"] = self._make_skill_tool()
+        else:
+            self._local_tools.pop("skill", None)
+        self.refresh_system_prompt()
+
+    def _make_install_skill_tool(self) -> ToolSpec:
+        def install_skill(
+            source: str, skills: Optional[List[str]] = None, scope: str = "project"
+        ) -> str:
+            from joshu.core.skill_install import (
+                AddRequest,
+                SkillInstallError,
+                describe,
+                install_skills,
+                parse_add_command,
+            )
+
+            try:
+                request = parse_add_command(source)
+            except SkillInstallError:
+                request = AddRequest(source=source)
+            request.skills.extend(skills or [])
+            request.global_ = request.global_ or scope == "user"
+            try:
+                result = install_skills(request, cwd=self.cwd)
+            except SkillInstallError as e:
+                return f"Error: {e}"
+            if result.installed:
+                self.reload_skills()
+            return describe(result, request)
+
+        return ToolSpec(
+            name="install_skill",
+            description=(
+                "Download and install agent skills when the user asks to add one. Accepts what "
+                "skill pages give: `npx skills add owner/repo --skill name`, a GitHub owner/repo "
+                "or URL. Installed skills become available right away."
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "source": {
+                        "type": "string",
+                        "description": "owner/repo, a URL, or the full `npx skills add ...` command",
+                    },
+                    "skills": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Skill names to install from the source",
+                    },
+                    "scope": {
+                        "type": "string",
+                        "enum": ["project", "user"],
+                        "description": "project (.agents/skills) or user (~/.joshu/skills)",
+                    },
+                },
+                "required": ["source"],
+            },
+            function=install_skill,
+            requires_approval=True,
         )
 
     def _make_skill_tool(self) -> ToolSpec:

@@ -152,6 +152,14 @@ class InteractiveMode:
                     self._show_message(f"No bash command matching: {pattern}")
                     return
 
+        from joshu.core.skill_install import skills_add_part
+
+        if skills_add_part(bash_cmd) is not None:
+            # Install where Joshu finds skills (see /skills add)
+            self.bash_history.append(bash_cmd)
+            self.command_handler.handle_skill_add(skills_add_part(bash_cmd) or bash_cmd)
+            return
+
         try:
             code, out, err = run_command(bash_cmd)
             self.bash_history.append(bash_cmd)

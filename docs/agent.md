@@ -301,6 +301,35 @@ directory and the repository root, then `~/.joshu/skills/` (a project skill
 replaces a user skill with the same name). A skill needs a `description`.
 
 In interactive mode, `/skills` lists them and `/<skill> [request]` runs one.
+A skill with `disable-model-invocation: true` in its frontmatter only runs when
+you type `/<skill>`; the agent doesn't see it.
+
+### Installing skills
+
+Skill pages usually show an `npx skills add` command. Joshu takes the same
+sources and puts the skills where it reads them:
+
+```bash
+joshu skills add mattpocock/skills --skill grill-me     # into .agents/skills/
+joshu skills add mattpocock/skills --skill grill-me -g  # for you: ~/.joshu/skills/
+joshu skills add mattpocock/skills                      # pick from a menu (or --all)
+joshu skills                                            # list
+joshu skills remove grill-me
+```
+
+In interactive mode: `/skills add <source> [--skill name] [-g]` and
+`/skills remove <name>`. You can also paste the page's command as is
+(`/skills add npx skills add o/r --skill x`, or `!npx skills add ...`), or just
+ask ("add this skill: npx skills add o/r --skill x"): when the agent runs
+`npx skills add`, Joshu installs the skill itself. Either way the skill is
+usable right away, without restarting.
+
+Sources are anything `npx skills add` accepts (a GitHub `owner/repo`, a
+repository URL, ...); Joshu runs that tool in a temporary directory and copies
+the skills out, so nothing else is added to your project. Without Node.js,
+GitHub sources are fetched with `git clone`, and a local directory works too.
+Skills run with the agent's permissions: read a skill's SKILL.md before
+using it.
 
 ## Sub-agents
 

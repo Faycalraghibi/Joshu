@@ -47,6 +47,7 @@ _SUMMARY_KEYS: Dict[str, Optional[str]] = {
     "web_fetch": "url",
     "task": "description",
     "skill": "name",
+    "install_skill": "source",
     "memory": "name",
     "write_todos": None,
 }
@@ -70,6 +71,7 @@ TOOL_LABELS = {
     "memory": "Memory",
     "save_memory": "Memory",
     "skill": "Skill",
+    "install_skill": "Install Skill",
 }
 
 RESULT = "  ⎿  "

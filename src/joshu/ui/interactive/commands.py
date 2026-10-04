@@ -40,6 +40,18 @@ def pick_rewind(requests: List[str]) -> int:
         return 0
 
 
+def _pick_skills(names: List[str]) -> List[str]:
+    """Menu for a source with several skills: one of them, or all."""
+    from joshu.ui.menu import menu
+
+    options = [((name,), name) for name in names] + [(tuple(names), f"All {len(names)} skills")]
+    options.append(((), "Cancel"))
+    try:
+        return list(menu("Which skill should be installed?", options, cancel=()))
+    except (EOFError, KeyboardInterrupt):
+        return []
+
+
 def _shorten(text: str, limit: int = 80) -> str:
     text = " ".join(text.split())
     return text if len(text) <= limit else text[: limit - 3] + "..."
@@ -387,7 +399,60 @@ class CommandHandler(ExtraCommands, MoreCommands):
         return True
 
     def cmd_skills(self, arg: str = "") -> bool:
+        action, _, rest = arg.strip().partition(" ")
+        if action in ("add", "install"):
+            return self.handle_skill_add(rest)
+        if action in ("remove", "rm", "uninstall"):
+            return self.handle_skill_remove(rest)
         return self.handle_skills_list()
+
+    def handle_skill_add(self, text: str) -> bool:
+        """/skills add <source> [--skill name] [-g]: download skills and install them."""
+        from joshu.core.skill_install import (
+            SkillInstallError,
+            describe,
+            install_skills,
+            parse_add_command,
+        )
+
+        show = self.interactive_mode._show_message
+        try:
+            request = parse_add_command(text)
+            show(f"Fetching skills from {request.source}...")
+            result = install_skills(request, pick=_pick_skills if sys.stdin.isatty() else None)
+        except SkillInstallError as e:
+            show(str(e))
+            return True
+        show(describe(result, request))
+        self._skills_changed()
+        return True
+
+    def handle_skill_remove(self, text: str) -> bool:
+        """/skills remove <name> [-g]"""
+        from joshu.core.skill_install import SkillInstallError, remove_skill
+
+        words = text.split()
+        names = [w for w in words if not w.startswith("-")]
+        if len(names) != 1:
+            self.interactive_mode._show_message("Usage: /skills remove <name> [-g]")
+            return True
+        try:
+            path = remove_skill(names[0], global_=bool({"-g", "--global"} & set(words)))
+        except SkillInstallError as e:
+            self.interactive_mode._show_message(str(e))
+            return True
+        self.interactive_mode._show_message(f"Removed skill '{names[0]}' ({path})")
+        self._skills_changed()
+        return True
+
+    def _skills_changed(self) -> None:
+        """Let the running agent and the / menu see installed or removed skills."""
+        agent = self.interactive_mode.agent
+        if agent is not None:
+            agent.reload_skills()
+        refresh = getattr(self.interactive_mode, "_init_prompt_toolkit", None)
+        if callable(refresh):
+            refresh()
 
     def cmd_agents(self, arg: str = "") -> bool:
         return self.handle_agents_list()

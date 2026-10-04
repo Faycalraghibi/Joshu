@@ -5,6 +5,7 @@ All notable changes to the Joshu project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Install skills from where they're published: `joshu skills add <owner/repo> --skill <name> [-g]` (also `/skills add`, `joshu skills remove`, `joshu skills list`). Accepts the `npx skills add ...` command skill pages show; fetches with that tool in a temporary directory (or `git clone` without Node.js) and copies the skills into `.agents/skills/` or `~/.joshu/skills/`. A source with several skills offers a menu. When the agent (or `!` in the prompt) runs `npx skills add`, Joshu installs the skill this way, and new skills are usable at once.
 - Read-only shell commands (`ls`, `dir`, `cat`, `type`, `head`, `tail`, `rg`, `grep`, `git status/diff/log/show/blame`, ...) run without asking when they aren't chained or redirected and their paths stay inside the project.
 - Skills with `disable-model-invocation: true` run only when you type `/name`; the model doesn't see or load them.
 - Desktop notifications when a long request finishes or needs approval, in terminals that support them (iTerm2, WezTerm, Ghostty via OSC 9; kitty via OSC 99); other terminals get the bell. `notifications: auto` (default), `desktop`, `bell` or `off`.
@@ -25,6 +26,7 @@ All notable changes to the Joshu project will be documented in this file.
 - Vim mode uses prompt_toolkit's vi editing (full motions, operators, undo) instead of a handful of custom keys.
 
 ### Fixed
+- `joshu <command>` only recognized a fixed list of commands; the list now comes from the registered commands (new ones like `skills` were run as a task).
 - Replies with emoji like ➡️, ⚠️ or ✔️ were garbled (lines duplicated or run together): terminals draw them two cells wide but they were measured as one, so lines overflowed. The emoji variation selector is now dropped before rendering.
 - "Don't ask again" for a command whose second word is a path offered the whole path as the key (``dir "C:\...\x"``); it is now the program (`dir`).
 - Number keys in approval prompts and pickers only moved the selection, and Esc did nothing; a number now picks its option, Esc declines or cancels, and options are no longer numbered twice ("1. 1. Yes").

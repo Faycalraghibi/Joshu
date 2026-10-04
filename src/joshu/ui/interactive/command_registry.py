@@ -71,7 +71,9 @@ COMMANDS: List[SlashCommand] = [
     ),
     # Project
     SlashCommand("review", "Review the current changes for bugs", "Project", "[focus]"),
-    SlashCommand("skills", "List skills (/<skill> runs one)", "Project"),
+    SlashCommand(
+        "skills", "List, add or remove skills (/<skill> runs one)", "Project", "[add|remove]"
+    ),
     SlashCommand("agents", "List sub-agents", "Project"),
     SlashCommand("commands", "List custom commands", "Project"),
     SlashCommand("mcp", "MCP servers and their tools", "Project"),
