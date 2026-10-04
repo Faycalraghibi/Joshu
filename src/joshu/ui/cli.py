@@ -35,9 +35,11 @@ mcp_app = typer.Typer(help="Manage MCP server integrations.")
 app.add_typer(mcp_app, name="mcp")
 
 from .cli_models import models_app, providers_app, use  # noqa: E402
+from .cli_skills import skills_app  # noqa: E402
 
 app.add_typer(providers_app, name="providers")
 app.add_typer(models_app, name="models")
+app.add_typer(skills_app, name="skills")
 app.command(name="use")(use)
 console = Console()
 
@@ -802,6 +804,16 @@ def _ensure_utf8_output() -> None:
                 pass
 
 
+def subcommand_names() -> set:
+    """Names `joshu <name>` treats as a command; any other first word starts a task."""
+    names = {"--help", "-h", "--version", "-v"}
+    for command in app.registered_commands:
+        name = command.name or getattr(command.callback, "__name__", "")
+        names.add(name.replace("_", "-"))
+    names.update(group.name for group in app.registered_groups if group.name)
+    return names
+
+
 def main() -> None:
     """Main entry point."""
     _ensure_utf8_output()
@@ -810,29 +822,7 @@ def main() -> None:
         sys.argv.append("interactive")
     if len(sys.argv) > 1:
         first_arg = sys.argv[1]
-        known_commands = [
-            "config",
-            "run",
-            "history",
-            "examples",
-            "commands",
-            "explain",
-            "search",
-            "interactive",
-            "mcp",
-            "providers",
-            "models",
-            "use",
-            "serve",
-            "trust",
-            "sessions",
-            "--help",
-            "-h",
-            "--version",
-            "-v",
-        ]
-
-        if first_arg not in known_commands and not first_arg.startswith("-"):
+        if first_arg not in subcommand_names() and not first_arg.startswith("-"):
             prompt = " ".join(sys.argv[1:])
 
             global context_provider, _current_model

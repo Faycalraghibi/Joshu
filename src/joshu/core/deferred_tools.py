@@ -31,6 +31,7 @@ DEFERRED_BUILTINS = {
     "multi_edit",
     "notebook_edit",
     "code_nav",
+    "install_skill",
 }
 
 
