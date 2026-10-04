@@ -15,6 +15,7 @@ from rich.markdown import Markdown
 from rich.markup import escape
 from rich.padding import Padding
 from rich.panel import Panel
+from rich.segment import Segment
 from rich.syntax import Syntax
 from rich.table import Table
 from rich.text import Text
@@ -115,15 +116,92 @@ class _Working:
     def __init__(self, label: str = "Thinking") -> None:
         self.started = time.monotonic()
         self.label = label
+        self.chars = 0  # streamed text so far, for the output-token estimate
 
     def __rich_console__(self, console, options):
         elapsed = time.monotonic() - self.started
         frame = SPINNER_FRAMES[int(elapsed * 6) % len(SPINNER_FRAMES)]
+        details = [_elapsed(elapsed)]
+        if self.chars:
+            details.append(f"↓ {_short(max(1, self.chars // 4))} tokens")
+        details.append("esc to interrupt")
         yield Text.assemble(
             (f"{frame} ", _s("accent", "bold")),
             (f"{self.label}… ", _s("accent")),
-            (f"({int(elapsed)}s · esc to interrupt)", "dim"),
+            (f"({' · '.join(details)})", "dim"),
         )
+
+
+class _Trimmed:
+    """A renderable without blank lines at its edges.
+
+    rich's Markdown starts a list or code block with an empty line, so a reply
+    printed block by block would otherwise get uneven spacing.
+    """
+
+    def __init__(self, renderable: Any) -> None:
+        self.renderable = renderable
+
+    def __rich_console__(self, console, options):
+        lines = console.render_lines(self.renderable, options, pad=False)
+
+        def blank(line) -> bool:
+            return not "".join(segment.text for segment in line).strip()
+
+        while lines and blank(lines[0]):
+            lines.pop(0)
+        while lines and blank(lines[-1]):
+            lines.pop()
+        for line in lines:
+            yield from line
+            yield Segment.line()
+
+
+class _StreamView:
+    """The reply still being written, above the working indicator."""
+
+    def __init__(self, ui: "ConsoleAgentUI", working: _Working) -> None:
+        self.ui = ui
+        self.working = working
+
+    def __rich_console__(self, console, options):
+        tail = self.ui._pending.strip()
+        if tail:
+            yield self.ui._message_block(tail, first=not self.ui._reply_started)
+            yield Text()
+        yield self.working
+
+
+def _elapsed(seconds: float) -> str:
+    seconds = int(seconds)
+    return f"{seconds // 60}m {seconds % 60}s" if seconds >= 60 else f"{seconds}s"
+
+
+def split_complete_blocks(text: str) -> "tuple[str, str]":
+    """Split streamed Markdown into finished blocks and the block still being written.
+
+    A block is finished at a blank line outside a code fence, so a printed
+    block never changes once later text arrives.
+    """
+    fence: Optional[str] = None
+    cut = 0
+    position = 0
+    lines = text.split("\n")
+    for index, line in enumerate(lines):
+        position += len(line) + 1
+        if index == len(lines) - 1:
+            break  # the last line may still be growing
+        stripped = line.strip()
+        marker = stripped[:3]
+        if marker in ("```", "~~~"):
+            if fence is None:
+                fence = marker
+            elif marker == fence and stripped.strip("`~") == "":
+                fence = None
+            continue
+        if fence is None and not stripped:
+            cut = position
+    return text[:cut], text[cut:]
 
 
 def _locked(method):
@@ -154,6 +232,11 @@ class ConsoleAgentUI(AgentEvents):
         self._mid_line = False
         self._streamed = False  # text arrived through on_text this turn
         self._buffer: List[str] = []
+        # Live reply: finished Markdown blocks are printed as they complete and
+        # only the block being written is redrawn
+        self._pending = ""
+        self._reply_started = False
+        self._working: Optional[_Working] = None
         self._live: Optional[Live] = None
         self._arguments: Dict[str, Any] = {}
         self._lock = threading.RLock()
@@ -171,6 +254,7 @@ class ConsoleAgentUI(AgentEvents):
             return
         if self.rich_mode:
             self._buffer.append(delta)
+            self._stream(delta)
             return
         sys.stdout.write(delta)
         sys.stdout.flush()
@@ -182,11 +266,16 @@ class ConsoleAgentUI(AgentEvents):
         if self.quiet:
             return
         if self.rich_mode:
-            self._stop_spinner()
-            text = "".join(self._buffer) or turn.content or ""
+            streamed = bool(self._buffer)
             self._buffer = []
-            if text.strip():
-                self._print_message(text)
+            if streamed:
+                self._stop_spinner()  # prints the last block
+            else:
+                # A client that doesn't stream delivers the whole text at the end
+                self._stop_spinner()
+                if (turn.content or "").strip():
+                    self._print_message(turn.content or "")
+            self._reply_started = False
             return
         # A client that doesn't stream delivers the whole text at the end
         if not self._streamed and turn.content:
@@ -432,19 +521,47 @@ class ConsoleAgentUI(AgentEvents):
             parts.append(str(meta["model"]))
         self.console.print(f"[dim]{' · '.join(parts)}[/dim]")
 
-    def _print_message(self, text: str) -> None:
+    def _message_block(self, text: str, first: bool) -> Table:
+        """Markdown with the reply bullet (first block) or aligned under it."""
         grid = Table.grid(padding=0)
         grid.add_column(width=2, no_wrap=True)
         grid.add_column()
-        grid.add_row(Text("● "), Markdown(text.strip()))
+        grid.add_row(Text("● " if first else "  "), _Trimmed(Markdown(text.strip())))
+        return grid
+
+    def _print_message(self, text: str) -> None:
         self.console.print()
-        self.console.print(grid)
+        self.console.print(self._message_block(text, first=True))
+
+    def _print_block(self, text: str) -> None:
+        if not text.strip():
+            return
+        self.console.print()  # before the reply, and between blocks as Markdown would
+        self.console.print(self._message_block(text, first=not self._reply_started))
+        self._reply_started = True
+
+    def _stream(self, delta: str) -> None:
+        """Show streamed text: print finished blocks, redraw the one being written."""
+        self._pending += delta
+        done, self._pending = split_complete_blocks(self._pending)
+        if done.strip():
+            self._print_block(done)
+        if self._live is None:
+            self._start_spinner("Writing")
+        if self._working is not None:
+            self._working.chars += len(delta)
+            self._working.label = "Writing"
+
+    def _flush_reply(self) -> None:
+        text, self._pending = self._pending, ""
+        self._print_block(text)
 
     def _start_spinner(self, label: str = "Thinking") -> None:
         if not self.rich_mode or self._live is not None:
             return
+        self._working = _Working(label)
         self._live = Live(
-            _Working(label),
+            _StreamView(self, self._working),
             console=self.console,
             refresh_per_second=8,
             transient=True,
@@ -460,6 +577,10 @@ class ConsoleAgentUI(AgentEvents):
                 self._live.stop()
             finally:
                 self._live = None
+                self._working = None
+        # The block being written was only on the transient display
+        if self._pending:
+            self._flush_reply()
 
     def _end_line(self) -> None:
         if self._mid_line:

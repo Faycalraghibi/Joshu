@@ -39,6 +39,39 @@ def test_reply_is_rendered_as_markdown_with_bullet():
     assert ui._live is None  # spinner stopped
 
 
+def test_finished_blocks_print_while_the_reply_streams():
+    ui, out = terminal_ui()
+    # Only what is printed for good; the live area is redrawn and then erased
+    ui._live = MagicMock()
+    ui.on_model_start()
+    ui.on_text("First paragraph.\n\nSecond ")
+    # The finished paragraph is on screen before the turn ends
+    assert "● First paragraph." in text_of(out)
+    assert "Second" not in text_of(out)
+    ui.on_text("paragraph.")
+    ui.on_turn_end(AssistantTurn())
+    shown = text_of(out)
+    assert shown.count("●") == 1  # one bullet for the whole reply
+    assert "  Second paragraph." in shown
+
+
+def test_split_keeps_code_fences_whole():
+    split = agent_ui.split_complete_blocks
+    assert split("a\n\nb") == ("a\n\n", "b")
+    assert split("a\n\n```py\nx = 1\n\ny = 2\n") == ("a\n\n", "```py\nx = 1\n\ny = 2\n")
+    assert split("```\nx\n```\n\nmore") == ("```\nx\n```\n\n", "more")
+    assert split("no break yet") == ("", "no break yet")
+
+
+def test_working_line_counts_streamed_tokens():
+    working = agent_ui._Working("Writing")
+    working.chars = 4000
+    console = Console(file=io.StringIO(), width=100, color_system=None)
+    console.print(working)
+    shown = console.file.getvalue()
+    assert "↓ 1.0k tokens" in shown and "esc to interrupt" in shown
+
+
 def test_tool_calls_show_label_and_result():
     ui, out = terminal_ui()
     ui.on_tool_start("read_file", {"path": "a.py"})
