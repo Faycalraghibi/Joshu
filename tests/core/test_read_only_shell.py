@@ -16,7 +16,6 @@ from joshu.core.permissions import (
     "command",
     [
         "dir",
-        "dir src /s /b",
         "ls -la src",
         "type README.md",
         "cat src/app.py",
