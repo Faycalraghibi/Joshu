@@ -2,6 +2,7 @@
 
 import os
 import subprocess
+import time
 from typing import Optional
 
 try:
@@ -47,8 +48,26 @@ def create_key_bindings(interactive_mode) -> Optional[KeyBindings]:
 
     @kb.add("c-c")
     def _(event):
-        """Ctrl+C for graceful interrupt"""
-        event.app.exit(exception=KeyboardInterrupt)
+        """Ctrl+C clears the input; on an empty prompt, twice in a row exits."""
+        buffer = event.app.current_buffer
+        if buffer.text:
+            buffer.reset()
+            interactive_mode.notice = ""
+            return
+        now = time.monotonic()
+        if now - getattr(interactive_mode, "_last_ctrl_c", 0.0) < 2.0:
+            event.app.exit(exception=KeyboardInterrupt)
+            return
+        interactive_mode._last_ctrl_c = now
+        interactive_mode.notice = "Press Ctrl+C again to exit"
+        event.app.invalidate()
+
+    @kb.add("s-tab")
+    def _(event):
+        """Shift+Tab cycles default -> accept edits -> plan."""
+        interactive_mode.cycle_mode()
+        interactive_mode.notice = ""
+        event.app.invalidate()
 
     @kb.add("c-d")
     def _(event):
@@ -71,8 +90,11 @@ def create_key_bindings(interactive_mode) -> Optional[KeyBindings]:
 
     @kb.add("escape")
     def _(event):
-        """Escape key to switch to NORMAL mode"""
-        interactive_mode.vim_mode = "NORMAL"
+        """Esc: NORMAL mode with vim keys enabled, otherwise clear the input."""
+        if getattr(interactive_mode, "vim_enabled", False):
+            interactive_mode.vim_mode = "NORMAL"
+        else:
+            event.app.current_buffer.reset()
 
     # Vim-style navigation in NORMAL mode
     @kb.add("h", filter=Condition(lambda: interactive_mode.vim_mode == "NORMAL"))

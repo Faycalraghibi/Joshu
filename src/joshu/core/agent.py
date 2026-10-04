@@ -58,6 +58,9 @@ class AgentResponse:
 class AgentEvents:
     """Callbacks the UI implements to show progress. All are no-ops by default."""
 
+    def on_model_start(self) -> None:
+        """A request to the model is about to be sent (show a working indicator)."""
+
     def on_text(self, delta: str) -> None:
         """Streamed model text."""
 
@@ -370,6 +373,7 @@ class Agent:
         for turn_number in range(1, self.max_turns + 1):
             self._maybe_compact()
 
+            self.events.on_model_start()
             turn = self.client.complete(
                 self.messages,
                 tools=[spec.to_openai_format() for spec in self.tool_specs()] or None,
@@ -798,6 +802,9 @@ class _SubagentEvents(AgentEvents):
     def __init__(self, parent: AgentEvents, label: str) -> None:
         self.parent = parent
         self.label = label
+
+    def on_model_start(self) -> None:
+        self.parent.on_model_start()
 
     def on_tool_start(self, name: str, arguments: Dict[str, Any]) -> None:
         self.parent.on_tool_start(f"{self.label} › {name}", arguments)

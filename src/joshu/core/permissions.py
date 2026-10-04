@@ -71,6 +71,8 @@ class ApprovalRequest:
     arguments: Dict[str, Any]
     preview: str  # diff, command, or argument summary
     warning: Optional[str] = None  # set when the safety check flagged the call
+    # What the user said to do instead when declining (sent to the model)
+    feedback: Optional[str] = None
 
 
 @dataclass
@@ -261,7 +263,10 @@ class PermissionManager:
         choice = self.approver(request)
 
         if choice == ApprovalChoice.NO:
-            return PermissionDecision(False, "The user denied this tool call.")
+            reason = "The user denied this tool call."
+            if request.feedback:
+                reason += f" They said: {request.feedback}"
+            return PermissionDecision(False, reason)
 
         if choice == ApprovalChoice.ALWAYS and allow_always:
             self._remember(tool_name, arguments)
