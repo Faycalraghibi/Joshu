@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import os
 import re
-import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -249,13 +248,12 @@ class MoreCommands:
 
     def _pick(self, question: str, options: List[tuple], default: Optional[str]) -> Optional[str]:
         try:
-            from joshu.ui.menu import menu
+            from joshu.ui.menu import MenuUnavailable, menu
 
-            if sys.stdin.isatty() and sys.stdout.isatty():
-                return menu(question, options, default=default)
+            return menu(question, options, default=default)
         except (EOFError, KeyboardInterrupt):
             return None
-        except ImportError:
+        except (ImportError, MenuUnavailable):
             pass
         return None
 

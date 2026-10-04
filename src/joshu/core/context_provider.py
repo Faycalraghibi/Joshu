@@ -36,7 +36,7 @@ try:
 except ImportError:
     ATTENTION_AVAILABLE = False
     logger.debug(
-        "Attention mechanism dependencies not available. Install with: pip install -e .[semantic]"
+        "Attention mechanism dependencies not available. Install with: pip install 'joshu[use]'"
     )
 
 
@@ -118,7 +118,7 @@ class ContextProvider:
                 self.attention_enabled = False
         elif self.attention_enabled and not ATTENTION_AVAILABLE:
             logger.info(
-                "Attention mechanism requested but dependencies not available. Install with: pip install -e .[semantic]"
+                "Attention mechanism requested but dependencies not available. Install with: pip install 'joshu[use]'"
             )
             self.attention_enabled = False
 

@@ -1,11 +1,11 @@
 """Command handlers for interactive mode slash commands."""
 
 import json
-import sys
 from typing import List
 
 from joshu.ui.interactive.commands_extra import ExtraCommands
 from joshu.ui.interactive.commands_more import MoreCommands
+from joshu.ui.menu import can_show_menu
 
 INIT_PROMPT = """Create or update AGENTS.md at the root of this repository: instructions for AI coding agents working here.
 
@@ -21,7 +21,7 @@ Only include facts you verified in the repository; don't invent commands. If AGE
 
 def pick_rewind(requests: List[str]) -> int:
     """Arrow-key menu of past requests, newest first. Returns how many to drop (0: cancel)."""
-    from joshu.ui.menu import menu
+    from joshu.ui.menu import MenuUnavailable, menu
 
     total = len(requests)
     options = [
@@ -38,17 +38,19 @@ def pick_rewind(requests: List[str]) -> int:
         )
     except (EOFError, KeyboardInterrupt):
         return 0
+    except MenuUnavailable:
+        return 1  # no menu: the last request, as /rewind 1
 
 
 def _pick_skills(names: List[str]) -> List[str]:
     """Menu for a source with several skills: one of them, or all."""
-    from joshu.ui.menu import menu
+    from joshu.ui.menu import MenuUnavailable, menu
 
     options = [((name,), name) for name in names] + [(tuple(names), f"All {len(names)} skills")]
     options.append(((), "Cancel"))
     try:
         return list(menu("Which skill should be installed?", options, cancel=()))
-    except (EOFError, KeyboardInterrupt):
+    except (EOFError, KeyboardInterrupt, MenuUnavailable):
         return []
 
 
@@ -155,6 +157,8 @@ class CommandHandler(ExtraCommands, MoreCommands):
         from joshu.core.auto_memory import delete_memory, list_memories, memory_dir
 
         parts = command.split()
+        if len(parts) >= 2 and parts[1] in ("add", "remember"):
+            return self._add_memory(parts[2:])
         if len(parts) >= 3 and parts[1] == "forget":
             scope = "user" if len(parts) > 3 and parts[3] == "user" else "project"
             if delete_memory(parts[2], scope):
@@ -174,16 +178,46 @@ class CommandHandler(ExtraCommands, MoreCommands):
         lines += [
             "",
             "The agent saves these as it learns; edit the files directly or:",
+            "  /memory add <text> [--user]   - Save a memory (--user: for every project)",
             "  /memory forget <name> [user]  - Delete a memory",
             "  /memory status | search <q> | clear - Semantic memory of past conversations",
         ]
         self.interactive_mode._show_message("\n".join(lines))
         return True
 
+    def _add_memory(self, words: List[str]) -> bool:
+        """/memory add <text> [--user]: save something for the agent to remember."""
+        import re
+
+        from joshu.core.auto_memory import MemoryInputError, save_memory
+
+        scope = "user" if {"--user", "-u"} & set(words) else "project"
+        text = " ".join(w for w in words if w not in ("--user", "-u")).strip()
+        if not text:
+            self.interactive_mode._show_message("Usage: /memory add <text> [--user]")
+            return True
+        slug = "-".join(re.findall(r"[a-z0-9]+", text.lower())[:6])[:48].strip("-") or "note"
+        try:
+            memory = save_memory(
+                slug,
+                text[:120],
+                text,
+                type="user" if scope == "user" else "project",
+                scope=scope,
+            )
+        except MemoryInputError as e:
+            self.interactive_mode._show_message(f"Could not save: {e}")
+            return True
+        agent = self.interactive_mode.agent
+        if agent is not None:
+            agent.refresh_system_prompt()
+        self.interactive_mode._show_message(f"Saved {scope} memory '{memory.name}'.")
+        return True
+
     def handle_memory_command(self, command: str) -> bool:
         """Handle memory commands: saved memories, then semantic memory."""
         parts = command.split()
-        if len(parts) == 1 or parts[1] in ("list", "forget"):
+        if len(parts) == 1 or parts[1] in ("list", "forget", "add", "remember"):
             return self.handle_auto_memory_command(command)
         if not self.context_provider:
             self.interactive_mode._show_message("❌ Context provider not available.")
@@ -223,7 +257,7 @@ class CommandHandler(ExtraCommands, MoreCommands):
                 self.interactive_mode._show_message(
                     "⚠️  Semantic memory is disabled (missing dependencies)"
                 )
-                self.interactive_mode._show_message("💡 Install with: pip install -e .[semantic]")
+                self.interactive_mode._show_message("💡 Install with: pip install 'joshu[use]'")
                 return True
 
             count = semantic_memory.count()
@@ -419,7 +453,7 @@ class CommandHandler(ExtraCommands, MoreCommands):
         try:
             request = parse_add_command(text)
             show(f"Fetching skills from {request.source}...")
-            result = install_skills(request, pick=_pick_skills if sys.stdin.isatty() else None)
+            result = install_skills(request, pick=_pick_skills if can_show_menu() else None)
         except SkillInstallError as e:
             show(str(e))
             return True
@@ -680,7 +714,7 @@ class CommandHandler(ExtraCommands, MoreCommands):
             if not requests:
                 self.interactive_mode._show_message("Nothing to rewind.")
                 return True
-            picked = pick_rewind(requests) if sys.stdin.isatty() else 1
+            picked = pick_rewind(requests) if can_show_menu() else 1
             if not picked:
                 return True
             arg = str(picked)
@@ -814,7 +848,15 @@ class CommandHandler(ExtraCommands, MoreCommands):
 
     def handle_config_command(self, command: str):
         """Handle configuration commands."""
-        parts = command.split()
+        from joshu.core.config import DEFAULT_CONFIG
+
+        parts = command.split(maxsplit=2)
+        known = set(DEFAULT_CONFIG) | set(self.config_manager.config.to_dict())
+        if len(parts) >= 2 and parts[1] not in known:
+            close = sorted(k for k in known if parts[1].lower() in k or k in parts[1].lower())
+            hint = f" Did you mean: {', '.join(close[:5])}?" if close else " /config lists them."
+            self.interactive_mode._show_message(f"Unknown setting '{parts[1]}'.{hint}")
+            return
         if len(parts) == 1:
             config_dict = self.config_manager.config.to_dict()
             config_str = json.dumps(config_dict, indent=2)
@@ -823,7 +865,7 @@ class CommandHandler(ExtraCommands, MoreCommands):
             key = parts[1]
             value = self.config_manager.get(key)
             self.interactive_mode._show_message(f"{key}: {value}")
-        elif len(parts) == 3:
+        else:
             key, value = parts[1], parts[2]
             if value.lower() in ("true", "false"):
                 value = value.lower() == "true"
@@ -834,6 +876,8 @@ class CommandHandler(ExtraCommands, MoreCommands):
 
             if self.config_manager.set(key, value):
                 self.config_manager.save_config()
+                if key == "vim_mode":
+                    self.interactive_mode.vim_enabled = bool(value)
                 self.interactive_mode._show_message(f"Set {key} = {value}")
             else:
                 self.interactive_mode._show_message(

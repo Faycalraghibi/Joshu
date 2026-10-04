@@ -14,7 +14,9 @@ OPTIONS = [("yes", "Yes"), ("always", "Yes, always"), ("no", "No")]
 
 
 def pick(keys, **kwargs):
-    with create_pipe_input() as pipe:
+    from unittest.mock import patch
+
+    with create_pipe_input() as pipe, patch("joshu.ui.menu.can_show_menu", return_value=True):
         pipe.send_text(keys)
         with create_app_session(input=pipe, output=DummyOutput()):
             return menu("Allow?", OPTIONS, **kwargs)
@@ -27,6 +29,14 @@ def test_number_key_picks_without_enter():
 
 def test_escape_returns_cancel():
     assert pick("\x1b", cancel="cancelled") == "cancelled"
+
+
+def test_no_terminal_raises_menu_unavailable(monkeypatch):
+    from joshu.ui.menu import MenuUnavailable
+
+    monkeypatch.setattr("joshu.ui.menu.can_show_menu", lambda: False)
+    with pytest.raises(MenuUnavailable):
+        menu("Allow?", OPTIONS)
 
 
 def test_arrows_and_enter():

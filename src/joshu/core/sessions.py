@@ -47,17 +47,35 @@ def sessions_dir() -> Path:
     return joshu_home() / "sessions"
 
 
+def _saved_title(session_id: str) -> str:
+    try:
+        return str(load_session(session_id).get("title") or "")
+    except Exception:
+        return ""
+
+
 def save_session(agent: "Agent") -> Path:
     """Write the agent's conversation (without the system prompt) to disk."""
     messages = agent.messages[1:]
+    from joshu.core.compaction import SUMMARY_PREFIX
+
     title = next(
         (
             message_text(m["content"])
             for m in messages
-            if m.get("role") == "user" and m.get("content")
+            if m.get("role") == "user"
+            and m.get("content")
+            and not message_text(m["content"]).startswith(SUMMARY_PREFIX)
         ),
         "",
     )
+    if (
+        not title
+        or messages
+        and message_text(messages[0].get("content")).startswith(SUMMARY_PREFIX)
+    ):
+        # Compaction replaced the first request: keep the title saved before
+        title = _saved_title(agent.session_id) or title
     data = {
         "version": SESSION_VERSION,
         "id": agent.session_id,
