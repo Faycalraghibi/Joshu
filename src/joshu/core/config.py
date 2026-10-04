@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 # Default configuration
 DEFAULT_CONFIG = {
-    "model": "poolside/laguna-s-2.1:free",
+    "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
     "max_tokens": 4096,
     "temperature": 0.1,
     "history_size": 100,
@@ -58,7 +58,7 @@ DEFAULT_CONFIG = {
     "mcp_discovery_on_startup": True,
     "mcp_servers": {},
     # Model provider settings (see joshu.core.providers)
-    "provider": "openrouter",
+    "provider": "nvidia",
     "providers": {},
     "fallback_providers": [],
     "auto_memory": True,
@@ -139,7 +139,7 @@ def _coerce_config_value(key: str, value: Any) -> Tuple[bool, Any]:
 class JoshuConfig:
     """Joshu Configuration Data Class"""
 
-    model: str = "poolside/laguna-s-2.1:free"
+    model: str = "nvidia/nemotron-3.5-lightning-30b-a3b"
     max_tokens: int = 4096
     temperature: float = 0.1
     history_size: int = 100
@@ -180,7 +180,7 @@ class JoshuConfig:
     mcp_discovery_on_startup: bool = True
     mcp_servers: Dict[str, Any] = field(default_factory=dict)
     # Model provider settings (see joshu.core.providers)
-    provider: str = "openrouter"
+    provider: str = "nvidia"
     providers: Dict[str, Any] = field(default_factory=dict)
     fallback_providers: List[str] = field(default_factory=list)
     auto_memory: bool = True

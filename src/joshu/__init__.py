@@ -1,7 +1,7 @@
 """Joshu: a coding agent for the terminal. See joshu.sdk for the Python API."""
 
 __all__ = ["__version__", "Session", "Result", "run"]
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 
 def __getattr__(name):

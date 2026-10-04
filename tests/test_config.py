@@ -31,7 +31,7 @@ class TestConfig(unittest.TestCase):
     def test_config_creation(self):
         """Test creating JoshuConfig with default values."""
         config = JoshuConfig()
-        self.assertEqual(config.model, "poolside/laguna-s-2.1:free")
+        self.assertEqual(config.model, "nvidia/nemotron-3.5-lightning-30b-a3b")
         self.assertEqual(config.sandbox_enabled, True)
         self.assertEqual(config.vim_mode, False)
         self.assertEqual(config.max_tokens, 4096)
@@ -78,7 +78,7 @@ class TestConfig(unittest.TestCase):
         config_manager = ConfigManager(str(self.test_config_path))
         self.assertEqual(config_manager.config_path, self.test_config_path)
         # Should have default config
-        self.assertEqual(config_manager.config.model, "poolside/laguna-s-2.1:free")
+        self.assertEqual(config_manager.config.model, "nvidia/nemotron-3.5-lightning-30b-a3b")
 
     def test_config_manager_save_and_load(self):
         """Test saving and loading configuration."""
@@ -103,7 +103,7 @@ class TestConfig(unittest.TestCase):
         config_manager = ConfigManager(str(self.test_config_path))
 
         # Test get
-        self.assertEqual(config_manager.get("model"), "poolside/laguna-s-2.1:free")
+        self.assertEqual(config_manager.get("model"), "nvidia/nemotron-3.5-lightning-30b-a3b")
         self.assertEqual(config_manager.get("nonexistent", "default"), "default")
 
         # Test set
@@ -153,7 +153,7 @@ class TestConfig(unittest.TestCase):
         config_manager.reset_to_defaults()
 
         # Should be back to defaults
-        self.assertEqual(config_manager.config.model, "poolside/laguna-s-2.1:free")
+        self.assertEqual(config_manager.config.model, "nvidia/nemotron-3.5-lightning-30b-a3b")
         self.assertEqual(config_manager.config.vim_mode, False)
 
     def test_get_config_manager_singleton(self):
