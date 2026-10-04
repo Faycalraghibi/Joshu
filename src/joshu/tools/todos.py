@@ -246,19 +246,7 @@ def _update_todos(
 # Register the tool
 @register_tool(
     name="write_todos",
-    description="""Break down complex tasks into a list of subtasks with status tracking.
-
-Use this tool when:
-- Starting a complex, multi-step task
-- The user requests a plan or breakdown
-- You need to organize and track progress on multiple related items
-
-Each subtask has:
-- description: What needs to be done
-- status: pending, in_progress, completed, or cancelled
-
-The currently in-progress task will be prominently displayed to the user.
-Update the status as you work through each subtask.""",
+    description="Track a multi-step task as a todo list shown to the user. Send the whole list each time; statuses: pending, in_progress (one at a time), completed, cancelled.",
     parameters={
         "type": "object",
         "properties": {

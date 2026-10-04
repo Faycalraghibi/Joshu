@@ -33,7 +33,7 @@ WEB_SEARCH_TOOL_SPEC = {
 
 @register_tool(
     name="web_search",
-    description="Search the web for current information, news, documentation, or any topic that requires up-to-date knowledge. Use this when you need information beyond your training data or when the user asks about current events, latest versions, or real-time information.",
+    description="Search the web for current information (recent versions, news, docs).",
     parameters=WEB_SEARCH_TOOL_SPEC,
     enabled=True,
     requires_approval=False,

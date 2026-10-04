@@ -123,8 +123,8 @@ class ToolExecutor:
                 # For search results, format nicely
                 if "results" in tool_result and isinstance(tool_result["results"], list):
                     return self._format_search_results(tool_result)
-                # Otherwise convert to JSON
-                return json.dumps(tool_result, indent=2)
+                # Otherwise compact JSON: indentation costs tokens on every later request
+                return json.dumps(tool_result, ensure_ascii=False, default=str)
 
             # For other types, convert to string
             return str(tool_result)

@@ -36,14 +36,7 @@ WEB_FETCH_TOOL_SPEC = {
 
 @register_tool(
     name="web_fetch",
-    description="""Fetch and process content from a URL. Use this when you need to:
-- Read the contents of a specific web page
-- Extract information from a URL the user provides
-- Summarize or analyze content from a website
-- Compare content from multiple URLs
-
-This tool retrieves the actual content of web pages and converts it to readable text.
-For searching the web to find URLs, use web_search instead.""",
+    description="Fetch a URL and return its content as text. Use web_search to find URLs.",
     parameters=WEB_FETCH_TOOL_SPEC,
     enabled=True,
     requires_approval=True,  # Security: user must confirm before accessing URLs
