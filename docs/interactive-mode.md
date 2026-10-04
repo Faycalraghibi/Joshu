@@ -136,7 +136,7 @@ list. Custom commands (`.joshu/commands/`) and skills appear there too.
 |---|---|
 | `/clear` | Start a new conversation; the old one stays saved (also `/reset`, `/new`) |
 | `/compact [focus]` | Summarize the conversation to free context, optionally saying what to keep |
-| `/rewind [n]` | Drop the last n requests and restore the files the agent changed for them |
+| `/rewind [n]` | Go back to an earlier request (a menu; or drop the last n) and restore the files the agent changed since. Also Esc Esc on an empty prompt |
 | `/undo` | Revert the file edits of the last request |
 | `/resume [id]` | List saved conversations here, or continue one |
 | `/export [file]` | Save the conversation as Markdown |
@@ -287,7 +287,7 @@ paths in the project (skipping `.git`, `node_modules` and build folders):
   /reset              same as /clear
   /resume [id]        List saved conversations, or continue one
   /review [focus]     Review the current changes for bugs
-  /rewind [n]         Drop the last n requests and restore their files
+  /rewind [n]         Go back to an earlier request and restore its files
 
 > explain @cal
   src/calc.py

@@ -249,6 +249,8 @@ class ConsoleAgentUI(AgentEvents):
         self.verbose = False  # Ctrl+O while the agent works: show output in full
         self._call = ""
         self._todo = ""  # task in progress, shown in the working line
+        # (finished, total, in progress) of the todo list, for the bottom bar
+        self.todo_progress: Optional[Tuple[int, int, str]] = None
         self._request_started: Optional[float] = None
         # Reasoning streamed by models that show their thinking, this response
         self._thinking = ""
@@ -478,6 +480,9 @@ class ConsoleAgentUI(AgentEvents):
             ),
             "",
         )
+        items = [todo for todo in todos if isinstance(todo, dict)]
+        finished = sum(1 for t in items if t.get("status") in ("completed", "cancelled"))
+        self.todo_progress = (finished, len(items), self._todo)
         for index, todo in enumerate(todos):
             if not isinstance(todo, dict):
                 continue

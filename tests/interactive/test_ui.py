@@ -154,6 +154,20 @@ def test_thinking_tail_shows_the_last_lines():
     assert tail is not None and tail.plain == "  two\n  three\n  four"
 
 
+def test_todo_progress_and_bottom_bar_activity():
+    ui, _ = terminal_ui()
+    todos = [
+        {"description": "Parse", "status": "completed"},
+        {"description": "Test", "status": "in_progress"},
+        {"description": "Docs", "status": "pending"},
+    ]
+    ui.on_tool_start("write_todos", {"todos": todos})
+    ui.on_tool_end("write_todos", "{}", True)
+    assert ui.todo_progress == (1, 3, "Test")
+    bar = "".join(text for _, text in bottom_toolbar("default", "m", activity="☐ 1/3 Test"))
+    assert "? for shortcuts  ·  ☐ 1/3 Test" in bar
+
+
 def test_tool_calls_show_label_and_result():
     ui, out = terminal_ui()
     ui.on_tool_start("read_file", {"path": "a.py"})

@@ -431,6 +431,24 @@ class InteractiveMode:
         }
         return self.statusline.text(command, context)
 
+    def activity_text(self) -> str:
+        """Todo progress and running background shells, for the bottom bar."""
+        parts = []
+        progress = getattr(self.agent_ui, "todo_progress", None)
+        if progress:
+            done, total, current = progress
+            if done < total:
+                parts.append(f"☐ {done}/{total}" + (f" {current}" if current else ""))
+        try:
+            from joshu.tools.shell_tool import list_background_processes
+
+            running = sum(1 for p in list_background_processes() if p.process.poll() is None)
+        except Exception:
+            running = 0
+        if running:
+            parts.append(f"{running} shell{'s' if running != 1 else ''} running (/bashes)")
+        return "  ·  ".join(parts)
+
     def model_label(self) -> str:
         agent_model = getattr(getattr(self.agent, "client", None), "model", None)
         return str(agent_model or self.model or self.config_manager.get("model") or "")
@@ -449,7 +467,11 @@ class InteractiveMode:
                 user_input = prompt(
                     lambda: prompt_message(vi_normal_mode(), self.multiline_mode),
                     bottom_toolbar=lambda: bottom_toolbar(
-                        self.current_mode(), self.model_label(), self.notice, self.status_text()
+                        self.current_mode(),
+                        self.model_label(),
+                        self.notice,
+                        self.status_text(),
+                        self.activity_text(),
                     ),
                     placeholder=[("class:placeholder", PLACEHOLDER)],
                     default=default,
