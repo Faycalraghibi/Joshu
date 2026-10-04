@@ -54,7 +54,7 @@ a live check against a real model.
 - A stable Python API (`from joshu import Agent`) and
   `joshu run --input-format stream-json --output-format stream-json`.
 
-### I. GitHub Action
+### I. GitHub Action (done)
 - `@joshu ...` in a pull request or issue comment runs Joshu in a workflow and
   pushes a branch or replies.
 
