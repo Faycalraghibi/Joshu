@@ -134,6 +134,17 @@ to your user config.
 | `task` | Delegate research to a read-only sub-agent | no |
 | MCP tools | Tools from configured MCP servers (loaded on demand with `load_tools` when there are many) | yes |
 
+### Parallel tool calls
+
+When the model asks for several read-only calls in one turn (`read_file`,
+`list_directory`, `glob`, `search_file_content`, `web_search`, `web_fetch`,
+`bash_output`, `skill`, `task`), they run at the same time, up to 4 at once;
+results are shown and sent back in the original order. Edits, shell commands,
+calls that need approval (such as reading a protected file) and custom
+sub-agents with write tools run one at a time. The gain is largest for slow
+calls: three sub-agents in one turn finished in 9.5s instead of 26s. Turn it
+off with `parallel_tools: false`.
+
 ### Recovering from tool-call mistakes
 
 Smaller and open models often get tool calls slightly wrong. Joshu repairs

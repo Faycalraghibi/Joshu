@@ -129,6 +129,7 @@ In interactive mode: `/config`, `/config <key>`, `/config <key> <value>`;
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `auto_memory` | boolean | `true` | Agent keeps notes across sessions (`memory` tool) |
+| `parallel_tools` | boolean | `true` | Run several read-only tool calls from one turn at the same time |
 | `protected_paths` | list | `[]` | More file patterns that need approval to read or edit |
 | `allow_paths` | list | `[]` | Exceptions to the protected file patterns |
 | `mask_secrets` | boolean | `true` | Mask API keys and tokens in tool output |
