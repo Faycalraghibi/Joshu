@@ -12,6 +12,9 @@ from joshu.ui.theme import GLYPH, MASCOT, current_theme, style
 
 console = Console()
 
+# Below this many columns the welcome box leaves out the mascot
+NARROW_WIDTH = 60
+
 
 def mascot(color: Optional[str] = None) -> Text:
     """Joshu's mascot, in the theme's mascot color."""
@@ -42,11 +45,16 @@ def print_banner(model_name: Optional[str] = None, cwd: Optional[Path] = None) -
             Text.assemble(("model  ", style(theme.dim)), model, (f"  {provider}", style(theme.dim)))
         )
 
-    layout = Table.grid(padding=(0, 2))
-    layout.add_column(no_wrap=True)
-    layout.add_column()
-    layout.add_row(mascot(), Group(*info))
-    console.print(Panel(layout, border_style=style(theme.accent), expand=False, padding=(0, 2)))
+    # The box spans the terminal; on narrow terminals the mascot makes room for the text
+    if console.width >= NARROW_WIDTH:
+        layout = Table.grid(padding=(0, 2), expand=True)
+        layout.add_column(no_wrap=True)
+        layout.add_column(ratio=1)
+        layout.add_row(mascot(), Group(*info))
+        body = layout
+    else:
+        body = Group(*info)
+    console.print(Panel(body, border_style=style(theme.accent), expand=True, padding=(0, 2)))
 
     if not _has_instructions(cwd):
         tips = [

@@ -249,3 +249,29 @@ def test_bare_joshu_starts_interactive(monkeypatch):
         cli.main()
     app.assert_called_once()
     assert __import__("sys").argv == ["joshu", "interactive"]
+
+
+@pytest.mark.parametrize("width", [60, 100, 140])
+def test_welcome_box_spans_the_terminal(tmp_path, width):
+    buffer = io.StringIO()
+    original = display.console
+    display.console = Console(file=buffer, width=width, color_system=None)
+    try:
+        display.print_banner("m", cwd=tmp_path)
+    finally:
+        display.console = original
+    top = buffer.getvalue().splitlines()[0]
+    assert len(top) == width
+    assert MASCOT[2].strip() in buffer.getvalue()
+
+
+def test_narrow_terminal_drops_the_mascot(tmp_path):
+    buffer = io.StringIO()
+    original = display.console
+    display.console = Console(file=buffer, width=50, color_system=None)
+    try:
+        display.print_banner("m", cwd=tmp_path)
+    finally:
+        display.console = original
+    assert MASCOT[2].strip() not in buffer.getvalue()
+    assert "Welcome to Joshu" in buffer.getvalue()
