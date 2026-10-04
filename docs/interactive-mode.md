@@ -5,23 +5,21 @@ Complete guide to Joshu's interactive mode.
 ## Starting Interactive Mode
 
 ```bash
-joshu interactive
-
-# With options
-joshu interactive --model llama-3-70b --verbose
+joshu                     # same as joshu interactive
+joshu interactive --model fast --verbose
+joshu --continue          # pick up the last conversation here
 ```
 
 ## Interface Overview
 
 ```
-╭─────────────────────────────────────────────────────────────╮
-│ ✻ Welcome to Joshu  v0.2.0                                  │
-│                                                             │
-│   /help for help · ? for shortcuts · shift+tab to switch mode │
-│                                                             │
-│   cwd: /home/me/project                                     │
-│   model: nvidia/nemotron-3.5-lightning-30b-a3b (nvidia)     │
-╰─────────────────────────────────────────────────────────────╯
+╭──────────────────────────────────────────────────────────────────────────╮
+│     ✦     ✦ Welcome to Joshu  v0.2.0                                     │
+│   ╭─┴─╮   /help for commands · ? for shortcuts · shift+tab to switch mode│
+│   │•‿•│                                                                  │
+│   ╰───╯   cwd    /home/me/project                                        │
+│           model  nvidia/nemotron-3.5-lightning-30b-a3b  nvidia           │
+╰──────────────────────────────────────────────────────────────────────────╯
 
 ──────────────────────────────────────────────────────────────
 > fix the failing test in calc.py
@@ -44,7 +42,8 @@ joshu interactive --model llama-3-70b --verbose
 
 - **Input**: type after `>`; the line below shows the mode and the model.
   `?` lists shortcuts.
-- **While the agent works**: a `✻ Working… (12s · esc to interrupt)` line.
+- **While the agent works**: a line saying what it's doing, e.g.
+  `✦ Running pytest -q… (12s · esc to interrupt)`.
 - **Tool calls**: `● Tool(argument)` with the result under `⎿`: line counts
   for reads, a colored diff for edits, the first lines of command output,
   and a checklist for the agent's todos.
@@ -128,65 +127,66 @@ joshu interactive --model llama-3-70b --verbose
 
 ## Slash Commands
 
-### Session Management
+Type `/` to open the command menu (with descriptions); `/help` shows the same
+list. Custom commands (`.joshu/commands/`) and skills appear there too.
 
-Sessions are the saved agent conversations: the same ones `joshu sessions`,
-`--resume` / `--continue` and `/resume` use (see [Agent](agent.md#sessions)).
+**Conversation**
 
-```
-/session              # Current session id
-/session list         # Saved sessions in this directory
-/session new          # Start a new conversation (also /reset, /new-session)
-/session switch <id>  # Continue a saved session (also /resume <id>)
-/session delete <id>  # Delete a saved session
-/session help         # Session help
-```
+| Command | What it does |
+|---|---|
+| `/clear` | Start a new conversation; the old one stays saved (also `/reset`, `/new`) |
+| `/compact [focus]` | Summarize the conversation to free context, optionally saying what to keep |
+| `/rewind [n]` | Drop the last n requests and restore the files the agent changed for them |
+| `/undo` | Revert the file edits of the last request |
+| `/resume [id]` | List saved conversations here, or continue one |
+| `/export [file]` | Save the conversation as Markdown |
+| `/session [list\|switch <id>\|delete <id>]` | Manage saved sessions |
 
-An id prefix is enough.
+**Context**
 
-### Conversation
+| Command | What it does |
+|---|---|
+| `/context` | How much of the context window is used: system prompt, tools, conversation |
+| `/cost` | Tokens and cost so far |
+| `/todos` | The agent's current todo list |
+| `/memory` | The agent's saved memories (`/memory forget <name> [user]` deletes one) |
+| `/init [notes]` | Have the agent write or update AGENTS.md |
 
-```
-/undo              # Revert the agent's file edits from its last request
-/rewind [n]        # Drop the last n requests (default 1) and restore the files they changed
-/compact [focus]   # Summarize the conversation now, optionally saying what to keep
-/init [notes]      # Have the agent write or update AGENTS.md for this project
-/memory            # The agent's saved memories; /memory forget <name> [user] deletes one
-/skills            # List skills; /<skill> [request] runs one
-```
+**Model & mode**
+
+| Command | What it does |
+|---|---|
+| `/model [id]` | Show or switch the model for this conversation |
+| `/models [search]` | List the provider's models |
+| `/agent`, `/plan`, `/ask` | Switch mode (Shift+Tab cycles default / accept edits / plan) |
+| `/permissions [mode]` | Show or set the permission mode and rules |
+
+**Project**
+
+| Command | What it does |
+|---|---|
+| `/review [focus]` | Have the agent review the current changes for bugs |
+| `/skills`, `/agents`, `/commands` | List skills, sub-agents, custom commands |
+| `/mcp` | MCP servers, whether they're connected and how many tools each has |
+| `/search <query>` | Search the web |
+
+**Settings**
+
+| Command | What it does |
+|---|---|
+| `/status` | Version, directory, session, provider, model, mode, theme, loaded config |
+| `/doctor` | Check the setup: provider, API key, a live model check, git / rg / node |
+| `/config [key [value]]` | Show or set a setting |
+| `/theme [name]` | Choose the color theme (dark, light, colorblind, plain) |
+| `/vim` | Toggle vim keys in the input |
+
+**Other**: `/help`, `/history [clear]`, `/exit` (or `/quit`).
 
 `/rewind` removes the requests and everything the agent did for them from the
 conversation, restores files the agent edited meanwhile, and puts the first
 removed request back in the prompt so you can edit and resend it. Changes
 made by shell commands are not undone, and requests already summarized by
 compaction can't be rewound.
-
-### Memory Commands
-
-```
-/memory                      # Memory help
-/memory search <query>       # Semantic search
-/memory status               # Memory stats
-/memory clear                # Clear all memories
-```
-
-### Mode Switching
-
-```
-/agent    # Switch to Agent mode
-/ask      # Switch to Ask mode
-/plan     # Switch to Plan mode
-```
-
-### Utility Commands
-
-```
-/history  # Command history
-/clear    # Clear history
-/help     # Show help
-/config   # Configuration
-/model    # Switch model
-```
 
 ## Special Commands
 
@@ -249,7 +249,7 @@ usual.
 
 ## Vim Mode
 
-Enable in `~/.joshu/config.yaml`:
+Toggle with `/vim`, or set in `~/.joshu/config.yaml`:
 
 ```yaml
 vim_mode: true
@@ -270,12 +270,31 @@ vim_mode: true
 
 ## Auto-Completion
 
-Press `Tab` to complete slash commands, including your custom commands:
+Typing `/` opens a menu of commands with descriptions; `@` completes file
+paths in the project (skipping `.git`, `node_modules` and build folders):
 
 ```
-> /rew[Tab]
-> /rewind
+> /re
+  /reset              same as /clear
+  /resume [id]        List saved conversations, or continue one
+  /review [focus]     Review the current changes for bugs
+  /rewind [n]         Drop the last n requests and restore their files
+
+> explain @cal
+  src/calc.py
 ```
+
+## Themes
+
+`/theme` opens a picker with a preview; the choice is saved as `theme` in your
+user config.
+
+| Theme | |
+|---|---|
+| `dark` | Default |
+| `light` | For light terminal backgrounds |
+| `colorblind` | Blue / orange instead of green / red for diffs and status |
+| `plain` | No colors |
 
 ## Multiline Input
 
@@ -313,8 +332,8 @@ Command History:
 ### Clear History
 
 ```
-> /clear
-✅ Command history cleared.
+> /history clear
+Input history cleared.
 ```
 
 ## Configuration in Session

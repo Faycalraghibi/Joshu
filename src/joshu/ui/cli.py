@@ -668,6 +668,9 @@ def _ensure_utf8_output() -> None:
 def main() -> None:
     """Main entry point."""
     _ensure_utf8_output()
+    # Plain `joshu` starts a conversation (`joshu --help` lists the commands)
+    if len(sys.argv) == 1:
+        sys.argv.append("interactive")
     if len(sys.argv) > 1:
         first_arg = sys.argv[1]
         known_commands = [

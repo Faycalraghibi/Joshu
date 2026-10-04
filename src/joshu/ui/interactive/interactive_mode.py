@@ -91,7 +91,13 @@ class InteractiveMode:
             from joshu.core.custom_commands import discover_commands
             from joshu.core.skills import discover_skills
 
-            custom = [f"/{name}" for name in [*discover_commands(), *discover_skills()]]
+            custom = [
+                (f"/{name}", command.description or "custom command")
+                for name, command in discover_commands().items()
+            ] + [
+                (f"/{name}", f"skill: {skill.description}")
+                for name, skill in discover_skills().items()
+            ]
         except Exception:  # a broken command file shouldn't stop the REPL
             custom = []
         self.command_completer = get_command_completer(custom)
@@ -535,6 +541,7 @@ class InteractiveMode:
                     completer=self.command_completer,
                     history=self.prompt_history,
                     multiline=self.multiline_mode,
+                    complete_while_typing=True,
                 )
 
                 if not self._handle_user_input(user_input):
