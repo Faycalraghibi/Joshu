@@ -141,12 +141,20 @@ class StdioTransport(MCPTransport):
         if self._process:
             try:
                 self._process.terminate()
-                await asyncio.wait_for(self._process.wait(), timeout=5.0)
+                await asyncio.wait_for(self._process.wait(), timeout=3.0)
             except asyncio.TimeoutError:
                 self._process.kill()
                 await self._process.wait()
             except Exception as e:
                 logger.warning(f"Error stopping MCP server {self.server_name}: {e}")
+            # Close the pipes now; left to garbage collection after the event
+            # loop stops, they print "I/O operation on closed pipe" at exit
+            transport = getattr(self._process, "_transport", None)
+            if transport is not None:
+                try:
+                    transport.close()
+                except Exception:
+                    pass
             self._process = None
 
         self._connected = False

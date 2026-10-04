@@ -21,14 +21,7 @@ Only include facts you verified in the repository; don't invent commands. If AGE
 
 def pick_rewind(requests: List[str]) -> int:
     """Arrow-key menu of past requests, newest first. Returns how many to drop (0: cancel)."""
-    from prompt_toolkit.key_binding import KeyBindings
-    from prompt_toolkit.shortcuts import choice
-
-    bindings = KeyBindings()
-
-    @bindings.add("escape", eager=True)
-    def _(event):
-        event.app.exit(result=0)
+    from joshu.ui.menu import menu
 
     total = len(requests)
     options = [
@@ -37,11 +30,10 @@ def pick_rewind(requests: List[str]) -> int:
     options.append((0, "Cancel"))
     try:
         return int(
-            choice(
+            menu(
                 "Rewind to before which request? Files the agent edited since are restored.",
-                options=options,
-                symbol="❯",
-                key_bindings=bindings,
+                options,
+                cancel=0,
             )
         )
     except (EOFError, KeyboardInterrupt):
@@ -488,15 +480,21 @@ class CommandHandler(ExtraCommands, MoreCommands):
 
     def run_skill(self, name: str, request: str) -> bool:
         """/<skill> [request]: run the agent with that skill. False if no such skill."""
-        from joshu.core.skills import discover_skills
+        from joshu.core.skills import discover_skills, skill_instructions
 
-        if name not in discover_skills():
+        skill = discover_skills().get(name)
+        if skill is None:
             return False
         if not self.interactive_mode._ensure_agent():
             return True
-        prompt = f"Use the {name} skill: load it with the skill tool, then follow it."
-        if request.strip():
-            prompt += f"\n\n{request.strip()}"
+        # The instructions go straight into the request: no extra model turn
+        # to load them, and no reliance on the model choosing to
+        try:
+            prompt = f"Use this skill for the request below.\n\n{skill_instructions(skill)}"
+        except OSError as e:
+            self.interactive_mode._show_message(f"Could not read skill '{name}': {e}")
+            return True
+        prompt += f"\n\nRequest: {request.strip() or 'apply the skill to the current project.'}"
         self.interactive_mode._run_agent(prompt)
         return True
 

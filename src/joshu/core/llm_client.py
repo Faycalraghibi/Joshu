@@ -182,7 +182,7 @@ class OpenAIChatClient:
             unreachable = isinstance(e, APIConnectionError)
             unavailable = isinstance(e, APIStatusError) and e.status_code in FAILOVER_STATUS
             raise LLMError(
-                f"{self.model} at {self.base_url} request failed: {e}",
+                f"{self.model} at {self.base_url} request failed: {_describe_error(e)}",
                 unreachable=unreachable,
                 unavailable=unavailable,
             ) from e
@@ -269,6 +269,28 @@ class OpenAIChatClient:
             finish_reason=finish_reason,
             usage=usage,
         )
+
+
+def _describe_error(error: Exception) -> str:
+    """
+    A short, readable reason for a failed request: the HTTP status and the
+    provider's message. The raw error body is left out; it can be long and
+    carry account metadata (user ids, rate-limit headers).
+    """
+    status = getattr(error, "status_code", None)
+    if status is None:
+        return str(error)
+    body = getattr(error, "body", None)
+    message = ""
+    if isinstance(body, dict):
+        inner = body.get("error") if isinstance(body.get("error"), dict) else body
+        message = str(inner.get("message") or "")
+    message = " ".join((message or getattr(error, "message", "") or "").split())
+    if len(message) > 300:
+        message = message[:297] + "..."
+    label = {401: "unauthorized (check the API key)", 429: "rate limited"}.get(status, "")
+    head = f"HTTP {status}" + (f" {label}" if label else "")
+    return f"{head}: {message}" if message else head
 
 
 def _reasoning_delta(delta: Any) -> str:

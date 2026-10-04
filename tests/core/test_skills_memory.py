@@ -70,7 +70,10 @@ def test_skill_tool_returns_body_and_supporting_files(project):
     output = run_skill_tool(skills, "release")
     assert "Use template.md" in output and "name:" not in output
     assert "Supporting files" in output and "template.md" in output
-    assert run_skill_tool(skills, "release", "template.md") == "## {version}"
+    assert f"directory: {directory.resolve()}" in output
+    assert run_skill_tool(skills, "release", "template.md") == (
+        "File 'template.md' of skill 'release':\n\n## {version}"
+    )
     assert "outside the skill directory" in run_skill_tool(skills, "release", "../../x")
     assert "Available skills: release" in run_skill_tool(skills, "nope")
 
@@ -239,7 +242,9 @@ def test_skills_command_and_slash_invocation(project):
     mode._ensure_agent.return_value = True
     h.handle_slash_command("/release for v0.3.0")
     prompt = mode._run_agent.call_args[0][0]
-    assert "Use the release skill" in prompt and "for v0.3.0" in prompt
+    # The instructions are in the request itself
+    assert "Skill 'release'" in prompt and "Step 1" in prompt
+    assert prompt.endswith("Request: for v0.3.0")
 
     h.handle_slash_command("/not-a-thing")
     assert "Unknown command" in mode._show_message.call_args[0][0]

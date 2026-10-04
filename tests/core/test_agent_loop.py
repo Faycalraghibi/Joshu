@@ -10,12 +10,7 @@ import pytest
 
 from joshu.core.agent import Agent, AgentEvents, truncate_output
 from joshu.core.compaction import SUMMARY_PREFIX, compact_messages, find_split_index
-from joshu.core.llm_client import (
-    AssistantTurn,
-    LLMError,
-    OpenAIChatClient,
-    ToolCall,
-)
+from joshu.core.llm_client import AssistantTurn, LLMError, OpenAIChatClient, ToolCall
 from joshu.core.permissions import (
     ApprovalChoice,
     PermissionManager,
@@ -436,6 +431,24 @@ def test_streaming_accumulates_text_and_tool_call_fragments():
     assert turn.tool_calls[0].parsed_arguments() == {"path": "a.py"}
     assert turn.finish_reason == "tool_calls"
     assert turn.usage["total_tokens"] == 15
+
+
+def test_api_errors_are_short_and_leave_out_account_metadata():
+    from joshu.core.llm_client import _describe_error
+
+    error = SimpleNamespace(
+        status_code=429,
+        body={
+            "message": "Rate limit exceeded: free-models-per-day.",
+            "metadata": {"headers": {"X-RateLimit-Limit": "50"}},
+            "user_id": "user_secret123",
+        },
+    )
+    text = _describe_error(error)
+    assert text == "HTTP 429 rate limited: Rate limit exceeded: free-models-per-day."
+    nested = SimpleNamespace(status_code=401, body={"error": {"message": "bad key"}})
+    assert _describe_error(nested) == "HTTP 401 unauthorized (check the API key): bad key"
+    assert _describe_error(ValueError("boom")) == "boom"
 
 
 def test_streaming_passes_reasoning_on_separately():

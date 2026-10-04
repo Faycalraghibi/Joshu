@@ -445,10 +445,10 @@ class ExtraCommands:
         current = current_theme().name
         options = [(name, theme.label) for name, theme in THEMES.items()]
         try:
-            from prompt_toolkit.shortcuts import choice
+            from joshu.ui.menu import menu
 
             if sys.stdin.isatty():
-                return choice("Choose a theme:", options=options, default=current, symbol="❯")
+                return menu("Choose a theme:", options, default=current)
         except (EOFError, KeyboardInterrupt):
             return None
         except ImportError:
