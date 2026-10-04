@@ -20,6 +20,7 @@ All notable changes to the Joshu project will be documented in this file.
 - Loop detection: the same tool call returning the same result 3 times in a row gets a warning; at 5 the request stops (`stopped: loop`).
 - `replace` shows the closest matching lines when `old_string` isn't found.
 - Smaller requests: large MCP tool sets are loaded on demand (`load_tools`, `defer_mcp_tools` setting), tool results are compact JSON, built-in tool descriptions are shorter, and a tool that keeps being denied is dropped (the request stops after 6 denials). On a measured bug-fix task with 34 MCP tools: first request 10,661 → 3,782 tokens, whole task 424,762 → 72,498 prompt tokens and 32 → 14 requests.
+- MCP prompts run as `/server:prompt` slash commands (with arguments) and MCP resources attach with `@server:uri`; `/mcp` lists them.
 - Python SDK: `from joshu import Session, run`; sessions keep their conversation between `send()` calls, `stream()` yields events as they happen, `can_use_tool` decides approvals, and `Result` carries the answer, usage and cost (`joshu.sdk`, docs/sdk.md).
 - `joshu run --output-format stream-json` prints one JSON event per line as things happen, and `--input-format stream-json` reads several requests from stdin into one conversation.
 - Language servers: an installed server (basedpyright / pyright / pylsp, typescript-language-server, gopls, rust-analyzer) starts on demand; after an edit its errors for the file go back to the model, and the `code_nav` tool (loaded on demand) gives definitions, references and hover information. `/doctor` lists the servers; `lsp` setting (`joshu.core.lsp`).
@@ -47,6 +48,8 @@ All notable changes to the Joshu project will be documented in this file.
 - `/clear` starts a new conversation (as `/reset` did); clearing the input history is now `/history clear`.
 
 ### Fixed
+- MCP tool calls always failed after discovery ("'NoneType' object has no attribute 'send'"): servers were connected in one event loop and called from another. All MCP communication now runs on one background loop.
+- MCP servers on Windows didn't start when a command or argument contained spaces, and a server writing a lot to stderr could hang (its stderr was piped but never read).
 - Esc at the prompt switched to vim NORMAL mode even with `vim_mode` off, so letters such as h, j, k, l and d then ran vim commands; vim keys now follow the `vim_mode` setting. Ctrl+C at the prompt clears the input instead of exiting at once.
 - `replace` rewrote a whole file's line endings on Windows (LF files became CRLF); line endings are now kept as they are.
 - Commands such as `joshu models`, `joshu config` and `joshu providers` printed the welcome banner.

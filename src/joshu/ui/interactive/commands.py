@@ -427,9 +427,32 @@ class CommandHandler(ExtraCommands, MoreCommands):
             return self.interactive_mode.run_custom_command(command)
         if parsed is not None and self.run_skill(parsed[0], parsed[1]):
             return True
+        name, _, rest = command.strip().lstrip("/").partition(" ")
+        if ":" in name and self.run_mcp_prompt(name, rest):
+            return True
         self.interactive_mode._show_message(
             f"Unknown command: {command.split()[0]} (see /help, /commands and /skills)"
         )
+        return True
+
+    def run_mcp_prompt(self, command: str, arguments: str) -> bool:
+        """/server:prompt [args]: run an MCP prompt. False if there is no such prompt."""
+        from joshu.mcp.extras import (
+            find_prompt,
+            get_prompt_text,
+            parse_prompt_arguments,
+        )
+
+        prompt = find_prompt(command)
+        if prompt is None:
+            return False
+        try:
+            text = get_prompt_text(prompt, parse_prompt_arguments(prompt, arguments))
+        except Exception as e:
+            self.interactive_mode._show_message(str(e))
+            return True
+        if self.interactive_mode._ensure_agent():
+            self.interactive_mode._run_agent(text)
         return True
 
     def run_skill(self, name: str, request: str) -> bool:

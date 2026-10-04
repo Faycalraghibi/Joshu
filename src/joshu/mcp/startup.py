@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import Callable, Optional
+
+from joshu.mcp.loop import run as run_on_mcp_loop
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +45,7 @@ def load_mcp_tools(report: Optional[Callable[[str], None]] = None) -> int:
         load_mcp_servers_from_config()
         if not config.get("mcp_discovery_on_startup", True):
             return 0
-        count = asyncio.run(register_mcp_tools_with_joshu())
+        count = run_on_mcp_loop(register_mcp_tools_with_joshu())
     except Exception as e:
         logger.warning(f"MCP tool discovery failed: {e}")
         return 0

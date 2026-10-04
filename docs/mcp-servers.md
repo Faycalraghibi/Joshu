@@ -138,6 +138,29 @@ myserver:
   timeout: 60
 ```
 
+## Prompts and resources
+
+Besides tools, MCP servers can offer prompts and resources:
+
+- **Prompts** become slash commands named `/server:prompt`. Arguments are
+  `key=value` pairs, or plain words that fill the prompt's arguments in order
+  (the last one takes the rest of the line):
+
+  ```
+  /github:review_pr 123 security
+  /github:review_pr number=123 focus=security
+  ```
+
+- **Resources** are attached by writing `@server:uri` in a message; the
+  resource's content is added for the model:
+
+  ```
+  summarize @notes:todo://this-week
+  ```
+
+`/mcp` lists each server's tools, prompts and resources. Typing `/` shows the
+prompts in the command menu.
+
 ## Security
 
 - Tool names are sanitized to prevent conflicts

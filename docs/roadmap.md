@@ -36,7 +36,7 @@ a live check against a real model.
 - Paste clipboard images into the input (Ctrl+V), with Pillow as an optional
   dependency.
 
-### F. MCP extras
+### F. MCP extras (done: prompts and resources)
 - MCP prompts as slash commands (`/server:prompt`), MCP resources as
   `@server:uri` attachments, OAuth (PKCE) for remote HTTP servers.
 

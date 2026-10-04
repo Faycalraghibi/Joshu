@@ -393,6 +393,29 @@ class ExtraCommands:
             table.add_row(name, state, f"{counts.get(name, 0)} tools", str(target))
         console.print(Text("MCP servers", style="bold"))
         console.print(table)
+
+        from joshu.mcp.extras import list_prompts, list_resources
+
+        prompts = list_prompts()
+        if prompts:
+            console.print(Text("\nPrompts (run with /server:prompt)", style="bold"))
+            for prompt in prompts:
+                arguments = " ".join(
+                    f"<{a.get('name')}>" for a in prompt.arguments if a.get("name")
+                )
+                console.print(
+                    Text.assemble(
+                        (f"  /{prompt.command} {arguments}".rstrip(), style(theme.accent)),
+                        f"  {prompt.description}",
+                    )
+                )
+        resources = list_resources()
+        if resources:
+            console.print(Text("\nResources (attach with @server:uri)", style="bold"))
+            for server, resource in resources[:40]:
+                console.print(Text(f"  @{server}:{resource.uri}  {resource.name}"))
+            if len(resources) > 40:
+                console.print(Text(f"  ... and {len(resources) - 40} more", style="dim"))
         return True
 
     # ----------------------------------------------------------------- theme

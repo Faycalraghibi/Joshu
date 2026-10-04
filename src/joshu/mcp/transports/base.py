@@ -164,9 +164,21 @@ class MCPTransport(ABC):
         Returns:
             Prompt content or None if not found.
         """
-        # Default implementation returns None
-        # Subclasses can override if they support prompts
-        return None
+        send = getattr(self, "_send_request", None)
+        if send is None:
+            return None
+        result = await send("prompts/get", {"name": name, "arguments": arguments or {}})
+        parts = []
+        for message in (result or {}).get("messages", []):
+            content = message.get("content") or {}
+            if isinstance(content, dict) and content.get("type") == "text":
+                parts.append(str(content.get("text", "")))
+            elif isinstance(content, dict) and content.get("type") == "resource":
+                resource = content.get("resource") or {}
+                parts.append(str(resource.get("text", "")))
+            elif isinstance(content, str):
+                parts.append(content)
+        return "\n\n".join(p for p in parts if p) or None
 
     async def ping(self) -> bool:
         """
