@@ -1,0 +1,32 @@
+# Mention @joshu in an issue or pull request comment to have Joshu work on it.
+# Needs a model API key as a repository secret (here NVIDIA_API_KEY, free from
+# build.nvidia.com). Only the repository's owner, members and collaborators can
+# trigger it.
+name: Joshu
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  joshu:
+    if: >-
+      contains(github.event.comment.body, '@joshu') &&
+      contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./
+        env:
+          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+        with:
+          provider: nvidia
+          permission_mode: accept_edits

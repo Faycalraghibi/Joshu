@@ -1,0 +1,157 @@
+name: Joshu
+description: Run the Joshu coding agent on an issue or pull request when someone mentions @joshu.
+branding:
+  icon: terminal
+  color: blue
+
+inputs:
+  trigger:
+    description: Word that starts Joshu in a comment.
+    default: "@joshu"
+  provider:
+    description: Model provider (see `joshu providers`).
+    default: nvidia
+  model:
+    description: Model id (empty = the provider's default).
+    default: ""
+  permission_mode:
+    description: "accept_edits (default: edits allowed, shell commands denied), plan (read-only) or bypass."
+    default: accept_edits
+  max_turns:
+    description: Model calls per request before stopping.
+    default: "40"
+  joshu_version:
+    description: Version to install from PyPI (empty = the action's own source).
+    default: ""
+  github_token:
+    description: Token for pushing branches and commenting.
+    default: ${{ github.token }}
+
+outputs:
+  result:
+    description: Joshu's answer.
+    value: ${{ steps.run.outputs.result }}
+  branch:
+    description: Branch with Joshu's changes, if any.
+    value: ${{ steps.publish.outputs.branch }}
+
+runs:
+  using: composite
+  steps:
+    - name: Read the request
+      id: request
+      shell: bash
+      env:
+        COMMENT: ${{ github.event.comment.body }}
+        TRIGGER: ${{ inputs.trigger }}
+        TITLE: ${{ github.event.issue.title || github.event.pull_request.title }}
+        BODY: ${{ github.event.issue.body || github.event.pull_request.body }}
+        IS_PR: ${{ github.event.issue.pull_request != null || github.event.pull_request != null }}
+        NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
+      run: |
+        request="${COMMENT#*"$TRIGGER"}"
+        kind="issue"; [ "$IS_PR" = "true" ] && kind="pull request"
+        {
+          echo "prompt<<JOSHU_EOF"
+          echo "You were asked on GitHub $kind #$NUMBER: \"$TITLE\"."
+          echo
+          echo "Description:"
+          echo "$BODY"
+          echo
+          echo "Request: $request"
+          echo
+          echo "Work in this repository. Make the changes needed, then summarize what you did"
+          echo "in a few lines (it will be posted as a comment)."
+          echo "JOSHU_EOF"
+          echo "is_pr=$IS_PR"
+          echo "number=$NUMBER"
+        } >> "$GITHUB_OUTPUT"
+
+    - name: Check out the pull request
+      if: steps.request.outputs.is_pr == 'true'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github_token }}
+      run: gh pr checkout "${{ steps.request.outputs.number }}"
+
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - name: Install Joshu
+      shell: bash
+      run: |
+        if [ -n "${{ inputs.joshu_version }}" ]; then
+          pip install "joshu==${{ inputs.joshu_version }}"
+        else
+          pip install "${{ github.action_path }}"
+        fi
+
+    - name: Run Joshu
+      id: run
+      shell: bash
+      env:
+        PROMPT: ${{ steps.request.outputs.prompt }}
+        JOSHU_HOME: ${{ runner.temp }}/joshu-home
+      run: |
+        mkdir -p "$JOSHU_HOME"
+        {
+          echo "mcp_enabled: false"
+          echo "save_sessions: false"
+          echo "agent_max_turns: ${{ inputs.max_turns }}"
+        } > "$JOSHU_HOME/config.yaml"
+        args=(run --output-format json)
+        args+=(--permission-mode "${{ inputs.permission_mode }}" --provider "${{ inputs.provider }}")
+        [ -n "${{ inputs.model }}" ] && args+=(--model "${{ inputs.model }}")
+        joshu "${args[@]}" "$PROMPT" > "$RUNNER_TEMP/joshu.json" || true
+        cat > "$RUNNER_TEMP/read_result.py" <<'PY'
+        import json, sys
+        lines = open(sys.argv[1], encoding="utf-8").read().strip().splitlines()
+        data = json.loads(lines[-1])
+        print(data.get("result") or data.get("message") or "Joshu finished without an answer.")
+        PY
+        result="$(python "$RUNNER_TEMP/read_result.py" "$RUNNER_TEMP/joshu.json" 2>/dev/null \
+          || echo 'Joshu could not run; see the workflow log.')"
+        {
+          echo "result<<JOSHU_EOF"
+          echo "$result"
+          echo "JOSHU_EOF"
+        } >> "$GITHUB_OUTPUT"
+
+    - name: Publish changes
+      id: publish
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github_token }}
+        NUMBER: ${{ steps.request.outputs.number }}
+        IS_PR: ${{ steps.request.outputs.is_pr }}
+      run: |
+        if [ -z "$(git status --porcelain)" ]; then
+          echo "No file changes."
+          exit 0
+        fi
+        git config user.name "joshu[bot]"
+        git config user.email "joshu-bot@users.noreply.github.com"
+        git add -A
+        git commit -m "Joshu: changes for #$NUMBER"
+        if [ "$IS_PR" = "true" ]; then
+          git push
+          echo "branch=$(git branch --show-current)" >> "$GITHUB_OUTPUT"
+        else
+          branch="joshu/issue-$NUMBER-${GITHUB_RUN_ID}"
+          git push origin "HEAD:refs/heads/$branch"
+          gh pr create --head "$branch" --title "Joshu: #$NUMBER" --body "Changes for #$NUMBER, requested in a comment."
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Reply
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github_token }}
+        RESULT: ${{ steps.run.outputs.result }}
+        BRANCH: ${{ steps.publish.outputs.branch }}
+        NUMBER: ${{ steps.request.outputs.number }}
+      run: |
+        body="$RESULT"
+        [ -n "$BRANCH" ] && body="$body"$'\n\n'"Changes: \`$BRANCH\`"
+        gh issue comment "$NUMBER" --body "$body"
