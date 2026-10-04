@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import functools
 import json
 import sys
+import threading
 import time
 from typing import Any, Dict, List, Optional
 
@@ -118,6 +120,17 @@ class _Working:
         )
 
 
+def _locked(method):
+    """Serialize UI updates: sub-agents running in parallel report from worker threads."""
+
+    @functools.wraps(method)
+    def wrapper(self, *args, **kwargs):
+        with self._lock:
+            return method(self, *args, **kwargs)
+
+    return wrapper
+
+
 class ConsoleAgentUI(AgentEvents):
     """Shows the agent's replies and tool calls, and asks for approval."""
 
@@ -137,13 +150,16 @@ class ConsoleAgentUI(AgentEvents):
         self._buffer: List[str] = []
         self._live: Optional[Live] = None
         self._arguments: Dict[str, Any] = {}
+        self._lock = threading.RLock()
 
     # ---------------------------------------------------------------- events
 
+    @_locked
     def on_model_start(self) -> None:
         if self.rich_mode:
             self._start_spinner()
 
+    @_locked
     def on_text(self, delta: str) -> None:
         if self.quiet:
             return
@@ -155,6 +171,7 @@ class ConsoleAgentUI(AgentEvents):
         self._mid_line = not delta.endswith("\n")
         self._streamed = True
 
+    @_locked
     def on_turn_end(self, turn: AssistantTurn) -> None:
         if self.quiet:
             return
@@ -172,6 +189,7 @@ class ConsoleAgentUI(AgentEvents):
         self._streamed = False
         self._end_line()
 
+    @_locked
     def on_tool_start(self, name: str, arguments: Dict[str, Any]) -> None:
         if self.quiet:
             return
@@ -188,6 +206,7 @@ class ConsoleAgentUI(AgentEvents):
         self.console.print(f"[{_s('accent')}]●[/] [bold]{escape(label)}[/bold]{args}")
         self._start_spinner(activity_label(tool, arguments))
 
+    @_locked
     def on_tool_end(self, name: str, output: str, success: bool) -> None:
         if self.quiet:
             return
@@ -213,6 +232,7 @@ class ConsoleAgentUI(AgentEvents):
                 "the agent will fix them[/]"
             )
 
+    @_locked
     def on_compact(self, tokens_before: int, tokens_after: int) -> None:
         if self.quiet:
             return
@@ -222,6 +242,13 @@ class ConsoleAgentUI(AgentEvents):
             f"[dim]{GLYPH} Context compacted: ~{tokens_before:,} → ~{tokens_after:,} tokens[/dim]"
         )
 
+    @_locked
+    def on_parallel_start(self, count: int) -> None:
+        if self.rich_mode and count > 1:
+            self._stop_spinner()
+            self._start_spinner(f"Running {count} tools in parallel")
+
+    @_locked
     def on_context_cleared(self, items: int, tokens_freed: int) -> None:
         if self.quiet:
             return
@@ -320,6 +347,7 @@ class ConsoleAgentUI(AgentEvents):
 
     # -------------------------------------------------------------- approval
 
+    @_locked
     def approve(self, request: ApprovalRequest) -> ApprovalChoice:
         """Show what the tool will do and ask the user."""
         self._stop_spinner()
@@ -369,6 +397,7 @@ class ConsoleAgentUI(AgentEvents):
 
     # --------------------------------------------------------------- helpers
 
+    @_locked
     def print_footer(self, response: AgentResponse) -> None:
         """Dim line with this request's tokens (and how many the provider cached)."""
         if self.quiet:

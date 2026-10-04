@@ -9,11 +9,12 @@ answers without calling a tool (or the turn limit is reached).
 from __future__ import annotations
 
 import logging
+import threading
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Set
+from typing import Any, Dict, List, Optional, Sequence, Set, Union
 
 from joshu.core.auto_memory import TYPES as MEMORY_TYPES
 from joshu.core.auto_memory import memory_prompt, run_memory_tool
@@ -47,6 +48,20 @@ SUBAGENT_MAX_TURNS = 25
 # Identical calls with identical results in a row: warn the model, then stop
 LOOP_WARN = 3
 LOOP_STOP = 5
+# Read-only tools that may run at the same time when one turn requests several
+PARALLEL_SAFE_TOOLS = {
+    "read_file",
+    "list_directory",
+    "glob",
+    "search_file_content",
+    "web_search",
+    "web_fetch",
+    "bash_output",
+    "skill",
+    "task",
+}
+MAX_PARALLEL_TOOLS = 4
+
 # Permission denials in one request: tell the model to stop using that tool
 # (per tool), then end the request (all tools together)
 DENIALS_WARN = 2
@@ -82,6 +97,18 @@ class AgentEvents:
 
     def on_context_cleared(self, items: int, tokens_freed: int) -> None:
         """Old tool results were replaced by short notes to free context."""
+
+    def on_parallel_start(self, count: int) -> None:
+        """Several read-only tools are about to run at the same time."""
+
+
+@dataclass
+class _Prepared:
+    """A tool call that passed its checks and is ready to run."""
+
+    call: ToolCall
+    spec: ToolSpec
+    arguments: Dict[str, Any]
 
 
 @dataclass
@@ -210,6 +237,9 @@ class Agent:
         # Permission denials per tool in the current request (denial guard)
         self._denials: Dict[str, int] = {}
         self._usage_at_start: Dict[str, int] = {}
+        self.parallel_tools = bool(config.get("parallel_tools", True))
+        # Sub-agents running in parallel add their usage from worker threads
+        self._usage_lock = threading.Lock()
 
     # ------------------------------------------------------------------ public
 
@@ -482,6 +512,9 @@ class Agent:
     # ------------------------------------------------------------- tool calls
 
     def _run_tool_calls(self, calls: List[ToolCall]) -> None:
+        if self.parallel_tools and len(calls) > 1 and all(map(self._parallel_safe, calls)):
+            self._run_parallel(calls)
+            return
         answered = 0
         try:
             for call in calls:
@@ -490,6 +523,61 @@ class Agent:
                 answered += 1
         except KeyboardInterrupt:
             # Every tool call needs a result or the next request is rejected
+            for call in calls[answered:]:
+                self.messages.append(
+                    {"role": "tool", "tool_call_id": call.id, "content": "Interrupted by user."}
+                )
+            raise
+
+    def _parallel_safe(self, call: ToolCall) -> bool:
+        """Read-only calls that never ask the user can run at the same time."""
+        from joshu.core.secrets import sensitive_reason
+        from joshu.core.tool_repair import repair_arguments
+
+        if call.name not in PARALLEL_SAFE_TOOLS:
+            return False
+        try:
+            arguments = repair_arguments(call.arguments)
+        except ValueError:
+            return False
+        if sensitive_reason(call.name, arguments):
+            return False
+        if call.name == "task" and arguments.get("agent"):
+            spec = self.subagents.get(str(arguments["agent"]))
+            # Custom sub-agents with write tools may ask for approval: run them alone
+            if spec is None or (spec.tools and not set(spec.tools) <= PARALLEL_SAFE_TOOLS):
+                return False
+        return True
+
+    def _run_parallel(self, calls: List[ToolCall]) -> None:
+        """Run read-only calls concurrently; results are shown and recorded in order."""
+        from concurrent.futures import ThreadPoolExecutor
+
+        prepared = [self._prepare(call) for call in calls]
+        runnable = [p for p in prepared if not isinstance(p, str)]
+        self.events.on_parallel_start(len(runnable))
+        answered = 0
+        try:
+            with ThreadPoolExecutor(
+                max_workers=min(MAX_PARALLEL_TOOLS, len(runnable) or 1)
+            ) as pool:
+                futures = {
+                    id(p): pool.submit(self._invoke, p.spec, p.arguments, self._formatter)
+                    for p in runnable
+                }
+                for call, item in zip(calls, prepared):
+                    if isinstance(item, str):
+                        output = item
+                    else:
+                        success, output = futures[id(item)].result()
+                        self._start(item)
+                        output = self._finish(item, success, output)
+                    output = self._note_repeats(call, output)
+                    self.messages.append(
+                        {"role": "tool", "tool_call_id": call.id, "content": output}
+                    )
+                    answered += 1
+        except KeyboardInterrupt:
             for call in calls[answered:]:
                 self.messages.append(
                     {"role": "tool", "tool_call_id": call.id, "content": "Interrupted by user."}
@@ -512,8 +600,21 @@ class Agent:
         return output
 
     def _execute(self, call: ToolCall) -> str:
+        prepared = self._prepare(call)
+        if isinstance(prepared, str):
+            return prepared
+        self._start(prepared)
+        success, output = self._invoke(prepared.spec, prepared.arguments, self._formatter)
+        return self._finish(prepared, success, output)
+
+    def _prepare(self, call: ToolCall) -> Union[str, "_Prepared"]:
+        """
+        Everything before running a tool: resolve it, check its arguments,
+        hooks and permissions (asking the user if needed), and snapshot files
+        for undo. Returns the tool result directly when the call can't run.
+        """
         from joshu.core.tool_repair import repair_arguments, resolve_tool_name
-        from joshu.hooks.dispatcher import dispatch_after_tool, dispatch_before_tool
+        from joshu.hooks.dispatcher import dispatch_before_tool
 
         self.tool_call_count += 1
         spec = self._find_tool(call.name)
@@ -567,13 +668,21 @@ class Agent:
 
         if call.name in EDIT_TOOLS:
             self._snapshot_target(arguments)
+        return _Prepared(call, spec, arguments)
 
+    def _start(self, prepared: "_Prepared") -> None:
+        call, arguments = prepared.call, prepared.arguments
         self.events.on_tool_start(call.name, arguments)
         # A deferred tool the model called directly stays offered from now on
         self._loaded_tools.add(call.name)
         if call.name == "run_shell_command" and arguments.get("background"):
             self._loaded_tools.update({"bash_output", "kill_bash"})
-        success, output = self._invoke(spec, arguments, self._formatter)
+
+    def _finish(self, prepared: "_Prepared", success: bool, output: str) -> str:
+        """Everything after running a tool: checks, masking, truncation, hooks, display."""
+        from joshu.hooks.dispatcher import dispatch_after_tool
+
+        call, arguments = prepared.call, prepared.arguments
         if success and call.name in EDIT_TOOLS and self.diagnostics_enabled:
             output += self._diagnose(arguments)
         from joshu.core.secrets import mask_secrets, masking_enabled
@@ -708,8 +817,9 @@ class Agent:
             self.events.on_compact(tokens, estimate_tokens(compacted))
 
     def _add_usage(self, usage: Dict[str, int]) -> None:
-        for key in ("prompt_tokens", "completion_tokens", "cached_tokens"):
-            self.usage[key] += usage.get(key, 0)
+        with self._usage_lock:
+            for key in ("prompt_tokens", "completion_tokens", "cached_tokens"):
+                self.usage[key] += usage.get(key, 0)
 
     def _metadata(self, turns: int, tool_calls_before: int, finish_reason: Any) -> Dict[str, Any]:
         return {
@@ -742,7 +852,8 @@ class Agent:
                 )
             response = sub_agent.run(prompt)
             self._add_usage(sub_agent.usage)
-            self.cost.merge(sub_agent.cost)
+            with self._usage_lock:
+                self.cost.merge(sub_agent.cost)
             return response.text or "(the sub-agent returned no answer)"
 
         description = (

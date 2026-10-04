@@ -53,6 +53,7 @@ DEFAULT_CONFIG = {
     "protected_paths": [],
     "allow_paths": [],
     "mask_secrets": True,
+    "parallel_tools": True,
     "mcp_discovery_on_startup": True,
     "mcp_servers": {},
     # Model provider settings (see joshu.core.providers)
@@ -169,6 +170,7 @@ class JoshuConfig:
     protected_paths: List[str] = field(default_factory=list)
     allow_paths: List[str] = field(default_factory=list)
     mask_secrets: bool = True
+    parallel_tools: bool = True
     mcp_discovery_on_startup: bool = True
     mcp_servers: Dict[str, Any] = field(default_factory=dict)
     # Model provider settings (see joshu.core.providers)
