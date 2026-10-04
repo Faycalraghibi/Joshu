@@ -1,66 +1,35 @@
-# Joshu CLI Keybindings
+# Keyboard shortcuts
 
-> **Auto-generated** from source code introspection.
-> Generated: 2025-12-27 02:48 UTC
+Press `?` on an empty prompt to see these in the terminal.
 
-This document lists all keyboard shortcuts available in Joshu CLI.
-
-## Quick Reference
+## At the prompt
 
 | Key | Action |
 |-----|--------|
-| `Ctrl+C` | Cancel/Exit |
-| `Ctrl+D` | Exit (empty line) |
-| `Ctrl+L` | Clear screen |
-| `Ctrl+R` | Search history |
-| `Escape` | Switch to NORMAL mode |
+| `Enter` | Send |
+| `Alt+Enter`, `\` then `Enter` | New line (`Shift+Enter` after `/terminal-setup`) |
+| `Tab` | Complete a `/command` or `@file` |
+| `Up` / `Down` | Previous / next input |
+| `Ctrl+R` | Search input history (`Enter` to pick, `Ctrl+G` or `Esc` to cancel) |
+| `Ctrl+G` | Write the prompt in your editor (`$VISUAL`, `$EDITOR`, Notepad on Windows) |
+| `Alt+V` | Attach the image in the clipboard (also `/paste`) |
+| `Shift+Tab` | Cycle modes: default → accept edits → plan |
+| `Esc` | Close the menu, or clear the input |
+| `Ctrl+L` | Clear the screen, keeping what you typed |
+| `Ctrl+C` | Clear the input; twice on an empty prompt to exit |
+| `Ctrl+D` | Exit on an empty prompt; otherwise delete the next character |
+| `Ctrl+A` / `Ctrl+E` | Start / end of the line |
 
-## Global
+## While the agent works
 
-| Keybinding | Action | Description |
-|------------|--------|-------------|
-| `Ctrl+J` | line navigation down | Ctrl+J for line navigation down |
-| `Ctrl+K` | line navigation up | Ctrl+K for line navigation up |
-| `Ctrl+R` | reverse search | Ctrl+R for reverse search |
-| `Ctrl+B` | Ctrl+B to send command to background bash | Ctrl+B to send command to background bash |
-| `Ctrl+C` | graceful interrupt | Ctrl+C for graceful interrupt |
-| `Ctrl+D` | exit | Ctrl+D for exit |
-| `Ctrl+L` | clear screen | Ctrl+L for clear screen |
-| `Ctrl+T` | command suggestion toggle | Ctrl+T for command suggestion toggle |
-| `Escape` | Escape key to switch to NORMAL mode | Escape key to switch to NORMAL mode |
+| Key | Action |
+|-----|--------|
+| `Esc`, `Ctrl+C` | Stop the current request |
+| typing | Kept and put in the prompt when the agent finishes |
 
-## NORMAL mode (Vim)
+## Vim mode
 
-| Keybinding | Action | Description |
-|------------|--------|-------------|
-| `H` | left | Vim 'h' for left |
-| `L` | right | Vim 'l' for right |
-| `J` | down | Vim 'j' for down |
-| `K` | up | Vim 'k' for up |
-| `W` | word forward | Vim 'w' for word forward |
-| `B` | word backward | Vim 'b' for word backward |
-| `I` | Vim | Vim 'i' to enter INSERT mode |
-| `A` | Vim | Vim 'a' to append after cursor |
-| `:` | command mode | Vim ':' for command mode |
-| `D` | Start of delete command | Start of delete command |
-| `Y` | Start of yank command | Start of yank command |
-| `P` | Vim | Vim 'p' to paste |
-
-## Customization
-
-Keybindings can be customized in your configuration file:
-
-```yaml
-# ~/.joshu/config.yaml
-keybindings:
-  send_message: 'ctrl+enter'
-  cancel: 'escape'
-  clear_screen: 'ctrl+l'
-```
-
-## Vim Mode
-
-Joshu supports Vim-style navigation. Press `Escape` to enter NORMAL mode,
-then use standard Vim keys (`h`, `j`, `k`, `l`, `w`, `b`, `i`, `a`, etc.).
-
-To exit Vim mode, press `i` or `a` to return to INSERT mode.
+`/vim` (or `vim_mode: true` in `~/.joshu/config.yaml`) switches the input to
+vi editing: `Esc` for NORMAL mode, then the usual motions and edits (`h` `l`
+`w` `b` `0` `$`, `x` `dw` `dd` `cw`, `u` to undo, `i` `a` `A` to insert, `v`
+to select). The prompt shows `N` in NORMAL mode.

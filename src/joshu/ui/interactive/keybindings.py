@@ -1,14 +1,19 @@
-"""Keyboard bindings for interactive mode."""
+"""Keyboard bindings for interactive mode.
+
+Vim keys come from prompt_toolkit's own vi mode (`vim_mode: true` or /vim),
+and Ctrl+R history search from its built-in bindings.
+"""
 
 import os
-import subprocess
 import time
 from typing import Optional
 
 try:
     from prompt_toolkit.application import get_app
+    from prompt_toolkit.enums import EditingMode
     from prompt_toolkit.filters import Condition
     from prompt_toolkit.key_binding import KeyBindings
+    from prompt_toolkit.key_binding.vi_state import InputMode
 
     PROMPT_TOOLKIT_AVAILABLE = True
 except ImportError:
@@ -18,35 +23,31 @@ except ImportError:
     PROMPT_TOOLKIT_AVAILABLE = False
 
 
+def vi_normal_mode() -> bool:
+    """True while the prompt is in vi NORMAL (navigation) mode."""
+    if not PROMPT_TOOLKIT_AVAILABLE:
+        return False
+    try:
+        app = get_app()
+    except Exception:
+        return False
+    return app.editing_mode == EditingMode.VI and app.vi_state.input_mode == InputMode.NAVIGATION
+
+
+def open_in_editor(buffer) -> None:
+    """Edit the input in $VISUAL / $EDITOR (Notepad on Windows when neither is set)."""
+    if os.name == "nt" and not (os.environ.get("VISUAL") or os.environ.get("EDITOR")):
+        os.environ["EDITOR"] = "notepad"
+    buffer.open_in_editor(validate_and_handle=False)
+
+
 def create_key_bindings(interactive_mode) -> Optional[KeyBindings]:
     """Create key bindings for interactive mode."""
     if not PROMPT_TOOLKIT_AVAILABLE:
         return None
 
     kb = KeyBindings()
-
-    @kb.add("c-j")
-    def _(event):
-        """Ctrl+J for line navigation down"""
-        if interactive_mode.vim_mode == "NORMAL":
-            interactive_mode._navigate_history("down")
-
-    @kb.add("c-k")
-    def _(event):
-        """Ctrl+K for line navigation up"""
-        if interactive_mode.vim_mode == "NORMAL":
-            interactive_mode._navigate_history("up")
-
-    @kb.add("c-r")
-    def _(event):
-        """Ctrl+R for reverse search"""
-        interactive_mode._start_reverse_search()
-
-    @kb.add("c-b")
-    def _(event):
-        """Ctrl+B to send command to background bash"""
-        if hasattr(interactive_mode, "buffer") and interactive_mode.buffer.text:
-            interactive_mode._send_to_background(interactive_mode.buffer.text)
+    vim_enabled = Condition(lambda: bool(getattr(interactive_mode, "vim_enabled", False)))
 
     @kb.add("c-c")
     def _(event):
@@ -64,6 +65,15 @@ def create_key_bindings(interactive_mode) -> Optional[KeyBindings]:
         interactive_mode.notice = "Press Ctrl+C again to exit"
         event.app.invalidate()
 
+    @kb.add("c-d")
+    def _(event):
+        """Ctrl+D on an empty prompt exits; otherwise deletes the next character."""
+        buffer = event.app.current_buffer
+        if buffer.text:
+            buffer.delete()
+        else:
+            event.app.exit(exception=EOFError)
+
     @kb.add("escape", "enter")
     def _(event):
         """Alt+Enter (or Shift+Enter set up with /terminal-setup) inserts a new line."""
@@ -78,6 +88,11 @@ def create_key_bindings(interactive_mode) -> Optional[KeyBindings]:
         buffer = event.current_buffer
         buffer.delete_before_cursor(1)
         buffer.insert_text("\n")
+
+    @kb.add("c-g")
+    def _(event):
+        """Ctrl+G: write the prompt in your editor."""
+        open_in_editor(event.current_buffer)
 
     @kb.add("escape", "v")
     def _(event):
@@ -108,93 +123,18 @@ def create_key_bindings(interactive_mode) -> Optional[KeyBindings]:
         interactive_mode.notice = ""
         event.app.invalidate()
 
-    @kb.add("c-d")
-    def _(event):
-        """Ctrl+D for exit"""
-        if not hasattr(interactive_mode, "buffer") or not interactive_mode.buffer.text:
-            event.app.exit()
-
     @kb.add("c-l")
     def _(event):
-        """Ctrl+L for clear screen"""
-        subprocess.run("clear" if os.name != "nt" else "cls", shell=True)
+        """Ctrl+L clears the screen, keeping what you typed."""
+        event.app.renderer.clear()
 
-    @kb.add("c-t")
+    @kb.add("escape", filter=~vim_enabled)
     def _(event):
-        """Ctrl+T for command suggestion toggle"""
-        interactive_mode.suggestions_enabled = not interactive_mode.suggestions_enabled
-        interactive_mode._show_message(
-            f"Command suggestions: {'ON' if interactive_mode.suggestions_enabled else 'OFF'}"
-        )
-
-    @kb.add("escape")
-    def _(event):
-        """Esc: NORMAL mode with vim keys enabled, otherwise clear the input."""
-        if getattr(interactive_mode, "vim_enabled", False):
-            interactive_mode.vim_mode = "NORMAL"
+        """Esc clears the input (in vim mode it switches to NORMAL instead)."""
+        buffer = event.app.current_buffer
+        if buffer.complete_state:
+            buffer.cancel_completion()
         else:
-            event.app.current_buffer.reset()
-
-    # Vim-style navigation in NORMAL mode
-    @kb.add("h", filter=Condition(lambda: interactive_mode.vim_mode == "NORMAL"))
-    def _(event):
-        """Vim 'h' for left"""
-        interactive_mode._move_cursor("left")
-
-    @kb.add("l", filter=Condition(lambda: interactive_mode.vim_mode == "NORMAL"))
-    def _(event):
-        """Vim 'l' for right"""
-        interactive_mode._move_cursor("right")
-
-    @kb.add("j", filter=Condition(lambda: interactive_mode.vim_mode == "NORMAL"))
-    def _(event):
-        """Vim 'j' for down"""
-        interactive_mode._navigate_history("down")
-
-    @kb.add("k", filter=Condition(lambda: interactive_mode.vim_mode == "NORMAL"))
-    def _(event):
-        """Vim 'k' for up"""
-        interactive_mode._navigate_history("up")
-
-    @kb.add("w", filter=Condition(lambda: interactive_mode.vim_mode == "NORMAL"))
-    def _(event):
-        """Vim 'w' for word forward"""
-        interactive_mode._move_cursor("word-forward")
-
-    @kb.add("b", filter=Condition(lambda: interactive_mode.vim_mode == "NORMAL"))
-    def _(event):
-        """Vim 'b' for word backward"""
-        interactive_mode._move_cursor("word-backward")
-
-    @kb.add("i", filter=Condition(lambda: interactive_mode.vim_mode == "NORMAL"))
-    def _(event):
-        """Vim 'i' to enter INSERT mode"""
-        interactive_mode.vim_mode = "INSERT"
-
-    @kb.add("a", filter=Condition(lambda: interactive_mode.vim_mode == "NORMAL"))
-    def _(event):
-        """Vim 'a' to append after cursor"""
-        interactive_mode.vim_mode = "INSERT"
-        interactive_mode._move_cursor("right")
-
-    @kb.add(":", filter=Condition(lambda: interactive_mode.vim_mode == "NORMAL"))
-    def _(event):
-        """Vim ':' for command mode"""
-        interactive_mode._enter_command_mode()
-
-    @kb.add("d", filter=Condition(lambda: interactive_mode.vim_mode == "NORMAL"))
-    def _(event):
-        """Start of delete command"""
-        interactive_mode._start_vim_delete()
-
-    @kb.add("y", filter=Condition(lambda: interactive_mode.vim_mode == "NORMAL"))
-    def _(event):
-        """Start of yank command"""
-        interactive_mode._start_vim_yank()
-
-    @kb.add("p", filter=Condition(lambda: interactive_mode.vim_mode == "NORMAL"))
-    def _(event):
-        """Vim 'p' to paste"""
-        interactive_mode._paste_from_clipboard()
+            buffer.reset()
 
     return kb

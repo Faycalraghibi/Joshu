@@ -12,7 +12,7 @@ Complete documentation for Joshu AI-powered command-line assistant.
 
 - **[Agent](agent.md)** - Tool-using agent loop, permissions, headless mode
 - **[Interactive Mode](interactive-mode.md)** - Complete guide to interactive features
-- **[Advanced Interactive Mode](interactive-mode-advanced.md)** - Advanced interactive features
+- **[Keyboard shortcuts](keybindings.md)** - Every key at the prompt and while the agent works
 - **[Web Search](web-search.md)** - Search the web from your terminal
 - **[Semantic Memory](semantic-memory.md)** - Persistent memory and context
 - **[IDE Integration](ide-integration.md)** - VS Code extension for enhanced workflow
