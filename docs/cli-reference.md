@@ -122,6 +122,8 @@ joshu "list the largest files in this repo"     # same as `joshu run`
 - `-y, --yes` - Bypass mode: run tools without asking (unsafe commands still ask)
 - `-p, --print` - Headless: print only the final answer
 - `--output-format json` - Print one JSON object (implies `--print`)
+- `--output-format stream-json` - One JSON event per line as things happen (see [SDK and streaming](sdk.md))
+- `--input-format stream-json` - Read requests from stdin, one JSON line each, into one conversation
 - `-s, --sandbox` - Stricter shell safety check
 - `--continue`, `-c` - Continue the most recent session in this directory
 - `--resume <id>` - Continue a saved session

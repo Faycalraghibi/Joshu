@@ -50,7 +50,7 @@ a live check against a real model.
 
 ## Phase 4: Programmatic use and distribution
 
-### H. SDK and streaming
+### H. SDK and streaming (done)
 - A stable Python API (`from joshu import Agent`) and
   `joshu run --input-format stream-json --output-format stream-json`.
 

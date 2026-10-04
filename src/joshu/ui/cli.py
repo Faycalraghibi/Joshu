@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import sys
-from typing import List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence
 
 import typer
 from rich.console import Console
@@ -79,6 +79,108 @@ def main_callback(
     # `models` or `config` print just their output
     if ctx.invoked_subcommand in BANNER_COMMANDS:
         print_banner(_current_model)
+
+
+def run_stream_json(
+    prompt: Optional[str],
+    model: Optional[str],
+    provider: Optional[str],
+    permission_mode: Optional[str],
+    input_format: str,
+    resume: Optional[str],
+    continue_last: bool,
+    images: Sequence[str] = (),
+) -> int:
+    """
+    Run requests and print events as JSON lines (see joshu.sdk for the event types).
+
+    With input_format "stream-json", requests are read from stdin, one JSON
+    object per line ({"type": "user", "content": "..."}); otherwise `prompt`
+    is the single request.
+    """
+    import json
+
+    from joshu.core.config import get_config_manager
+    from joshu.core.llm_client import LLMError
+    from joshu.core.sessions import SessionError
+    from joshu.sdk import Session
+
+    def emit(event: Dict[str, Any]) -> None:
+        sys.stdout.write(json.dumps(event, ensure_ascii=False, default=str) + "\n")
+        sys.stdout.flush()
+
+    if input_format not in ("text", "stream-json"):
+        emit({"type": "error", "message": f"Unknown input format '{input_format}'"})
+        return 2
+    if input_format != "stream-json" and not prompt:
+        emit(
+            {"type": "error", "message": "A prompt is required (or use --input-format stream-json)"}
+        )
+        return 2
+
+    config = get_config_manager()
+    try:
+        session = Session(
+            model=model,
+            provider=provider,
+            permission_mode=permission_mode or config.get("permission_mode", "default"),
+            on_event=emit,
+            load_mcp=True,
+            persist=config.get("save_sessions", True),
+            resume=resume or ("last" if continue_last else None),
+        )
+    except (LLMError, SessionError, ValueError) as e:
+        emit({"type": "error", "message": str(e)})
+        return 1
+
+    emit(
+        {
+            "type": "system",
+            "session_id": session.session_id,
+            "model": getattr(session.agent.client, "model", None),
+            "cwd": str(session.cwd),
+            "tools": [spec.name for spec in session.agent.tool_specs()],
+        }
+    )
+
+    def requests():
+        if input_format != "stream-json":
+            yield prompt
+            return
+        for line in sys.stdin:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                message = json.loads(line)
+            except ValueError:
+                yield line  # plain text line
+                continue
+            if isinstance(message, str):
+                yield message
+            elif isinstance(message, dict):
+                content = message.get("content", message.get("prompt", ""))
+                if isinstance(content, list):  # [{"type": "text", "text": ...}, ...]
+                    content = " ".join(
+                        part.get("text", "") for part in content if isinstance(part, dict)
+                    )
+                if str(content).strip():
+                    yield str(content)
+
+    code = 0
+    try:
+        for index, request in enumerate(requests()):
+            try:
+                session.send(request, images=images if index == 0 else ())
+            except LLMError as e:
+                emit({"type": "error", "message": str(e)})
+                code = 1
+    except KeyboardInterrupt:
+        emit({"type": "error", "message": "interrupted"})
+        code = 130
+    finally:
+        session.close()
+    return code
 
 
 def execute_agent_prompt(
@@ -374,7 +476,16 @@ def run(
         help="Headless: print only the final answer; tools needing approval are denied.",
     ),
     output_format: str = typer.Option(
-        "text", "--output-format", help="Output format: text or json (implies --print)."
+        "text",
+        "--output-format",
+        help="text, json, or stream-json (one JSON event per line as it happens); "
+        "json and stream-json imply --print.",
+    ),
+    input_format: str = typer.Option(
+        "text",
+        "--input-format",
+        help="text, or stream-json: read requests from stdin, one JSON line each "
+        '({"type": "user", "content": "..."}), in one conversation.',
     ),
     provider: Optional[str] = typer.Option(
         None,
@@ -394,13 +505,29 @@ def run(
     ),
 ) -> None:
     """Run a task with the agent, or start interactive mode."""
-    headless = print_mode or output_format == "json"
+    streaming = "stream-json" in (output_format, input_format)
+    headless = print_mode or output_format in ("json", "stream-json") or streaming
     if not headless:
         print_banner(_current_model)
 
     if interactive:
         _start_interactive(model, sandbox, verbose, provider, resume, continue_last)
         return
+
+    if streaming:
+        setup_logging(verbose)
+        raise typer.Exit(
+            code=run_stream_json(
+                prompt,
+                model=model,
+                provider=provider,
+                permission_mode=permission_mode or ("bypass" if yes else None),
+                input_format=input_format,
+                resume=resume,
+                continue_last=continue_last,
+                images=image or [],
+            )
+        )
 
     if not prompt:
         console.print("[red]Error: Prompt is required for non-interactive mode.[/red]")
