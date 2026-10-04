@@ -19,7 +19,7 @@ a live check against a real model.
   run concurrently (up to 4); results keep their order. Edits and shell
   commands stay sequential. Several `task` calls run sub-agents in parallel.
 
-### C. A default model chosen from data
+### C. A default model chosen from data (done: NVIDIA Nemotron 3.5 Lightning, 20/24)
 - `benchmarks/run.py --repeat 3` over the candidate models; pass rate, tokens
   and time per model; a recommended default and a "Choosing a model" guide.
 
