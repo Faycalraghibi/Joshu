@@ -331,6 +331,7 @@ class ExtraCommands:
         if not path.suffix:
             path = path.with_suffix(".md")
         try:
+            path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(conversation_markdown(agent.messages), encoding="utf-8")
         except OSError as e:
             console.print(f"Could not write {path}: {e}")
@@ -445,13 +446,12 @@ class ExtraCommands:
         current = current_theme().name
         options = [(name, theme.label) for name, theme in THEMES.items()]
         try:
-            from joshu.ui.menu import menu
+            from joshu.ui.menu import MenuUnavailable, menu
 
-            if sys.stdin.isatty():
-                return menu("Choose a theme:", options, default=current)
+            return menu("Choose a theme:", options, default=current)
         except (EOFError, KeyboardInterrupt):
             return None
-        except ImportError:
+        except (ImportError, MenuUnavailable):
             pass
         _console().print("Themes: " + ", ".join(THEMES) + "  (/theme <name>)")
         return None

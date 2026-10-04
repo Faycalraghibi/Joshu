@@ -225,7 +225,7 @@ def test_rewind_menu_in_a_terminal_picks_how_far_back(workspace):
     agent = two_edits_agent(workspace)
     mode, handler = handler_with(agent)
     with (
-        patch("sys.stdin.isatty", return_value=True),
+        patch("joshu.ui.interactive.commands.can_show_menu", return_value=True),
         patch("joshu.ui.interactive.commands.pick_rewind", return_value=2) as menu,
     ):
         handler.handle_slash_command("/rewind")
@@ -238,7 +238,7 @@ def test_rewind_menu_cancel_changes_nothing(workspace):
     agent = two_edits_agent(workspace)
     mode, handler = handler_with(agent)
     with (
-        patch("sys.stdin.isatty", return_value=True),
+        patch("joshu.ui.interactive.commands.can_show_menu", return_value=True),
         patch("joshu.ui.interactive.commands.pick_rewind", return_value=0),
     ):
         handler.handle_slash_command("/rewind")

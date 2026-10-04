@@ -847,13 +847,12 @@ def render_diff(diff: str, limit: int) -> Any:
 def _choose(question: str, options: List[tuple]) -> ApprovalChoice:
     """Arrow-key menu (prompt_toolkit), or a typed number without a terminal."""
     try:
-        from joshu.ui.menu import menu
+        from joshu.ui.menu import MenuUnavailable, menu
 
-        if sys.stdin.isatty() and sys.stdout.isatty():
-            return menu(question, options, cancel=ApprovalChoice.NO)
+        return menu(question, options, cancel=ApprovalChoice.NO)
     except (EOFError, KeyboardInterrupt):
         return ApprovalChoice.NO
-    except ImportError:
+    except (ImportError, MenuUnavailable):
         pass
 
     print(question)

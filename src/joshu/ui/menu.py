@@ -9,7 +9,20 @@ their keys to the list itself.
 
 from __future__ import annotations
 
+import sys
 from typing import Any, Sequence, Tuple
+
+
+class MenuUnavailable(RuntimeError):
+    """The terminal can't show an arrow-key menu (not a console, or output redirected)."""
+
+
+def can_show_menu() -> bool:
+    """True when both input and output are a terminal (menus need to draw and read keys)."""
+    try:
+        return sys.stdin.isatty() and sys.stdout.isatty()
+    except (AttributeError, ValueError):
+        return False
 
 
 def menu(
@@ -23,7 +36,11 @@ def menu(
     Show `options` ((value, label) pairs) and return the chosen value.
 
     `cancel` is returned for Esc; Ctrl+C raises KeyboardInterrupt as usual.
+    Raises MenuUnavailable when the terminal can't show it; callers then fall
+    back to text.
     """
+    if not can_show_menu():
+        raise MenuUnavailable("not a terminal")
     from prompt_toolkit.key_binding import KeyBindings, merge_key_bindings
     from prompt_toolkit.shortcuts.choice_input import ChoiceInput
 
@@ -41,7 +58,10 @@ def menu(
         keys.add(str(number), eager=True)(pick)
 
     chooser = ChoiceInput(message=question, options=list(options), default=default, symbol="❯")
-    app = chooser._create_application()
+    try:
+        app = chooser._create_application()
+    except Exception as e:  # e.g. a Windows pipe or mintty instead of a console
+        raise MenuUnavailable(str(e)) from e
     control = app.layout.current_control
     # Bindings merged later win over the list's own (which only select)
     control.key_bindings = (
