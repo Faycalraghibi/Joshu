@@ -45,6 +45,9 @@ dev = [
     # Testing
     "pytest==8.4.2",
     "pytest-mock>=3.12.0",
+    # Terminal tests (tests/e2e): a pseudo-terminal per platform
+    "pywinpty>=2.0; sys_platform == 'win32'",
+    "pexpect>=4.8; sys_platform != 'win32'",
     # Code quality
     "black==24.4.0",
     "flake8==7.0.0",

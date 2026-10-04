@@ -9,12 +9,14 @@ All notable changes to the Joshu project will be documented in this file.
 - `Ctrl+O` shows tool output that was cut short: at the prompt, the last request's output in full; while the agent works, everything from then on.
 - The terminal bell rings when a request that ran 20 seconds or more finishes or waits for approval (`notifications`, `notify_after_seconds`).
 - The working line names the task in progress from the todo list.
+- Terminal tests (`tests/e2e/test_terminal.py`) run the interactive prompt in a real pseudo-terminal (ConPTY on Windows, pexpect elsewhere) and drive it with key bytes.
 - `Ctrl+G` writes the prompt in your editor (`$VISUAL`, `$EDITOR`, Notepad on Windows).
 
 ### Changed
 - Vim mode uses prompt_toolkit's vi editing (full motions, operators, undo) instead of a handful of custom keys.
 
 ### Fixed
+- `Ctrl+O` before the first request did nothing; it now says there is no tool output yet.
 - `Ctrl+D` exited even with text in the prompt; it now deletes the next character and exits only on an empty prompt.
 - `Ctrl+R` opened a second prompt inside the running one; it now uses the built-in history search.
 - `Ctrl+L` ran `cls`/`clear` in a subprocess behind the prompt; it now redraws the screen.
