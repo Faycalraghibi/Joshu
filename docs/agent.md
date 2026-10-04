@@ -100,7 +100,9 @@ to your user config.
 | `write_file` | Create or overwrite a file | yes |
 | `run_shell_command` | Run a command (fresh shell each call) | yes |
 | `web_search` / `web_fetch` | Search the web / fetch a URL | no / yes |
-| `write_todos`, `save_memory` | Track steps / remember facts in JOSHU.md | no |
+| `write_todos` | Track steps | no |
+| `memory` | Save, read or delete notes kept across sessions | no |
+| `skill` | Load a skill's instructions (when skills exist) | no |
 | `task` | Delegate research to a read-only sub-agent | no |
 | MCP tools | Tools from configured MCP servers | yes |
 
@@ -141,8 +143,8 @@ its system prompt, least specific first:
 | `config/JOSHU.md` | the repository (older location) |
 
 The repository root is the nearest directory with `.git` above the working
-directory. Facts the agent saves with `save_memory` live in `~/.joshu/JOSHU.md`
-and are included too.
+directory. Facts saved by older versions with `save_memory` (in
+`~/.joshu/JOSHU.md`) are still included.
 
 ## Context
 
@@ -206,6 +208,57 @@ prompt = "Explain these changes:\n{{shell_output}}\n{{args}}"
 ```
 
 Built-in commands (`/help`, `/undo`, ...) can't be overridden.
+
+## Memory
+
+The agent keeps notes across sessions with its `memory` tool: what you ask it
+to remember, and things it learns that aren't in the code (your preferences,
+corrections to how it works, project decisions, where to find things).
+
+| Scope | Location | Applies to |
+|---|---|---|
+| project (default) | `~/.joshu/projects/<project>/memory/` | this repository |
+| user | `~/.joshu/memory/` | every project |
+
+Each memory is a Markdown file with a name, a one-line description and a type
+(`user`, `feedback`, `project`, `reference`); `MEMORY.md` in each directory
+indexes them. At the start of a session short memories are added to the
+system prompt in full and longer ones by description, for the agent to read
+when relevant. Saving under an existing name replaces that memory.
+
+In interactive mode, `/memory` lists memories and `/memory forget <name> [user]`
+deletes one; the files can also be edited directly. Turn memory off with
+`joshu config --set auto_memory=false` (the older `save_memory` tool is then
+used instead).
+
+## Skills
+
+A skill is a set of instructions for a kind of task, loaded only when needed:
+
+```
+.joshu/skills/release-notes/
+    SKILL.md
+    template.md        # optional supporting files
+```
+
+```markdown
+---
+name: release-notes
+description: Write release notes from the git log. Use when asked for release notes or a changelog.
+---
+1. Find the last tag with `git describe --tags --abbrev=0`.
+2. ...follow template.md
+```
+
+Only each skill's name and description are in the system prompt. When a task
+matches, the agent calls the `skill` tool to load the instructions (and any
+supporting file), so skills cost little context until used.
+
+Skills are read from `.joshu/skills/` and `.agents/skills/` in the working
+directory and the repository root, then `~/.joshu/skills/` (a project skill
+replaces a user skill with the same name). A skill needs a `description`.
+
+In interactive mode, `/skills` lists them and `/<skill> [request]` runs one.
 
 ## Sub-agents
 
@@ -327,6 +380,8 @@ sub-agents are included.
 - `/rewind [n]`: drop the last n requests and restore the files they changed
 - `/compact [focus]`: summarize the conversation now
 - `/init [notes]`: write or update AGENTS.md for this project
+- `/memory`, `/memory forget <name>`: the agent's saved memories
+- `/skills`, `/<skill> [request]`: list skills, run one
 - `/cost`: tokens and cost of the conversation
 - `/resume [id]`: list saved sessions, or continue one
 - `/commands`, `/agents`: list custom commands and sub-agents

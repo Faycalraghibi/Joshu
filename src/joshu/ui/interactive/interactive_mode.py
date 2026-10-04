@@ -84,8 +84,9 @@ class InteractiveMode:
         self.path_completer = get_path_completer()
         try:
             from joshu.core.custom_commands import discover_commands
+            from joshu.core.skills import discover_skills
 
-            custom = [f"/{name}" for name in discover_commands()]
+            custom = [f"/{name}" for name in [*discover_commands(), *discover_skills()]]
         except Exception:  # a broken command file shouldn't stop the REPL
             custom = []
         self.command_completer = get_command_completer(custom)

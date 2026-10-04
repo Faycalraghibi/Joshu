@@ -15,6 +15,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
+from joshu.core.auto_memory import TYPES as MEMORY_TYPES
+from joshu.core.auto_memory import memory_prompt, run_memory_tool
 from joshu.core.checkpoints import Checkpoint, CheckpointStore
 from joshu.core.compaction import SUMMARY_PREFIX, compact_messages, estimate_tokens
 from joshu.core.config import get_config_manager
@@ -27,6 +29,13 @@ from joshu.core.llm_client import (
     create_chat_client,
 )
 from joshu.core.permissions import EDIT_TOOLS, PermissionManager, PermissionMode
+from joshu.core.skills import (
+    SKILL_TOOL_DESCRIPTION,
+    Skill,
+    discover_skills,
+    run_skill_tool,
+    skills_prompt,
+)
 from joshu.core.subagents import SubagentSpec, discover_subagents
 from joshu.core.system_prompt import build_subagent_prompt, build_system_prompt
 from joshu.core.tool_executor import ToolExecutor
@@ -144,9 +153,17 @@ class Agent:
         self._tool_names = set(tool_names) if tool_names is not None else None
         self._local_tools: Dict[str, ToolSpec] = {}
         self.subagents: Dict[str, SubagentSpec] = {}
+        self.skills: Dict[str, Skill] = {}
+        self.auto_memory = False
         if not is_subagent:
             self.subagents = discover_subagents(self.cwd)
             self._local_tools["task"] = self._make_task_tool()
+            self.skills = discover_skills(self.cwd)
+            if self.skills:
+                self._local_tools["skill"] = self._make_skill_tool()
+            self.auto_memory = bool(config.get("auto_memory", True))
+            if self.auto_memory:
+                self._local_tools["memory"] = self._make_memory_tool()
 
         self._system_prompt_override = system_prompt
         self.messages: List[Dict[str, Any]] = [
@@ -280,7 +297,9 @@ class Agent:
         specs = [
             spec
             for spec in self._registry.get_available_tools(enabled_only=True)
-            if self._tool_names is None or spec.name in self._tool_names
+            if (self._tool_names is None or spec.name in self._tool_names)
+            # The `memory` tool replaces the older save_memory when auto memory is on
+            and not (spec.name == "save_memory" and "memory" in self._local_tools)
         ]
         specs.extend(
             spec
@@ -558,10 +577,16 @@ class Agent:
     def _build_system_prompt(self) -> str:
         if self._system_prompt_override is not None:
             return self._system_prompt_override
+        sections = []
+        if self.skills:
+            sections.append(skills_prompt(self.skills))
+        if self.auto_memory:
+            sections.append(memory_prompt(self.cwd))
         return build_system_prompt(
             self.cwd,
             plan_mode=self.permissions.mode == PermissionMode.PLAN,
             subagent=self.is_subagent,
+            sections=sections,
         )
 
     def _maybe_compact(self) -> None:
@@ -644,6 +669,71 @@ class Agent:
                 "required": ["description", "prompt"],
             },
             function=task,
+            requires_approval=False,
+        )
+
+    def _make_skill_tool(self) -> ToolSpec:
+        def skill(name: str, file: Optional[str] = None) -> str:
+            return run_skill_tool(self.skills, name, file)
+
+        return ToolSpec(
+            name="skill",
+            description=SKILL_TOOL_DESCRIPTION,
+            parameters={
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "enum": sorted(self.skills)},
+                    "file": {
+                        "type": "string",
+                        "description": "A supporting file of the skill (relative path)",
+                    },
+                },
+                "required": ["name"],
+            },
+            function=skill,
+            requires_approval=False,
+        )
+
+    def _make_memory_tool(self) -> ToolSpec:
+        def memory(
+            action: str,
+            name: str = "",
+            description: str = "",
+            content: str = "",
+            type: str = "project",
+            scope: str = "project",
+        ) -> Dict[str, Any]:
+            return run_memory_tool(action, name, description, content, type, scope, self.cwd)
+
+        return ToolSpec(
+            name="memory",
+            description=(
+                "Save, read or delete your notes for future sessions (see Memory in the "
+                "system prompt). save with an existing name replaces that memory."
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "action": {"type": "string", "enum": ["save", "read", "delete"]},
+                    "name": {
+                        "type": "string",
+                        "description": "Short kebab-case slug, e.g. test-command",
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "One line for the index (save only)",
+                    },
+                    "content": {"type": "string", "description": "The memory (save only)"},
+                    "type": {"type": "string", "enum": list(MEMORY_TYPES)},
+                    "scope": {
+                        "type": "string",
+                        "enum": ["project", "user"],
+                        "description": "project (default): this repository; user: every project",
+                    },
+                },
+                "required": ["action", "name"],
+            },
+            function=memory,
             requires_approval=False,
         )
 

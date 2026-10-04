@@ -112,8 +112,41 @@ class CommandHandler:
         show(f"Unknown session command: {subcommand} (see /session help)")
         return True
 
+    def handle_auto_memory_command(self, command: str) -> bool:
+        """/memory [list] and /memory forget <name> [user]: the agent's saved memories."""
+        from joshu.core.auto_memory import delete_memory, list_memories, memory_dir
+
+        parts = command.split()
+        if len(parts) >= 3 and parts[1] == "forget":
+            scope = "user" if len(parts) > 3 and parts[3] == "user" else "project"
+            if delete_memory(parts[2], scope):
+                self.interactive_mode._show_message(f"Forgot {scope} memory '{parts[2]}'.")
+            else:
+                self.interactive_mode._show_message(f"No {scope} memory named '{parts[2]}'.")
+            return True
+
+        lines = []
+        for scope, title in (("project", "Project memory"), ("user", "User memory")):
+            memories = list_memories(scope)
+            lines.append(f"{title} ({memory_dir(scope)}):")
+            if not memories:
+                lines.append("  (none)")
+            for m in memories:
+                lines.append(f"  {m.name:<24} [{m.type}] {m.description}")
+        lines += [
+            "",
+            "The agent saves these as it learns; edit the files directly or:",
+            "  /memory forget <name> [user]  - Delete a memory",
+            "  /memory status | search <q> | clear - Semantic memory of past conversations",
+        ]
+        self.interactive_mode._show_message("\n".join(lines))
+        return True
+
     def handle_memory_command(self, command: str) -> bool:
-        """Handle semantic memory commands."""
+        """Handle memory commands: saved memories, then semantic memory."""
+        parts = command.split()
+        if len(parts) == 1 or parts[1] in ("list", "forget"):
+            return self.handle_auto_memory_command(command)
         if not self.context_provider:
             self.interactive_mode._show_message("❌ Context provider not available.")
             return True
@@ -378,6 +411,9 @@ class CommandHandler:
         elif command == "/agents":
             return self.handle_agents_list()
 
+        elif command == "/skills":
+            return self.handle_skills_list()
+
         else:
             return self.handle_custom_command(command)
 
@@ -386,12 +422,45 @@ class CommandHandler:
         from joshu.core.custom_commands import discover_commands, split_command
 
         parsed = split_command(command)
-        if parsed is None or parsed[0] not in discover_commands():
+        if parsed is not None and parsed[0] in discover_commands():
+            return self.interactive_mode.run_custom_command(command)
+        if parsed is not None and self.run_skill(parsed[0], parsed[1]):
+            return True
+        self.interactive_mode._show_message(
+            f"Unknown command: {command.split()[0]} (see /help, /commands and /skills)"
+        )
+        return True
+
+    def run_skill(self, name: str, request: str) -> bool:
+        """/<skill> [request]: run the agent with that skill. False if no such skill."""
+        from joshu.core.skills import discover_skills
+
+        if name not in discover_skills():
+            return False
+        if not self.interactive_mode._ensure_agent():
+            return True
+        prompt = f"Use the {name} skill: load it with the skill tool, then follow it."
+        if request.strip():
+            prompt += f"\n\n{request.strip()}"
+        self.interactive_mode._run_agent(prompt)
+        return True
+
+    def handle_skills_list(self) -> bool:
+        """List available skills."""
+        from joshu.core.skills import discover_skills, skill_dirs
+
+        skills = discover_skills()
+        if not skills:
+            dirs = ", ".join(str(d) for d, _ in skill_dirs())
             self.interactive_mode._show_message(
-                f"Unknown command: {command.split()[0]} (see /help and /commands)"
+                f"No skills. Add <name>/SKILL.md (with a name and description) to one of: {dirs}"
             )
             return True
-        return self.interactive_mode.run_custom_command(command)
+        lines = ["Skills (the agent loads one when a task matches; /<name> runs it):"]
+        for name, skill in sorted(skills.items()):
+            lines.append(f"  /{name:<16} {skill.description}  [{skill.scope}]")
+        self.interactive_mode._show_message("\n".join(lines))
+        return True
 
     def handle_agents_list(self) -> bool:
         """List user-defined sub-agents."""
@@ -650,7 +719,8 @@ Special Commands:
   /session new - Start a new conversation
   /session switch <id> - Continue a saved session
   /session delete <id> - Delete a saved session
-  /memory      - Show memory commands help
+  /memory      - The agent's saved memories (/memory forget <name> to delete one)
+  /skills      - List skills (/<skill> [request] runs one)
   /memory status - Show semantic memory statistics
   /memory search <query> - Search for similar conversations
   /memory clear - Clear all semantic memories

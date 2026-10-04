@@ -19,6 +19,8 @@ All notable changes to the Joshu project will be documented in this file.
 - Tool-call recovery for weaker models: arguments that aren't quite JSON (code fences, trailing commas, Python literals, truncated output) are repaired, near-miss tool names (`ReadFile`, `bash`, `functions.read_file`) resolve to the right tool, and errors list the available tools or the tool's parameters (`joshu.core.tool_repair`).
 - Loop detection: the same tool call returning the same result 3 times in a row gets a warning; at 5 the request stops (`stopped: loop`).
 - `replace` shows the closest matching lines when `old_string` isn't found.
+- Memory across sessions: the agent saves, updates and deletes notes with a `memory` tool (project scope under `~/.joshu/projects/<project>/memory/`, user scope under `~/.joshu/memory/`); short memories are added to the system prompt in full, longer ones by description. Replaces `save_memory` while `auto_memory` is on (default); `/memory` lists and `/memory forget` deletes (`joshu.core.auto_memory`).
+- Skills: `SKILL.md` folders in `.joshu/skills/`, `.agents/skills/` or `~/.joshu/skills/`; only names and descriptions go into the system prompt and the `skill` tool loads instructions and supporting files on demand; `/skills` lists them and `/<skill>` runs one (`joshu.core.skills`).
 - Esc interrupts the agent in interactive mode, and text typed while it works is kept as the next prompt (`joshu.ui.key_listener`).
 - `/rewind [n]` drops the last n requests and restores the files the agent changed for them; `/compact [focus]` summarizes the conversation on demand; `/init` has the agent write or update AGENTS.md.
 - Tab completes slash commands (built-in and custom) instead of shell command names.

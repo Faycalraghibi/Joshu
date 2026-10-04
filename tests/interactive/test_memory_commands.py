@@ -40,18 +40,16 @@ class TestMemoryCommands:
     """Test semantic memory CLI commands."""
 
     def test_memory_help(self, command_handler, mock_interactive_mode):
-        """Test /memory displays help."""
+        """/memory lists saved memories and the semantic memory subcommands."""
         result = command_handler.handle_memory_command("/memory")
 
         assert result is True
-        # Should show help messages
         calls = mock_interactive_mode._show_message.call_args_list
-        messages = [call[0][0] for call in calls]
+        shown = "\n".join(call[0][0] for call in calls)
 
-        assert any("Semantic Memory Commands" in msg for msg in messages)
-        assert any("/memory status" in msg for msg in messages)
-        assert any("/memory search" in msg for msg in messages)
-        assert any("/memory clear" in msg for msg in messages)
+        assert "Project memory" in shown and "User memory" in shown
+        assert "/memory forget" in shown
+        assert "/memory status | search <q> | clear" in shown
 
     def test_memory_status_enabled(self, command_handler, mock_interactive_mode):
         """Test /memory status when semantic memory is enabled."""
