@@ -97,8 +97,10 @@ class ChatClient(Protocol):
         max_tokens: int = 4096,
         temperature: float = 0.1,
         on_text: Optional[Callable[[str], None]] = None,
+        on_reasoning: Optional[Callable[[str], None]] = None,
     ) -> AssistantTurn:
-        """Run one completion; stream text to `on_text` when given."""
+        """Run one completion; stream text to `on_text` when given, and the
+        model's reasoning (from models that expose it) to `on_reasoning`."""
 
 
 class OpenAIChatClient:
@@ -147,6 +149,7 @@ class OpenAIChatClient:
         max_tokens: int = 4096,
         temperature: float = 0.1,
         on_text: Optional[Callable[[str], None]] = None,
+        on_reasoning: Optional[Callable[[str], None]] = None,
     ) -> AssistantTurn:
         """Run one completion, streaming text to `on_text` when given."""
         if self.cache_breakpoints:
@@ -169,7 +172,7 @@ class OpenAIChatClient:
         try:
             if on_text is None:
                 return self._complete_blocking(request)
-            return self._complete_streaming(request, on_text)
+            return self._complete_streaming(request, on_text, on_reasoning)
         except LLMError:
             raise
         except Exception as e:
@@ -203,7 +206,10 @@ class OpenAIChatClient:
         )
 
     def _complete_streaming(
-        self, request: Dict[str, Any], on_text: Callable[[str], None]
+        self,
+        request: Dict[str, Any],
+        on_text: Callable[[str], None],
+        on_reasoning: Optional[Callable[[str], None]] = None,
     ) -> AssistantTurn:
         stream = self._client.chat.completions.create(
             **request, stream=True, stream_options={"include_usage": True}
@@ -227,6 +233,11 @@ class OpenAIChatClient:
 
             if delta is None:
                 continue
+
+            if on_reasoning is not None:
+                thought = _reasoning_delta(delta)
+                if thought:
+                    on_reasoning(thought)
 
             if delta.content:
                 text_parts.append(delta.content)
@@ -258,6 +269,18 @@ class OpenAIChatClient:
             finish_reason=finish_reason,
             usage=usage,
         )
+
+
+def _reasoning_delta(delta: Any) -> str:
+    """Reasoning text in a streamed delta: `reasoning_content` (DeepSeek, NVIDIA,
+    vLLM) or `reasoning` (OpenRouter and others); empty when there is none."""
+    for name in ("reasoning_content", "reasoning"):
+        value = getattr(delta, name, None)
+        if value is None:
+            value = (getattr(delta, "model_extra", None) or {}).get(name)
+        if isinstance(value, str) and value:
+            return value
+    return ""
 
 
 def _usage_dict(usage: Any) -> Dict[str, Any]:
@@ -315,6 +338,7 @@ class FallbackChatClient:
         max_tokens: int = 4096,
         temperature: float = 0.1,
         on_text: Optional[Callable[[str], None]] = None,
+        on_reasoning: Optional[Callable[[str], None]] = None,
     ) -> AssistantTurn:
         failures = []
         for index, client in enumerate(self.clients):
@@ -325,6 +349,7 @@ class FallbackChatClient:
                     max_tokens=max_tokens,
                     temperature=temperature,
                     on_text=on_text,
+                    on_reasoning=on_reasoning,
                 )
             except LLMError as e:
                 if not e.unavailable:

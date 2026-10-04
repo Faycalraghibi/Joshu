@@ -131,6 +131,29 @@ def test_working_line_names_the_task_in_progress():
     ui._stop_spinner()
 
 
+def test_reasoning_folds_into_one_line_and_expands():
+    ui, out = terminal_ui()
+    ui._live = MagicMock()  # only what is printed for good
+    ui.begin_request()
+    ui.on_model_start()
+    ui.on_reasoning("Check divisors.\n7 × 13 = 91.")
+    assert "Check divisors" not in text_of(out)  # only in the live area while streaming
+    ui.on_text("No, 91 = 7 × 13.")
+    ui.on_turn_end(AssistantTurn())
+    shown = text_of(out)
+    assert "✻ Thought for 1s (ctrl+o to expand)" in shown
+    assert shown.index("Thought for") < shown.index("● No, 91")
+    ui.show_expanded()
+    assert "7 × 13 = 91." in text_of(out)
+
+
+def test_thinking_tail_shows_the_last_lines():
+    ui, _ = terminal_ui()
+    ui._thinking = "one\ntwo\nthree\nfour"
+    tail = ui._thinking_tail(80)
+    assert tail is not None and tail.plain == "  two\n  three\n  four"
+
+
 def test_tool_calls_show_label_and_result():
     ui, out = terminal_ui()
     ui.on_tool_start("read_file", {"path": "a.py"})
