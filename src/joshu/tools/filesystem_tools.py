@@ -17,6 +17,7 @@ from difflib import unified_diff
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
+from joshu.core.secrets import is_protected
 from joshu.core.tool_registry import register_tool
 
 logger = logging.getLogger(__name__)
@@ -655,9 +656,11 @@ def search_file_content_tool(
 
             if result.returncode == 0:
                 matches = []
-                for line in result.stdout.splitlines()[:max_results]:
+                for line in result.stdout.splitlines():
+                    if len(matches) >= max_results:
+                        break
                     parts = line.split(":", 2)
-                    if len(parts) >= 3:
+                    if len(parts) >= 3 and not is_protected(parts[0]):
                         matches.append(
                             {
                                 "file": parts[0],
@@ -689,7 +692,7 @@ def search_file_content_tool(
             files_to_search = list(resolved.glob(glob_pattern))
 
         for file_path in files_to_search:
-            if not file_path.is_file():
+            if not file_path.is_file() or is_protected(file_path.as_posix()):
                 continue
 
             try:

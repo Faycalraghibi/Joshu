@@ -129,6 +129,9 @@ In interactive mode: `/config`, `/config <key>`, `/config <key> <value>`;
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `auto_memory` | boolean | `true` | Agent keeps notes across sessions (`memory` tool) |
+| `protected_paths` | list | `[]` | More file patterns that need approval to read or edit |
+| `allow_paths` | list | `[]` | Exceptions to the protected file patterns |
+| `mask_secrets` | boolean | `true` | Mask API keys and tokens in tool output |
 | `defer_mcp_tools` | string | `auto` | Load MCP tool definitions on demand: `auto`, `always`, `never` |
 | `theme` | string | `dark` | Color theme: `dark`, `light`, `colorblind`, `plain` |
 | `output_style` | string | `default` | Reply style: `default`, `concise`, `explanatory`, `learning` or a custom one |

@@ -576,6 +576,10 @@ class Agent:
         success, output = self._invoke(spec, arguments, self._formatter)
         if success and call.name in EDIT_TOOLS and self.diagnostics_enabled:
             output += self._diagnose(arguments)
+        from joshu.core.secrets import mask_secrets, masking_enabled
+
+        if masking_enabled():
+            output = mask_secrets(output)
         # read_file limits itself to whole lines; don't cut its result in the middle
         limit = self.tool_output_limit
         if call.name == "read_file":

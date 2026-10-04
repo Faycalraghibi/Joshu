@@ -327,7 +327,9 @@ class ConsoleAgentUI(AgentEvents):
         tool = request.tool_name
         label = TOOL_LABELS.get(tool, tool)
         path = str(request.arguments.get("path", ""))
-        if tool == "replace":
+        if tool == "read_file":
+            title, question = "Read file", f"Do you want to let Joshu read {path}?"
+        elif tool == "replace":
             title, question = "Edit file", f"Do you want to make this edit to {path}?"
         elif tool == "write_file":
             title, question = "Create file", f"Do you want to create {path}?"

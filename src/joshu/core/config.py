@@ -50,6 +50,9 @@ DEFAULT_CONFIG = {
     # MCP Server settings
     "mcp_enabled": True,
     "defer_mcp_tools": "auto",
+    "protected_paths": [],
+    "allow_paths": [],
+    "mask_secrets": True,
     "mcp_discovery_on_startup": True,
     "mcp_servers": {},
     # Model provider settings (see joshu.core.providers)
@@ -163,6 +166,9 @@ class JoshuConfig:
     # MCP Server settings
     mcp_enabled: bool = True
     defer_mcp_tools: str = "auto"
+    protected_paths: List[str] = field(default_factory=list)
+    allow_paths: List[str] = field(default_factory=list)
+    mask_secrets: bool = True
     mcp_discovery_on_startup: bool = True
     mcp_servers: Dict[str, Any] = field(default_factory=dict)
     # Model provider settings (see joshu.core.providers)
