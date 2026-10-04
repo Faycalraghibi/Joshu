@@ -8,7 +8,7 @@ import platform
 import subprocess
 from datetime import date
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Sequence
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +37,7 @@ def build_system_prompt(
     plan_mode: bool = False,
     subagent: bool = False,
     project_context: Optional[str] = None,
+    sections: Sequence[str] = (),
 ) -> str:
     """
     Assemble the system prompt.
@@ -47,6 +48,7 @@ def build_system_prompt(
         subagent: Use the sub-agent preamble instead of the main one
         project_context: Override for project rules + user memory (JOSHU.md);
             loaded from disk when None
+        sections: Extra sections added at the end (skills, memory)
     """
     cwd = cwd or Path.cwd()
     parts = [SUBAGENT_PROMPT if subagent else BASE_PROMPT]
@@ -64,6 +66,7 @@ def build_system_prompt(
             "defaults above):\n\n" + project_context
         )
 
+    parts.extend(s for s in sections if s)
     return "\n\n".join(parts)
 
 

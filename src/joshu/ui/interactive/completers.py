@@ -43,6 +43,7 @@ SLASH_COMMANDS = [
     "/rewind",
     "/search",
     "/session",
+    "/skills",
     "/undo",
 ]
 

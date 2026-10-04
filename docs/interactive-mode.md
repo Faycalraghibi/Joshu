@@ -123,6 +123,8 @@ An id prefix is enough.
 /rewind [n]        # Drop the last n requests (default 1) and restore the files they changed
 /compact [focus]   # Summarize the conversation now, optionally saying what to keep
 /init [notes]      # Have the agent write or update AGENTS.md for this project
+/memory            # The agent's saved memories; /memory forget <name> [user] deletes one
+/skills            # List skills; /<skill> [request] runs one
 ```
 
 `/rewind` removes the requests and everything the agent did for them from the
