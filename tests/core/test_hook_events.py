@@ -159,7 +159,7 @@ def test_pre_compress_can_block_clearing(clean_hooks, tmp_path, monkeypatch):
 def test_notification_fires_when_approval_is_needed(clean_hooks):
     seen = record(clean_hooks, HookEvent.NOTIFICATION)
     manager = PermissionManager(PermissionMode.DEFAULT, approver=lambda r: ApprovalChoice.NO)
-    manager.check("run_shell_command", {"command": "ls"}, True)
+    manager.check("run_shell_command", {"command": "npm install"}, True)
     assert seen and seen[0]["tool_name"] == "run_shell_command"
     assert "approval" in seen[0]["message"]
 

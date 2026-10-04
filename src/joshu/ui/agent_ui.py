@@ -176,6 +176,17 @@ class _StreamView:
         yield self.working
 
 
+def terminal_safe(text: str) -> str:
+    """
+    Text that lines up in the terminal. Emoji followed by the emoji variation
+    selector (U+FE0F), like "➡️" or "⚠️", are drawn two cells wide by
+    terminals but measured as one by rich, so padded lines overflow and wrap
+    (and the live area redraws in the wrong place). Without the selector they
+    are drawn in their one-cell text form.
+    """
+    return text.replace("\ufe0f", "")
+
+
 def _elapsed(seconds: float) -> str:
     seconds = int(seconds)
     return f"{seconds // 60}m {seconds % 60}s" if seconds >= 60 else f"{seconds}s"
@@ -672,7 +683,8 @@ class ConsoleAgentUI(AgentEvents):
         grid = Table.grid(padding=0)
         grid.add_column(width=2, no_wrap=True)
         grid.add_column()
-        grid.add_row(Text("● " if first else "  "), _Trimmed(Markdown(text.strip())))
+        markdown = Markdown(terminal_safe(text).strip())
+        grid.add_row(Text("● " if first else "  "), _Trimmed(markdown))
         return grid
 
     def _print_message(self, text: str) -> None:
@@ -690,7 +702,8 @@ class ConsoleAgentUI(AgentEvents):
         """The last few lines of the reasoning being streamed, dim."""
         if not self._thinking.strip():
             return None
-        rows = [row for row in self._thinking.strip().splitlines() if row.strip()][-lines:]
+        thinking = terminal_safe(self._thinking).strip()
+        rows = [row for row in thinking.splitlines() if row.strip()][-lines:]
         room = max(10, width - 4)
         shown = [row if len(row) <= room else "…" + row[-(room - 1) :] for row in rows]
         return Text("\n".join("  " + row for row in shown), style="dim italic")

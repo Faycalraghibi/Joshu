@@ -52,6 +52,8 @@ class Skill:
     description: str
     path: Path  # the skill's directory
     scope: str  # "project" or "user"
+    # False with `disable-model-invocation: true`: only the user runs it (/name)
+    model_invocable: bool = True
 
     def instructions(self) -> str:
         """The body of SKILL.md (without frontmatter)."""
@@ -132,11 +134,23 @@ def load_skill(path: Path, scope: str = "project") -> Optional[Skill]:
     if not description:
         logger.warning(f"Skipping skill '{name}': it needs a description ({path})")
         return None
-    return Skill(name=name, description=description[:1024], path=path, scope=scope)
+    return Skill(
+        name=name,
+        description=description[:1024],
+        path=path,
+        scope=scope,
+        model_invocable=not bool(meta.get("disable-model-invocation", False)),
+    )
+
+
+def model_skills(skills: Dict[str, Skill]) -> Dict[str, Skill]:
+    """The skills the model may load itself (not `disable-model-invocation`)."""
+    return {name: skill for name, skill in skills.items() if skill.model_invocable}
 
 
 def skills_prompt(skills: Dict[str, Skill]) -> str:
     """The system prompt section listing skills, or "" when there are none."""
+    skills = model_skills(skills)
     if not skills:
         return ""
     lines = [
@@ -156,9 +170,9 @@ SKILL_TOOL_DESCRIPTION = (
 
 def run_skill_tool(skills: Dict[str, Skill], name: str, file: Optional[str] = None) -> str:
     """What the `skill` tool returns to the model."""
-    skill = skills.get(name)
+    skill = model_skills(skills).get(name)
     if skill is None:
-        available = ", ".join(sorted(skills)) or "none"
+        available = ", ".join(sorted(model_skills(skills))) or "none"
         return f"Error: no skill named '{name}'. Available skills: {available}."
     try:
         if file:

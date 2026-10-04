@@ -62,6 +62,18 @@ def test_skills_need_a_description_and_valid_name(project):
     assert discover_skills(project) == {}
 
 
+def test_user_only_skills_are_hidden_from_the_model(project):
+    directory = write_skill(project / ".joshu" / "skills", "grill-me", "Interview me")
+    text = (directory / "SKILL.md").read_text(encoding="utf-8")
+    (directory / "SKILL.md").write_text(
+        text.replace("---\nname:", "---\ndisable-model-invocation: true\nname:"), encoding="utf-8"
+    )
+    skills = discover_skills(project)
+    assert not skills["grill-me"].model_invocable
+    assert skills_prompt(skills) == ""
+    assert "no skill named 'grill-me'" in run_skill_tool(skills, "grill-me")
+
+
 def test_skill_tool_returns_body_and_supporting_files(project):
     directory = write_skill(project / ".joshu" / "skills", "release", body="Use template.md")
     (directory / "template.md").write_text("## {version}", encoding="utf-8")

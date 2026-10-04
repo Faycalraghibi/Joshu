@@ -5,6 +5,8 @@ All notable changes to the Joshu project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Read-only shell commands (`ls`, `dir`, `cat`, `type`, `head`, `tail`, `rg`, `grep`, `git status/diff/log/show/blame`, ...) run without asking when they aren't chained or redirected and their paths stay inside the project.
+- Skills with `disable-model-invocation: true` run only when you type `/name`; the model doesn't see or load them.
 - Desktop notifications when a long request finishes or needs approval, in terminals that support them (iTerm2, WezTerm, Ghostty via OSC 9; kitty via OSC 99); other terminals get the bell. `notifications: auto` (default), `desktop`, `bell` or `off`.
 - A busy indicator in the taskbar / tab while a request runs, in Windows Terminal, ConEmu, Ghostty and WezTerm (OSC 9;4).
 - `Esc Esc` on an empty prompt, or `/rewind` without a number, opens a menu of earlier requests: pick one to go back to before it (files the agent edited since are restored). `/rewind n` still drops the last n directly.
@@ -23,6 +25,8 @@ All notable changes to the Joshu project will be documented in this file.
 - Vim mode uses prompt_toolkit's vi editing (full motions, operators, undo) instead of a handful of custom keys.
 
 ### Fixed
+- Replies with emoji like ➡️, ⚠️ or ✔️ were garbled (lines duplicated or run together): terminals draw them two cells wide but they were measured as one, so lines overflowed. The emoji variation selector is now dropped before rendering.
+- "Don't ask again" for a command whose second word is a path offered the whole path as the key (``dir "C:\...\x"``); it is now the program (`dir`).
 - Number keys in approval prompts and pickers only moved the selection, and Esc did nothing; a number now picks its option, Esc declines or cancels, and options are no longer numbered twice ("1. 1. Yes").
 - A `SyntaxWarning` about `"\+"` printed on the first start.
 - MCP servers are disconnected at the same time on exit, and their pipes closed, so a slow server no longer leaves "Task was destroyed but it is pending" and closed-pipe errors at exit.

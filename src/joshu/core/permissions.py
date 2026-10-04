@@ -12,9 +12,12 @@ from __future__ import annotations
 import fnmatch
 import json
 import logging
+import os
 import re
+import shlex
 from dataclasses import dataclass, field
 from enum import Enum
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Set
 
 from joshu.core.safety import assess_command_safety
@@ -233,6 +236,9 @@ class PermissionManager:
         if tool_name == SHELL_TOOL and self.sandboxed_shell:
             return PermissionDecision(True)
 
+        if tool_name == SHELL_TOOL and is_read_only_command(str(arguments.get("command", ""))):
+            return PermissionDecision(True)
+
         if self.mode == PermissionMode.ACCEPT_EDITS and tool_name in EDIT_TOOLS:
             return PermissionDecision(True)
 
@@ -315,9 +321,86 @@ def command_key(command: str) -> str:
     tokens = command.split()
     if not tokens:
         return ""
-    if len(tokens) > 1 and not tokens[1].startswith("-"):
+    if len(tokens) > 1 and not tokens[1].startswith("-") and not _looks_like_path(tokens[1]):
         return f"{tokens[0]} {tokens[1]}"
     return tokens[0]
+
+
+def _looks_like_path(token: str) -> bool:
+    """A file or directory argument rather than a subcommand ("src/x.py", "C:\\tmp", "a.txt")."""
+    return token[:1] in ("'", '"', "~", ".") or any(c in token for c in "/\\:.*")
+
+
+# Shell commands that only read: they run without asking when they aren't
+# chained or redirected and stay inside the project (see is_read_only_command)
+READ_ONLY_COMMANDS = {
+    "ls",
+    "dir",
+    "cat",
+    "type",
+    "head",
+    "tail",
+    "wc",
+    "pwd",
+    "tree",
+    "where",
+    "which",
+    "rg",
+    "grep",
+    "findstr",
+    "file",
+    "stat",
+    "du",
+    "df",
+}
+READ_ONLY_SUBCOMMANDS = {
+    "git": {"status", "diff", "log", "show", "branch", "blame", "rev-parse", "ls-files"},
+}
+
+
+_GIT_BRANCH_LIST_OPTIONS = {"-a", "-r", "-v", "-vv", "--all", "--list", "--show-current"}
+
+
+def is_read_only_command(command: str, root: Optional[Path] = None) -> bool:
+    """
+    True for a single read-only command (`dir src`, `git diff`, `rg TODO`)
+    whose path arguments stay inside `root` (the working directory).
+    """
+    if any(sep in command for sep in (";", "&", "|", "`", "$(", ">", "<", "\n", "%")):
+        return False
+    try:
+        tokens = shlex.split(command, posix=os.name != "nt")
+    except ValueError:
+        return False
+    if not tokens:
+        return False
+    program = Path(tokens[0]).name.lower()
+    if program.endswith(".exe"):
+        program = program[:-4]
+    if program in READ_ONLY_SUBCOMMANDS:
+        if len(tokens) < 2 or tokens[1] not in READ_ONLY_SUBCOMMANDS[program]:
+            return False
+        if program == "git" and any(t.startswith("--output") for t in tokens):
+            return False
+        if tokens[1] == "branch" and not set(tokens[2:]) <= _GIT_BRANCH_LIST_OPTIONS:
+            return False  # -d, -m, ... change branches
+    elif program == "rg" and any(t.startswith("--pre") for t in tokens):
+        return False  # --pre runs a program on each file
+    elif program not in READ_ONLY_COMMANDS:
+        return False
+    base = (root or Path.cwd()).resolve()
+    for token in tokens[1:]:
+        if token.startswith("-") or (token.startswith("/") and os.name == "nt" and len(token) <= 3):
+            continue  # an option (or a Windows switch like /s)
+        if not _looks_like_path(token) and not token.startswith(".."):
+            continue
+        try:
+            target = (base / token.strip("\"'")).expanduser().resolve()
+        except (OSError, ValueError):
+            return False
+        if target != base and base not in target.parents:
+            return False
+    return True
 
 
 def build_preview(tool_name: str, arguments: Dict[str, Any]) -> str:
