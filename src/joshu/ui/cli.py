@@ -245,11 +245,13 @@ def execute_agent_prompt(
 
         from pathlib import Path
 
+        from joshu.core.file_refs import attach_file_refs
         from joshu.core.images import ImageError, find_image_refs, image_part
         from joshu.mcp.extras import with_resources
 
         prompt, referenced = find_image_refs(prompt)
         prompt = with_resources(prompt)
+        prompt, _files = attach_file_refs(prompt)
         attached = [Path(p).expanduser() for p in images] + referenced
         try:
             for path in attached:

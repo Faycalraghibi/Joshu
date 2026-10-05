@@ -231,13 +231,23 @@ compaction can't be rewound.
 !3                     # Execute 3rd command from history
 ```
 
-### File Injection
+### Attaching files
+
+`@path` anywhere in a request (also at the start) attaches the file to it, so
+the agent sees it without a tool call:
 
 ```
-@config.yaml           # Inject file content
-@@deploy.sh            # Inject and execute
-@app.py:10-20          # Inject lines 10-20
+@src/app.py what does this do?      # the whole file
+explain @src/app.py:10-40           # lines 10 to 40
+what is in @src/utils               # a listing of the directory
+compare @"docs/old notes.md" and @README.md
+@screenshot.png why is this red?    # images are sent as images
 ```
+
+Files are attached up to 40,000 characters each (100,000 per request); larger
+ones are cut with a note, and the agent can read the rest with `read_file`.
+Protected files (`.env`, keys, credentials) are never attached, and secrets in
+attached text are masked. `@server:uri` attaches an MCP resource.
 
 ## Keyboard Shortcuts
 
@@ -310,7 +320,6 @@ user config.
 Enable multiline mode:
 
 ```yaml
-multiline_input: true
 ```
 
 **Usage:**

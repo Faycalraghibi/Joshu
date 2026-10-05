@@ -1,5 +1,13 @@
 # IDE Integration
 
+> **Not available yet.** The pieces described here exist (an IDE server in
+> `joshu.ide` and a VS Code companion prototype in
+> `packages/vscode-joshu-companion`), but they are not connected: the
+> `joshu ide` commands below are not registered in the CLI, and the agent does
+> not send its edits as diff proposals. This page describes the planned
+> design. To use Joshu from VS Code today, run `joshu` in its integrated
+> terminal.
+
 Joshu integrates with IDEs like VS Code to provide contextual awareness and interactive features.
 
 ## Features

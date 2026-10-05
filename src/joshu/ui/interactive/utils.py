@@ -3,9 +3,8 @@
 import os
 import re
 import subprocess
-import tempfile
 from pathlib import Path
-from typing import Callable, List
+from typing import List
 
 from joshu.tools.shell import run_command
 
@@ -81,38 +80,3 @@ def paste_from_clipboard() -> str:
         return result.stdout.strip()
     except (subprocess.SubprocessError, FileNotFoundError):
         return ""
-
-
-def execute_file_content(path: Path, content: str, show_message: Callable[[str], None]) -> None:
-    """Execute file content based on file type."""
-    extension = path.suffix.lower()
-
-    if extension == ".sh":
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".sh", delete=False) as f:
-            f.write(content)
-            temp_path = f.name
-
-        try:
-            os.chmod(temp_path, 0o755)
-            code, out, err = run_command(temp_path)
-            if out:
-                show_message(out)
-            if err:
-                show_message(f"Error: {err}")
-        finally:
-            os.unlink(temp_path)
-    elif extension == ".py":
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
-            f.write(content)
-            temp_path = f.name
-
-        try:
-            code, out, err = run_command(f"python {temp_path}")
-            if out:
-                show_message(out)
-            if err:
-                show_message(f"Error: {err}")
-        finally:
-            os.unlink(temp_path)
-    else:
-        show_message(f"Cannot execute files of type: {extension}")

@@ -22,7 +22,6 @@ from .history import JsonHistory
 from .keybindings import create_key_bindings, vi_normal_mode
 from .modes import AskModeHandler
 from .prompt import PLACEHOLDER, SHORTCUTS, bottom_toolbar, get_style, prompt_message
-from .utils import execute_file_content
 
 
 class InteractiveMode:
@@ -170,86 +169,6 @@ class InteractiveMode:
         except Exception as e:
             self._show_message(f"Error executing command: {str(e)}")
 
-    def _handle_file_injection(self, command: str):
-        """Handle file injection with @ prefix."""
-        if not command.startswith("@"):
-            return
-
-        file_path = command[1:] if not command.startswith("@@") else command[2:]
-        line_range = None
-
-        if ":" in file_path:
-            file_path, range_spec = file_path.split(":", 1)
-            try:
-                if "-" in range_spec:
-                    start, end = map(int, range_spec.split("-", 1))
-                    line_range = (start, end)
-                else:
-                    line_range = (int(range_spec), int(range_spec))
-            except ValueError:
-                self._show_message(f"Invalid line range: {range_spec}")
-                return
-
-        path = Path(file_path)
-        if not path.is_absolute():
-            path = Path.cwd() / path
-
-        if not path.exists():
-            self._show_message(f"File not found: {path}")
-            return
-
-        try:
-            with open(path, "r") as f:
-                lines = f.readlines()
-
-            if line_range:
-                start, end = line_range
-                start = max(0, start - 1)
-                end = min(len(lines), end)
-                content = "".join(lines[start:end])
-            else:
-                content = "".join(lines)
-
-            if command.startswith("@@"):
-                execute_file_content(path, content, self._show_message)
-            else:
-                if hasattr(self, "buffer"):
-                    self.buffer.insert_text(content)
-                else:
-                    print(content)
-                self._show_message(f"Injected content from {path}")
-        except Exception as e:
-            self._show_message(f"Error reading file: {str(e)}")
-
-    def _execute_command(self, command: str):
-        """Execute a shell command."""
-        try:
-            code, out, err = run_command(command)
-            self.bash_history.append(command)
-            if out:
-                self._show_message(out)
-            if err:
-                self._show_message(f"Error: {err}")
-
-            if self.context_provider:
-                result_message = f"Executed command: {command}"
-                if out:
-                    result_message += f"\nOutput: {out[:200]}..."
-                if err:
-                    result_message += f"\nError: {err[:200]}..."
-                self.context_provider.add_to_history(
-                    "assistant",
-                    result_message,
-                    metadata={
-                        "mode": "default",
-                        "command": command,
-                        "exit_code": code,
-                        "timestamp": time.time(),
-                    },
-                )
-        except Exception as e:
-            self._show_message(f"Error executing command: {str(e)}")
-
     def _handle_user_input(self, user_input: str) -> bool:
         """Handle user input and return True if session should continue."""
         self.notice = ""
@@ -272,9 +191,6 @@ class InteractiveMode:
             return self.command_handler.handle_slash_command(user_input)
         elif user_input.startswith("!"):
             self._handle_bash_command(user_input)
-            return True
-        elif user_input.startswith("@") and not self._references_image(user_input):
-            self._handle_file_injection(user_input)
             return True
 
         if self.interaction_mode == "ask":
@@ -343,13 +259,6 @@ class InteractiveMode:
         )
         return True
 
-    @staticmethod
-    def _references_image(user_input: str) -> bool:
-        """True when the input refers to an existing image with @path."""
-        from joshu.core.images import find_image_refs
-
-        return bool(find_image_refs(user_input)[1])
-
     def _run_agent(self, user_input: str) -> bool:
         """Run one request through the tool-using agent."""
         from joshu.core.llm_client import LLMError
@@ -362,13 +271,16 @@ class InteractiveMode:
         if self.agent.permissions.mode != mode:
             self.agent.set_mode(mode)
 
+        from joshu.core.file_refs import attach_file_refs
         from joshu.core.images import ImageError, find_image_refs
         from joshu.mcp.extras import with_resources
 
         prompt, images = find_image_refs(user_input)
         prompt = with_resources(prompt)
-        if images:
-            self._show_message("Attached: " + ", ".join(path.name for path in images))
+        prompt, files = attach_file_refs(prompt)
+        names = [path.name for path in images] + files
+        if names:
+            self._show_message("Attached: " + ", ".join(names))
 
         from joshu.ui.key_listener import CTRL_O, KeyListener
 
