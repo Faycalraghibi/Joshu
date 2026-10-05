@@ -155,10 +155,6 @@ def test_cli_rejects_missing_image_before_calling_the_model(tmp_path, monkeypatc
     assert client.requests == []
 
 
-def test_interactive_routes_image_refs_to_the_agent(shot, tmp_path, monkeypatch):
-    from joshu.ui.interactive.interactive_mode import InteractiveMode
-
+def test_image_refs_become_image_markers(shot, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    assert InteractiveMode._references_image("@shot.png what is this")
-    assert not InteractiveMode._references_image("@notes.txt")
     assert json.dumps(find_image_refs("@shot.png", tmp_path)[0]) == '"[image: shot.png]"'

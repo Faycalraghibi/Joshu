@@ -20,13 +20,9 @@ DEFAULT_CONFIG = {
     "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
     "max_tokens": 4096,
     "temperature": 0.1,
-    "history_size": 100,
-    "log_level": "INFO",
-    "memory_enabled": True,
     "sandbox_enabled": True,
     # interactive mode settings
     "interactive": True,
-    "multiline_input": True,
     "vim_mode": False,
     "theme": "dark",
     "output_style": "default",
@@ -34,10 +30,8 @@ DEFAULT_CONFIG = {
     # Desktop notification (or the bell) when a long request finishes or waits
     "notifications": "auto",
     "notify_after_seconds": 20,
-    "persistent_history": True,
     "history_limit": 1000,
     # Semantic memory settings
-    "semantic_memory_enabled": True,
     "semantic_memory_similarity_threshold": 0.3,
     "semantic_memory_max_results": 5,
     "semantic_memory_min_content_length": 10,
@@ -145,23 +139,17 @@ class JoshuConfig:
     model: str = "nvidia/nemotron-3.5-lightning-30b-a3b"
     max_tokens: int = 4096
     temperature: float = 0.1
-    history_size: int = 100
-    log_level: str = "INFO"
-    memory_enabled: bool = True
     sandbox_enabled: bool = True
     # interactive mode settings
     interactive: bool = True
-    multiline_input: bool = True
     vim_mode: bool = False
     theme: str = "dark"
     output_style: str = "default"
     statusline: str = ""
     notifications: str = "auto"
     notify_after_seconds: int = 20
-    persistent_history: bool = True
     history_limit: int = 1000
     # Semantic memory settings
-    semantic_memory_enabled: bool = True
     semantic_memory_similarity_threshold: float = 0.3
     semantic_memory_max_results: int = 5
     semantic_memory_min_content_length: int = 10

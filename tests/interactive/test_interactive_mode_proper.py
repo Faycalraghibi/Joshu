@@ -51,29 +51,6 @@ def test_interactive_mode_history():
         assert len(mode.command_history) >= 2
 
 
-def test_interactive_mode_file_injection():
-    """Test that the interactive mode handles file injection."""
-    with (
-        patch("joshu.core.config.get_config_manager") as mock_config_manager,
-        patch("joshu.ui.interactive.utils.execute_file_content"),
-    ):
-        # Mock config manager
-        mock_config = MagicMock()
-        mock_config.get.return_value = 1000
-        mock_config_manager.return_value = mock_config
-
-        from joshu.ui.interactive import InteractiveMode
-
-        mode = InteractiveMode("test-model", sandbox=False, verbose=False)
-
-        # Test file injection - should not raise an exception
-        try:
-            mode._handle_file_injection("@test.txt")
-        except Exception:
-            # May fail if file doesn't exist, but method should be callable
-            pass
-
-
 def test_interactive_mode_bash_command():
     """Test that the interactive mode handles bash commands."""
     with (

@@ -5,6 +5,7 @@ All notable changes to the Joshu project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- `@path` in a request attaches the file to it (`@src/app.py:10-40` for lines, `@dir` for a listing), in interactive mode and `joshu run`; the agent sees it without a tool call. Up to 40,000 characters per file and 100,000 per request; protected files are never attached and secrets are masked (`joshu.core.file_refs`).
 - `/memory add <text> [--user]` saves a memory for the agent.
 - A test runs every slash command (and its main forms) through the real interactive mode with a fake model, so a broken command fails CI.
 - Install skills from where they're published: `joshu skills add <owner/repo> --skill <name> [-g]` (also `/skills add`, `joshu skills remove`, `joshu skills list`). Accepts the `npx skills add ...` command skill pages show; fetches with that tool in a temporary directory (or `git clone` without Node.js) and copies the skills into `.agents/skills/` or `~/.joshu/skills/`. A source with several skills offers a menu. When the agent (or `!` in the prompt) runs `npx skills add`, Joshu installs the skill this way, and new skills are usable at once.
@@ -23,11 +24,14 @@ All notable changes to the Joshu project will be documented in this file.
 - `Ctrl+G` writes the prompt in your editor (`$VISUAL`, `$EDITOR`, Notepad on Windows).
 
 ### Changed
+- Removed `@@file`, which ran a script directly from the prompt (use `!python script.py`), and the settings that had no effect: `history_size`, `log_level`, `memory_enabled`, `multiline_input`, `persistent_history`, `semantic_memory_enabled` (ignored if still present).
+- `docs/ide-integration.md` says the IDE integration is not available yet: the `joshu ide` commands it describes are not registered.
 - `/<skill>` puts the skill's instructions straight into the request instead of asking the model to load them (one model call less, and small models can't skip it). The `skill` tool says where the skill's directory is (for its scripts) and labels supporting files it returns.
 - Model API errors are short: HTTP status and the provider's message, without the raw error body (which can include account metadata).
 - Vim mode uses prompt_toolkit's vi editing (full motions, operators, undo) instead of a handful of custom keys.
 
 ### Fixed
+- A request starting with a file reference (`@app.py what does this do?`) was taken by an older file-injection path, answered "File not found" and never reached the agent; every `@` request now goes to the agent.
 - `/theme` and `/rewind` crashed when the terminal couldn't show a menu (stdin a terminal but output not, or a Windows pipe); menus now fall back to text.
 - `/config <key> <value with spaces>` did nothing, `/config <unknown key>` printed `None` instead of saying the key is unknown, and `/config vim_mode` didn't apply to the running session.
 - `/export dir/file.md` failed when the folder didn't exist.

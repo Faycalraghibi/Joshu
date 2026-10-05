@@ -190,7 +190,7 @@ mcp_servers:
 
 1. Check server is enabled: `joshu mcp status <name>`
 2. Verify command exists: Run the command manually
-3. Check logs: `joshu config --set log_level=DEBUG`
+3. Check logs: run with `-v` (`joshu interactive -v`) for debug output
 
 ### Tools Not Discovered
 

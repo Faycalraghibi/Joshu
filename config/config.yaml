@@ -2,16 +2,10 @@ provider: openrouter
 model: poolside/laguna-s-2.1:free
 max_tokens: 4096
 temperature: 0.5
-history_size: 100
-log_level: INFO
-memory_enabled: true
 sandbox_enabled: true
 interactive: true
-multiline_input: true
 vim_mode: false
-persistent_history: true
 history_limit: 1000
-semantic_memory_enabled: true
 semantic_memory_similarity_threshold: 0.3
 semantic_memory_max_results: 5
 semantic_memory_min_content_length: 10

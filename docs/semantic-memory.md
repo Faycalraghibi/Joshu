@@ -105,7 +105,6 @@ Add to `~/.joshu/config.yaml`:
 
 ```yaml
 # Enable/disable semantic memory
-semantic_memory_enabled: true
 
 # Similarity threshold (0.0-1.0)
 # Lower = more results, higher = more precise
@@ -129,7 +128,7 @@ semantic_memory_min_content_length: 10
 
 ```bash
 # View settings
-joshu config --get semantic_memory_enabled
+joshu config --get semantic_memory_max_results
 joshu config --get semantic_memory_similarity_threshold
 
 # Change settings

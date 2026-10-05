@@ -53,12 +53,9 @@ tool_output_limit: 16000
 sandbox_enabled: true
 
 # Interactive mode
-multiline_input: true
 vim_mode: false
-persistent_history: true
 history_limit: 1000
 
-log_level: INFO
 ```
 
 ## API keys
@@ -140,9 +137,6 @@ In interactive mode: `/config`, `/config <key>`, `/config <key> <value>`;
 | `statusline` | string | `""` | Command whose output is shown under the input |
 | `notifications` | string | `auto` | When a request that ran `notify_after_seconds` or longer finishes or waits for approval: `auto` sends a desktop notification where the terminal supports it (iTerm2, WezTerm, Ghostty, kitty) and rings the bell elsewhere; `desktop`, `bell`, or `off` |
 | `notify_after_seconds` | integer | `20` | How long a request runs before it notifies |
-| `memory_enabled` | boolean | `true` | Enable conversation memory |
-| `history_size` | integer | `100` | Maximum history entries |
-| `semantic_memory_enabled` | boolean | `true` | Enable semantic memory (needs `pip install -e .[use]`) |
 | `semantic_memory_similarity_threshold` | float | `0.3` | Similarity threshold (0.0-1.0) |
 | `semantic_memory_max_results` | integer | `5` | Max search results |
 | `semantic_memory_min_content_length` | integer | `10` | Min content length to store |
@@ -156,9 +150,7 @@ In interactive mode: `/config`, `/config <key>`, `/config <key> <value>`;
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `interactive` | boolean | `true` | Interactive features |
-| `multiline_input` | boolean | `true` | Support multiline input |
 | `vim_mode` | boolean | `false` | Enable Vim keybindings |
-| `persistent_history` | boolean | `true` | Persist command history |
 | `history_limit` | integer | `1000` | Max history entries |
 
 ### Web search
@@ -205,7 +197,6 @@ Servers can also be declared in `config/mcp.json` (Claude Desktop format);
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `log_level` | string | `INFO` | DEBUG, INFO, WARNING or ERROR |
 
 ## Next steps
 
