@@ -1,0 +1,10 @@
+tier: hard
+prompt: >-
+  Finance reports that some invoice amounts are off by one cent: an item priced
+  2.675 shows 2.67 instead of 2.68, and VAT of 20% on 0.125 shows 0.02 instead
+  of 0.03. They expect amounts rounded to cents with halves rounded up (away
+  from zero for negative amounts), everywhere in the billing package. Find the
+  cause and fix it so every module rounds correctly. Payment plan installments
+  must still add up exactly to the total.
+check: python -m pytest -q check_test.py
+timeout: 900

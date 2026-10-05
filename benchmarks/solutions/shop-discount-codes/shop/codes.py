@@ -1,0 +1,1 @@
+CODES = {"SAVE10": 10, "HALF": 50}

@@ -1,0 +1,7 @@
+tier: hard
+prompt: >-
+  Implement parse() in iniparse.py so it follows the format described in
+  FORMAT.md exactly, including the error cases. Use only the standard library
+  (don't use configparser).
+check: python -m pytest -q check_test.py
+timeout: 900

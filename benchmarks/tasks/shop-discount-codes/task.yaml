@@ -1,0 +1,12 @@
+tier: hard
+prompt: >-
+  Add percentage discount codes to the shop package. Codes live in a new module
+  shop/codes.py as CODES = {"SAVE10": 10, "HALF": 50} (percent off the
+  subtotal). Cart.apply_code(code) sets the code for the cart and raises
+  ValueError for an unknown code (codes are case-insensitive). Cart.discount()
+  returns the discount amount and Cart.total() the subtotal minus the discount,
+  both rounded to cents half up. The receipt shows a line "Discount (SAVE10):
+  -1.00" just before the total line when a code is applied. The command line
+  (python -m shop.cli) accepts --code CODE. Keep the existing tests passing.
+check: python -m pytest -q check_test.py
+timeout: 900
