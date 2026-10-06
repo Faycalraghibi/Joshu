@@ -35,6 +35,21 @@ Summarize them grouped by file, with line numbers, the reviewer and what they as
 CHANGELOG_URL = "https://github.com/Faycalraghibi/Joshu/blob/main/CHANGELOG.md"
 
 
+def _confirm(question: str, default: bool) -> bool:
+    """Yes / no with the arrow menu, or typed without a terminal."""
+    from joshu.ui.menu import MenuUnavailable, menu
+
+    options = [(True, "Yes"), (False, "No")]
+    try:
+        return bool(menu(question, options if default else options[::-1], cancel=False))
+    except MenuUnavailable:
+        try:
+            answer = input(f"{question} [{'Y/n' if default else 'y/N'}] ").strip().lower()
+        except EOFError:
+            return False
+        return default if not answer else answer in ("y", "yes")
+
+
 def _console():
     from joshu.ui import display
 
@@ -115,6 +130,48 @@ class MoreCommands:
             )
         console.print(f"Added {directory} for this session.", highlight=False)
         return True
+
+    # --------------------------------------------------------------- plugin
+
+    def cmd_plugin(self, arg: str = "") -> bool:
+        """/plugin: the `joshu plugin` commands inside a session."""
+        from joshu.ui.cli_plugins import PluginCommands
+
+        commands = PluginCommands(
+            _console(),
+            _confirm,
+            applies="Its skills, commands and hooks work now; MCP servers after a restart.",
+        )
+        commands.run(arg)
+        words = arg.split()
+        if words and words[0] in (
+            "install",
+            "add",
+            "i",
+            "remove",
+            "uninstall",
+            "rm",
+            "update",
+            "enable",
+            "disable",
+        ):
+            self._plugins_changed()
+        return True
+
+    def _plugins_changed(self) -> None:
+        """Let the running session use what was installed or removed."""
+        from joshu.hooks import configure_hooks_from_settings
+
+        configure_hooks_from_settings(self.interactive_mode.config_manager.get("hooks") or {})
+        agent = self.interactive_mode.agent
+        if agent is not None:
+            from joshu.core.subagents import discover_subagents
+
+            agent.subagents = discover_subagents(agent.cwd)
+            agent.reload_skills()
+        refresh = getattr(self.interactive_mode, "_init_prompt_toolkit", None)
+        if callable(refresh):
+            refresh()
 
     # --------------------------------------------------------------- bashes
 

@@ -74,6 +74,13 @@ COMMANDS: List[SlashCommand] = [
     SlashCommand(
         "skills", "List, add or remove skills (/<skill> runs one)", "Project", "[add|remove]"
     ),
+    SlashCommand(
+        "plugin",
+        "Plugins and marketplaces (Joshu or Claude Code format)",
+        "Project",
+        "[install|remove|update|marketplace add] ...",
+        aliases=("plugins",),
+    ),
     SlashCommand("agents", "List sub-agents", "Project"),
     SlashCommand("commands", "List custom commands", "Project"),
     SlashCommand("mcp", "MCP servers and their tools", "Project"),

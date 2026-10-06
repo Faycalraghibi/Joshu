@@ -48,10 +48,11 @@ class SubagentSpec:
 
 def agent_dirs(cwd: Optional[Path] = None) -> List[Path]:
     """Directories searched for sub-agent definitions, lowest priority first."""
+    from joshu.core.plugins import plugin_dirs
     from joshu.core.sessions import joshu_home
 
     cwd = cwd or Path.cwd()
-    return [joshu_home() / "agents", cwd / AGENTS_SUBDIR]
+    return [*plugin_dirs("agents"), joshu_home() / "agents", cwd / AGENTS_SUBDIR]
 
 
 def discover_subagents(cwd: Optional[Path] = None) -> Dict[str, SubagentSpec]:
@@ -102,9 +103,15 @@ def _load_markdown(path: Path) -> Optional[SubagentSpec]:
         logger.warning(f"Skipping agent {path}: empty system prompt")
         return None
 
+    from joshu.core.claude_compat import MODEL_ALIASES, joshu_tool
+
     tools = None
     if fields.get("tools"):
-        tools = [t.strip() for t in re.split(r"[,\s]+", fields["tools"]) if t.strip()]
+        # Claude Code names (Read, Bash, ...) work too
+        tools = [joshu_tool(t) for t in re.split(r"[,\s]+", fields["tools"]) if t.strip()]
+    model = fields.get("model") or None
+    if model and model.lower() in MODEL_ALIASES:
+        model = None  # a Claude Code alias (sonnet, opus, ...): the main model
 
     max_turns = None
     if fields.get("max_turns", "").isdigit():
@@ -115,7 +122,7 @@ def _load_markdown(path: Path) -> Optional[SubagentSpec]:
         description=fields.get("description") or f"The {name} sub-agent",
         system_prompt=text.strip(),
         tools=tools,
-        model=fields.get("model") or None,
+        model=model,
         max_turns=max_turns,
         path=path,
     )
