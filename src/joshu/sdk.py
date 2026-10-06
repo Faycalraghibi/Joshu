@@ -133,6 +133,7 @@ class Session:
         cwd: Union[str, Path, None] = None,
         tools: Optional[Sequence[str]] = None,
         can_use_tool: Optional[ToolFilter] = None,
+        ask_user: Optional[Callable[[List[Any]], Optional[List[Any]]]] = None,
         system_prompt: Optional[str] = None,
         on_event: Optional[EventHandler] = None,
         stream_text: bool = False,
@@ -149,6 +150,10 @@ class Session:
             cwd: Project directory (file tools work inside it)
             tools: Only offer these tools (default: all)
             can_use_tool: Decides calls that need approval (default: deny them)
+            ask_user: Answers the agent's questions: gets a list of
+                joshu.core.ask.Question, returns one answer per question (a list
+                of chosen labels, or typed text; None to skip), or None. Without
+                it the agent isn't offered the ask_user tool
             system_prompt: Replace the generated system prompt
             on_event: Receives every event as it happens
             stream_text: Also emit {"type": "text"} deltas while the model writes
@@ -188,6 +193,10 @@ class Session:
                 allowed = can_use_tool(request.tool_name, dict(request.arguments))
                 return ApprovalChoice.YES if allowed else ApprovalChoice.NO
 
+        events = _events_class()(self._emit, stream_text)
+        if ask_user is not None:
+            events.can_ask_user = True
+            events.ask_user = ask_user
         self.agent = Agent(
             client=client,
             model=model,
@@ -195,7 +204,7 @@ class Session:
             permissions=PermissionManager(
                 PermissionMode.from_string(permission_mode), approver=approver
             ),
-            events=_events_class()(self._emit, stream_text),
+            events=events,
             cwd=self.cwd,
             tool_names=list(tools) if tools is not None else None,
             system_prompt=system_prompt,
