@@ -36,6 +36,9 @@ def handle_config(
             console.print(
                 f"  [yellow]ignored: {untrusted} (run `joshu trust` to apply it)[/yellow]"
             )
+        locked = config_manager.locked_keys() if hasattr(config_manager, "locked_keys") else []
+        if locked:
+            console.print(f"  [dim]set by your administrator: {', '.join(locked)}[/dim]")
         console.print(f"[dim]joshu config --set writes {config_manager.get_config_path()}[/dim]")
         return
 
@@ -65,7 +68,13 @@ def handle_config(
             config_manager.save_config()
             console.print(f"[green]Set {key} = {value}[/green]")
         else:
-            console.print(f"[red]Invalid configuration key or value type: {key}={value!r}[/red]")
+            locked = getattr(config_manager, "locked_reason", lambda *a: None)(key, value)
+            if locked:
+                console.print(f"[red]Not changed: {locked}[/red]")
+            else:
+                console.print(
+                    f"[red]Invalid configuration key or value type: {key}={value!r}[/red]"
+                )
             raise typer.Exit(code=1)
         return
 
