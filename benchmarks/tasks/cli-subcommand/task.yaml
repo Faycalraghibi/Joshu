@@ -1,0 +1,9 @@
+tier: hard
+prompt: 'Add an `export` subcommand to todo.py: `todo export [--format csv|json] [--pending]`
+  prints the items sorted by id to standard output. csv (the default) has the header
+  `id,title,done`, done written as `true`/`false`, and quotes titles that need it
+  the way Python''s csv module does; json prints the list of item objects as stored.
+  --pending keeps only items that aren''t done. An unknown format is an argparse error.
+  Keep the other commands working.'
+check: python -m pytest -q check_test.py
+timeout: 900

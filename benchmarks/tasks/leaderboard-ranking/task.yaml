@@ -1,0 +1,5 @@
+tier: hard
+prompt: standings() in leaderboard.py returns the wrong order and wrong ranks in several
+  cases. Fix it so it follows its docstring exactly.
+check: python -m pytest -q check_test.py
+timeout: 900

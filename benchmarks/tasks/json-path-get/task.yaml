@@ -1,0 +1,5 @@
+tier: hard
+prompt: Implement get() in jsonpath.py exactly as its docstring specifies, including
+  the quoted keys, negative indexes and the error cases. Use only the standard library.
+check: python -m pytest -q check_test.py
+timeout: 900
