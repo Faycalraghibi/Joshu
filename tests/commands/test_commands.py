@@ -6,8 +6,6 @@ Run with: pytest tests/commands/test_commands.py -v
 
 from pathlib import Path
 
-import pytest
-
 from joshu.commands import (
     CommandActionType,
     ErrorActionReturn,
@@ -17,7 +15,6 @@ from joshu.commands import (
     RestoreToolCallData,
     SubmitPromptActionReturn,
     ToolActionReturn,
-    list_extensions,
     perform_init,
     perform_restore,
 )
@@ -158,28 +155,3 @@ class TestPerformRestore:
 
         assert len(results) >= 2
         assert not any(isinstance(r, LoadHistoryActionReturn) for r in results)
-
-
-class TestListExtensions:
-    """Test list_extensions command."""
-
-    def test_list_with_extensions(self):
-        """Test listing configured extensions."""
-        config = {"extensions": ["mcp-server", "file-browser", "git-tools"]}
-        result = list_extensions(config)
-
-        assert isinstance(result, MessageActionReturn)
-        assert "mcp-server" in result.message
-        assert len(result.metadata["extensions"]) == 3
-
-    def test_list_no_extensions(self):
-        """Test listing when no extensions configured."""
-        config = {}
-        result = list_extensions(config)
-
-        assert isinstance(result, MessageActionReturn)
-        assert "No extensions" in result.message
-
-
-if __name__ == "__main__":
-    pytest.main([__file__, "-v"])

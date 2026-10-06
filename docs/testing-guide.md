@@ -180,7 +180,7 @@ def test_real_llm_connection():
 Tests run automatically on every commit. The CI pipeline:
 
 1. Runs linting via `python scripts/lint.py`
-2. Checks build freshness via `python scripts/check_build_status.py`
+2. Runs the tests on Linux (Python 3.10 to 3.14) and Windows
 3. Runs all tests with `pytest`
 4. Verifies CLI installation
 
@@ -200,7 +200,7 @@ Use the pre-commit script to validate changes before commit:
 python scripts/pre_commit.py
 ```
 
-See [Development Automation](development-automation.md) for all available scripts.
+See [Development Automation](development-automation.md) for linting, CI and benchmarks.
 
 ## Common Testing Patterns
 
@@ -295,5 +295,5 @@ with tempfile.TemporaryDirectory() as tmpdir:
 
 - [Configuration](configuration.md) - Configure test environments
 - [Models & Providers](models-and-providers.md) - LLM provider testing
-- [Development Automation](development-automation.md) - Build and lint scripts
+- [Development Automation](development-automation.md) - Lint, CI, benchmarks and releasing
 - [Contributing](contributing.md) - Development setup and workflow

@@ -236,5 +236,4 @@ if event == "before_tool" and data["tool_name"] == "run_shell_command":
 ## See Also
 
 - [Agent Tools](agent.md#tools) - Built-in tools reference
-- [Extensions](extensions.md) - Extension system
 - [Configuration](configuration.md) - Configuration guide

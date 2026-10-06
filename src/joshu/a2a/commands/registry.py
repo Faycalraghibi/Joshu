@@ -160,7 +160,6 @@ def register_default_commands() -> None:
 
     Call this during server startup to register standard commands.
     """
-    from joshu.a2a.commands.extensions import ExtensionsCommand
     from joshu.a2a.commands.init_command import InitCommand
     from joshu.a2a.commands.restore import RestoreCommand
 
@@ -169,9 +168,6 @@ def register_default_commands() -> None:
     # Only register if not already registered
     if not registry.has("init"):
         registry.register(InitCommand())
-
-    if not registry.has("extensions"):
-        registry.register(ExtensionsCommand())
 
     if not registry.has("restore"):
         registry.register(RestoreCommand())

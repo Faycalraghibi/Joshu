@@ -185,5 +185,4 @@ code --install-extension .
 ## See Also
 
 - [Hooks](hooks.md) - Extend agent behavior
-- [Extensions](extensions.md) - Create extensions
 - [Agent Tools](agent.md#tools) - Built-in tools
