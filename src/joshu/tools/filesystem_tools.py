@@ -741,6 +741,60 @@ def _with_line_endings(text: str, eol: str) -> str:
     return text.replace("\r\n", "\n").replace("\n", eol)
 
 
+def _leading(line: str) -> str:
+    return line[: len(line) - len(line.lstrip(" \t"))]
+
+
+def tolerant_replace(content: str, old_string: str, new_string: str) -> Optional[tuple]:
+    """
+    Replace `old_string` where it matches only up to whitespace: trailing
+    spaces, and indentation off by the same amount on every line (the usual
+    reasons a model's old_string misses). Applies only when exactly one block
+    of whole lines matches; `new_string` is re-indented by the same amount.
+
+    Returns (new content, first line, last line), or None.
+    """
+    eol = "\r\n" if "\r\n" in content else "\n"
+    lines = content.replace("\r\n", "\n").split("\n")
+    wanted = old_string.replace("\r\n", "\n").strip("\n").split("\n")
+    if not any(line.strip() for line in wanted) or len(wanted) > len(lines):
+        return None
+    key = [line.strip() for line in wanted]
+    anchor = next(i for i, line in enumerate(wanted) if line.strip())
+
+    found = []
+    for start in range(len(lines) - len(wanted) + 1):
+        window = lines[start : start + len(wanted)]
+        if [line.strip() for line in window] != key:
+            continue
+        # The same indentation change on every non-blank line
+        shift = len(_leading(window[anchor])) - len(_leading(wanted[anchor]))
+        if all(
+            len(_leading(f)) - len(_leading(w)) == shift
+            for f, w in zip(window, wanted)
+            if w.strip()
+        ):
+            found.append((start, shift, _leading(window[anchor])))
+        if len(found) > 1:
+            return None
+    if len(found) != 1:
+        return None
+
+    start, shift, file_indent = found[0]
+    unit = "\t" if file_indent.startswith("\t") else " "
+    replacement = []
+    for line in new_string.replace("\r\n", "\n").strip("\n").split("\n") if new_string else []:
+        if not line.strip():
+            replacement.append("")
+        elif shift > 0:
+            replacement.append(unit * shift + line)
+        else:
+            cut = min(-shift, len(_leading(line)))
+            replacement.append(line[cut:])
+    new_lines = lines[:start] + replacement + lines[start + len(wanted) :]
+    return eol.join(new_lines), start + 1, start + len(wanted)
+
+
 def _closest_match(content: str, old_string: str, max_lines: int = 20000) -> Dict[str, Any]:
     """
     Where the file has text most like `old_string`, so the model can copy the
@@ -847,6 +901,26 @@ def replace_tool(
 
         # Check if old_string exists
         if old_string not in content:
+            tolerant = (
+                None if all_occurrences else tolerant_replace(content, old_string, new_string)
+            )
+            if tolerant is not None:
+                new_content, first, last = tolerant
+                resolved.write_bytes(new_content.encode("utf-8"))
+                logger.info(f"Replaced lines {first}-{last} in {resolved} (whitespace-tolerant)")
+                return {
+                    "success": True,
+                    "path": path,
+                    "replacements": 1,
+                    "diff": generate_diff(
+                        content.replace("\r\n", "\n"),
+                        new_content.replace("\r\n", "\n"),
+                        resolved.name,
+                    ),
+                    "message": f"Replaced lines {first}-{last}",
+                    "note": "old_string matched these lines except for indentation or trailing "
+                    "spaces; new_string was indented to match.",
+                }
             return {
                 "success": False,
                 "error": "old_string not found in file. It must match the file exactly, "
