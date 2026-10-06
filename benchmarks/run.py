@@ -27,6 +27,7 @@ saved as JSON under benchmarks/results/.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
 import shlex
@@ -38,7 +39,7 @@ import time
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterator, List, Optional
 
 import yaml
 
@@ -142,6 +143,29 @@ def run_task(task: Path, args: argparse.Namespace, env: Dict[str, str]) -> Resul
         # Hidden checks go in only now, so the agent can't edit them
         result.passed, result.check_output = run_check(task, spec, work, run_env)
         return result
+
+
+@contextlib.contextmanager
+def keep_awake() -> Iterator[None]:
+    """Keep the computer from sleeping while the benchmark runs."""
+    if os.name == "nt":
+        import ctypes
+
+        es_continuous, es_system_required = 0x80000000, 0x00000001
+        kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
+        kernel32.SetThreadExecutionState(es_continuous | es_system_required)
+        try:
+            yield
+        finally:
+            kernel32.SetThreadExecutionState(es_continuous)
+        return
+    caffeinate = shutil.which("caffeinate")  # macOS
+    process = subprocess.Popen([caffeinate, "-i"]) if caffeinate else None
+    try:
+        yield
+    finally:
+        if process is not None:
+            process.terminate()
 
 
 def run_with_timeout(
@@ -379,24 +403,28 @@ def main() -> int:
 
     results: List[Result] = []
     errors_in_a_row = 0
-    for task in tasks:
-        for attempt in range(args.repeat):
-            label = task.name + (f" #{attempt + 1}" if args.repeat > 1 else "")
-            print(f"running {label}...", file=sys.stderr, flush=True)
-            result = run_task(task, args, env)
-            results.append(result)
-            save()
-            outcome = "PASS" if result.passed else ("error" if is_infra_error(result) else "fail")
-            print(f"  {label}: {outcome} ({result.seconds:.0f}s)", file=sys.stderr, flush=True)
-            errors_in_a_row = errors_in_a_row + 1 if is_infra_error(result) else 0
-            if errors_in_a_row >= args.max_errors:
-                print(
-                    f"Stopping: {errors_in_a_row} runs in a row couldn't reach the endpoint.",
-                    file=sys.stderr,
+    # A machine that sleeps mid-run drops the network and stretches task times
+    with keep_awake():
+        for task in tasks:
+            for attempt in range(args.repeat):
+                label = task.name + (f" #{attempt + 1}" if args.repeat > 1 else "")
+                print(f"running {label}...", file=sys.stderr, flush=True)
+                result = run_task(task, args, env)
+                results.append(result)
+                save()
+                outcome = (
+                    "PASS" if result.passed else ("error" if is_infra_error(result) else "fail")
                 )
+                print(f"  {label}: {outcome} ({result.seconds:.0f}s)", file=sys.stderr, flush=True)
+                errors_in_a_row = errors_in_a_row + 1 if is_infra_error(result) else 0
+                if errors_in_a_row >= args.max_errors:
+                    print(
+                        f"Stopping: {errors_in_a_row} runs in a row couldn't reach the endpoint.",
+                        file=sys.stderr,
+                    )
+                    break
+            if errors_in_a_row >= args.max_errors:
                 break
-        if errors_in_a_row >= args.max_errors:
-            break
 
     print_table(results)
     print(f"Saved {out.relative_to(REPO)}")
