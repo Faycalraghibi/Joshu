@@ -101,7 +101,10 @@ def environment_block(cwd: Path) -> str:
     """Describe the machine and working directory."""
     system = platform.system() or "Unknown"
     if system == "Windows":
-        shell = "cmd.exe (commands run through the Windows shell)"
+        shell = (
+            "cmd.exe (commands run through the Windows shell; one line each, no heredocs: "
+            "write multi-line scripts to a file and run it)"
+        )
     else:
         shell = os.environ.get("SHELL", "/bin/sh")
 
