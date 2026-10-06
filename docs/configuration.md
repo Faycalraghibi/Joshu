@@ -139,6 +139,7 @@ permissions:                 # added to everyone's rules, which can't drop them
 | `max_budget_usd` | number | `0` | Stop when the session has cost this much in USD; 0 = no limit. Models without a known price (`model_pricing`, or a provider-reported cost) count as free |
 | `max_request_tokens` | integer | `0` | Stop a request after it has used this many prompt + completion tokens; 0 = no limit |
 | `self_review` | boolean | `true` | Before finishing a request that edited files or ran commands, the agent checks its work against the request once (one extra model call) |
+| `thinking` | string | `on` | Reasoning models' thinking: `on` (the model's default), `off`, or `auto` (skip it on the call right after successful reads and searches). Uses the provider's `no_thinking_options` (set for NVIDIA, vLLM and OpenRouter); other providers ignore it |
 | `allow_bypass` | boolean | `true` | `false` forbids bypass mode everywhere; meant for managed settings |
 | `retry_broken_replies` | boolean | `true` | Send a broken final reply back to the model (a tool call written as text, or a few words right after a failed tool call), up to twice per request |
 | `context_window` | integer | `128000` | Model context size in tokens |
