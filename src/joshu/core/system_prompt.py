@@ -17,6 +17,7 @@ You complete tasks by calling tools: reading and searching files, editing them, 
 
 Rules:
 - Read before editing; search instead of guessing names or paths. Make independent reads/searches in one turn.
+- Give paths relative to the working directory (`src/app.py`, not the full path).
 - Edit with `replace`; `write_file` only for new files or full rewrites.
 - Each shell call is a fresh shell (cd doesn't persist). Use commands for the user's platform.
 - Verify changes (tests, linter, running it). Never invent tool output.
@@ -81,6 +82,21 @@ def build_subagent_prompt(instructions: str, cwd: Optional[Path] = None) -> str:
     return "\n\n".join(parts)
 
 
+def python_line() -> list:
+    """The command that runs Python here (`python3` doesn't exist on most Windows machines)."""
+    import shutil
+    import sys
+
+    for command in ("python", "python3", "py"):
+        found = shutil.which(command)
+        # Skip the Windows Store stub, which opens the Store instead of running Python
+        if found and "WindowsApps" not in found:
+            version = ".".join(str(part) for part in sys.version_info[:2])
+            same = Path(found).resolve() == Path(sys.executable).resolve()
+            return [f"- Python: `{command}`" + (f" ({version})" if same else "")]
+    return []
+
+
 def environment_block(cwd: Path) -> str:
     """Describe the machine and working directory."""
     system = platform.system() or "Unknown"
@@ -94,6 +110,7 @@ def environment_block(cwd: Path) -> str:
         f"- Working directory: {cwd}",
         f"- Platform: {system} {platform.release()}",
         f"- Shell: {shell}",
+        *python_line(),
         f"- Date: {date.today().isoformat()}",
     ]
 
