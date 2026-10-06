@@ -52,9 +52,14 @@ DEFAULT_STYLE = "default"
 
 def style_dirs(cwd: Optional[Path] = None) -> list:
     from joshu.core.paths import joshu_home
+    from joshu.core.plugins import plugin_dirs
 
     cwd = cwd or Path.cwd()
-    return [cwd / ".joshu" / "output-styles", joshu_home() / "output-styles"]
+    return [
+        cwd / ".joshu" / "output-styles",
+        joshu_home() / "output-styles",
+        *plugin_dirs("output-styles"),
+    ]
 
 
 def available_styles(cwd: Optional[Path] = None) -> Dict[str, OutputStyle]:

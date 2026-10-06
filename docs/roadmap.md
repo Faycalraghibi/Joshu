@@ -67,16 +67,16 @@ a live check against a real model.
 Plan: [plans/2026-10-06-harness-completion.md](plans/2026-10-06-harness-completion.md).
 
 - Self-review before finishing (done).
-- Failure triage for benchmark runs (`benchmarks/triage.py`, transcripts kept).
-- Repository map, verification gate, and planning, in the order triage shows.
-- Spending limits, terminal tests, plugins, managed settings.
+- Failure triage for benchmark runs (done: `benchmarks/triage.py`, transcripts kept).
+- From the first triage (done): a project map in the system prompt, multi-line
+  shell commands refused on Windows, broken final replies sent back, the
+  Python command named. A verification gate and planning wait until triage
+  shows untested or lost-track failures.
+- Spending limits (done), terminal tests with a scripted model (done),
+  plugins (done), managed settings.
 
 ## Later
 - VS Code extension (building on `ide/` and `scripts/build_vscode_companion.py`).
-- Plugins: `joshu plugin install <git-url>` for bundles of commands, skills,
-  hooks and MCP servers.
-- A managed settings layer for teams.
-- A real-terminal QA checklist for the interactive UI.
 
 ## Open decisions
 - Which models the benchmark (C) compares.

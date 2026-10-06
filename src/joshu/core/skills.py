@@ -95,6 +95,9 @@ def skill_dirs(cwd: Optional[Path] = None) -> List[tuple]:
         roots.append(repo)
     dirs = [(root / d, "project") for root in roots for d in PROJECT_DIRS]
     dirs.append((joshu_home() / "skills", "user"))
+    from joshu.core.plugins import plugin_dirs
+
+    dirs.extend((directory, "plugin") for directory in plugin_dirs("skills"))
     return dirs
 
 

@@ -80,10 +80,11 @@ class CustomCommand:
 
 def command_dirs(cwd: Optional[Path] = None) -> List[Path]:
     """Directories searched for commands, lowest priority first."""
+    from joshu.core.plugins import plugin_dirs
     from joshu.core.sessions import joshu_home
 
     cwd = cwd or Path.cwd()
-    return [joshu_home() / "commands", cwd / COMMANDS_SUBDIR]
+    return [*plugin_dirs("commands"), joshu_home() / "commands", cwd / COMMANDS_SUBDIR]
 
 
 def discover_commands(cwd: Optional[Path] = None) -> Dict[str, CustomCommand]:

@@ -414,6 +414,19 @@ def load_mcp_servers_from_config() -> None:
         except Exception as e:
             logger.error(f"Failed to load MCP server {name}: {e}")
 
+    # Then the servers plugins declare (configured ones of the same name win)
+    from joshu.core.plugins import plugin_mcp_servers
+
+    for name, server_config in plugin_mcp_servers().items():
+        try:
+            if registry.get_server(name):
+                continue
+            registry.add_server_from_dict(name, server_config)
+            logger.info(f"Loaded MCP server from a plugin: {name}")
+            loaded_count += 1
+        except Exception as e:
+            logger.error(f"Failed to load plugin MCP server {name}: {e}")
+
     if loaded_count == 0:
         logger.debug("No MCP servers in configuration")
 

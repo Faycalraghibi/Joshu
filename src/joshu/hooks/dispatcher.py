@@ -501,9 +501,24 @@ def configure_hooks_from_settings(settings: Dict[str, Any]) -> List[str]:
     """
     dispatcher = get_hook_dispatcher()
     dispatcher.clear_script_hooks()
-    problems: List[str] = []
+    problems = _register_hooks(dispatcher, settings or {}, "hooks")
+    try:
+        from joshu.core.plugins import plugin_hooks
 
-    for event_name, entries in (settings or {}).items():
+        for name, hooks in plugin_hooks():
+            problems += _register_hooks(dispatcher, hooks, f"plugin {name}: hooks")
+    except Exception as e:  # a broken plugin must not stop the configured hooks
+        problems.append(f"plugins: {e}")
+
+    for problem in problems:
+        logger.warning(f"Hook configuration: {problem}")
+    return problems
+
+
+def _register_hooks(dispatcher: Any, settings: Dict[str, Any], where: str) -> List[str]:
+    """Register one `hooks:` mapping; the problems found."""
+    problems: List[str] = []
+    for event_name, entries in settings.items():
         try:
             event = HookEvent.from_string(str(event_name))
         except ValueError:
@@ -514,7 +529,7 @@ def configure_hooks_from_settings(settings: Dict[str, Any]) -> List[str]:
         if isinstance(entries, (str, dict)):
             entries = [entries]
         if not isinstance(entries, list):
-            problems.append(f"hooks.{event_name} must be a list of commands")
+            problems.append(f"{where}.{event_name} must be a list of commands")
             continue
 
         for entry in entries:
@@ -528,8 +543,5 @@ def configure_hooks_from_settings(settings: Dict[str, Any]) -> List[str]:
                     timeout=timeout if isinstance(timeout, int) and timeout > 0 else None,
                 )
             else:
-                problems.append(f"hooks.{event_name}: invalid entry {entry!r}")
-
-    for problem in problems:
-        logger.warning(f"Hook configuration: {problem}")
+                problems.append(f"{where}.{event_name}: invalid entry {entry!r}")
     return problems
