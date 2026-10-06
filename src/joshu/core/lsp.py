@@ -119,7 +119,11 @@ def find_command(language: str, configured: Any = None) -> Optional[List[str]]:
         if not value:
             return None
         if isinstance(value, str):
-            argv = [part.strip('"') for part in shlex.split(value, posix=os.name != "nt")]
+            try:
+                parts = shlex.split(value, posix=os.name != "nt")
+            except ValueError:  # an unbalanced quote in the setting
+                parts = value.split()
+            argv = [part.strip('"') for part in parts]
         else:
             argv = [str(part) for part in value]
         return argv if argv and shutil.which(argv[0]) else None

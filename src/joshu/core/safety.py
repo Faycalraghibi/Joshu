@@ -149,7 +149,13 @@ def assess_command_safety(command: str, sandbox_mode: bool = False) -> SafetyRep
         destructive_tokens = UNIX_DESTRUCTIVE_TOKENS | COMMON_DESTRUCTIVE_TOKENS
         dangerous_patterns = UNIX_DANGEROUS_PATTERNS
 
-    tokens = shlex.split(command) if command.strip() else []
+    try:
+        tokens = shlex.split(command) if command.strip() else []
+    except ValueError:
+        # Unbalanced quotes ("echo don't", a truncated python -c "..."): the
+        # shell decides what they mean, so check the plain words instead of
+        # failing the whole request
+        tokens = command.split()
     token_set = set(tokens)
     reasons: List[str] = []
     danger_level = "LOW"
