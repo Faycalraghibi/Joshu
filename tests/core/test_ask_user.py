@@ -3,9 +3,7 @@
 import json
 
 import pytest
-
-from joshu.core.ask import AskError, Question, format_answers, parse_questions
-from tests.core.test_agent_loop import (
+from test_agent_loop import (
     FakeClient,
     RecordingEvents,
     call,
@@ -13,6 +11,8 @@ from tests.core.test_agent_loop import (
     text,
     tool_messages,
 )
+
+from joshu.core.ask import AskError, Question, format_answers, parse_questions
 
 COLOR = {
     "question": "Which color?",
