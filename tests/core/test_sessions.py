@@ -216,3 +216,19 @@ def test_nothing_is_written_to_the_working_directory(tmp_path, monkeypatch):
 
     assert list(project.iterdir()) == []
     assert (joshu_home() / "data.json").exists()
+
+
+def test_saved_after_each_tool_round_not_only_at_the_end(tmp_path):
+    # A killed process (benchmark timeout, crash) never reaches the final save
+    seen = []
+
+    class Snapshot(FakeClient):
+        def complete(self, messages, tools=None, **kwargs):
+            if self.requests:
+                seen.append([m["role"] for m in load_session(agent.session_id)["messages"]])
+            return super().complete(messages, tools, **kwargs)
+
+    call = ToolCall(id="c1", name="list_directory", arguments=json.dumps({"path": "."}))
+    agent = make_agent(Snapshot([AssistantTurn(tool_calls=[call]), text("done")]), tmp_path)
+    agent.run("look around")
+    assert seen == [["user", "assistant", "tool"]]

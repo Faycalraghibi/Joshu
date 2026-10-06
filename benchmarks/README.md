@@ -24,6 +24,33 @@ After the agent finishes, the task's hidden checks (`check/`) are copied in and
 its `check` command decides pass or fail, so the agent can't change the tests
 it is graded on. Results are printed and saved to `benchmarks/results/`.
 
+## Why runs failed
+
+Each run's conversation is kept next to its results file
+(`benchmarks/results/<stamp>-<model>/<task>-<n>.json`; the agent saves it after
+every tool round, so runs killed at the timeout keep theirs too;
+`--no-transcripts` turns this off). `triage.py` reads them and gives each
+failed run a cause:
+
+```bash
+python benchmarks/triage.py            # the latest results
+python benchmarks/triage.py --all      # passed runs too
+python benchmarks/triage.py --json
+```
+
+| Cause | Meaning |
+|---|---|
+| provider error | The endpoint failed (not counted against the model) |
+| no edits | Finished or stopped without changing a file |
+| out of time | Killed at the task's timeout |
+| out of turns | Stopped by `max_turns`, a loop or repeated denials |
+| untested | Edited after its last test run, or never ran tests |
+| gave up failing | Its own last test run failed and it finished anyway |
+| missed cases | Its own tests passed, the hidden checks did not |
+
+Next to the cause: turns, edits that applied and that failed, test runs and
+whether the last passed, compaction, and the first failing hidden check.
+
 ## Adding a task
 
 ```

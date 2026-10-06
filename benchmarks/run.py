@@ -21,7 +21,9 @@ Usage:
 Each run gets a fresh copy of the task in a temporary directory and a
 temporary JOSHU_HOME holding a copy of your user config (MCP off unless --mcp),
 so your sessions and settings are untouched. Results are printed as a table and
-saved as JSON under benchmarks/results/.
+saved as JSON under benchmarks/results/, with each run's conversation (also of
+runs that timed out) in a folder of the same name; `benchmarks/triage.py`
+reads them to tell why runs failed.
 """
 
 from __future__ import annotations
@@ -64,6 +66,7 @@ class Result:
     error: str = ""
     answer: str = field(default="", repr=False)
     check_output: str = field(default="", repr=False)
+    transcript: Optional[str] = None  # the run's saved conversation, relative to results/
 
 
 def task_spec(task: Path) -> Dict[str, Any]:
@@ -85,8 +88,13 @@ def load_tasks(names: Optional[List[str]], tier: Optional[str] = None) -> List[P
     return tasks
 
 
-def make_home(base: Path, mcp: bool, overrides: Optional[Dict[str, Any]] = None) -> Path:
-    """A JOSHU_HOME with a copy of the user config (providers, named models)."""
+def make_home(
+    base: Path, mcp: bool, overrides: Optional[Dict[str, Any]] = None, sessions: bool = False
+) -> Path:
+    """
+    A JOSHU_HOME with a copy of the user config (providers, named models).
+    `sessions`: save the conversation in it (it is saved after every tool round).
+    """
     from joshu.core.paths import joshu_home
 
     home = base / "home"
@@ -97,7 +105,7 @@ def make_home(base: Path, mcp: bool, overrides: Optional[Dict[str, Any]] = None)
         config = yaml.safe_load(user_config.read_text(encoding="utf-8")) or {}
     if not mcp:
         config["mcp_enabled"] = False
-    config["save_sessions"] = False
+    config["save_sessions"] = sessions
     config.update(overrides or {})
     (home / "config.yaml").write_text(yaml.safe_dump(config), encoding="utf-8")
     return home
@@ -114,7 +122,25 @@ def parse_overrides(items: Optional[List[str]]) -> Dict[str, Any]:
     return overrides
 
 
-def run_task(task: Path, args: argparse.Namespace, env: Dict[str, str]) -> Result:
+def keep_transcript(home: Path, dest: Optional[Path]) -> Optional[Path]:
+    """Copy the run's saved conversation out of its temporary JOSHU_HOME."""
+    if dest is None:
+        return None
+    saved = sorted((home / "sessions").glob("*.json"), key=lambda p: p.stat().st_mtime)
+    if not saved:
+        return None
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(saved[-1], dest)
+    return dest
+
+
+def run_task(
+    task: Path,
+    args: argparse.Namespace,
+    env: Dict[str, str],
+    transcript: Optional[Path] = None,
+) -> Result:
+    """One run; `transcript`: where to keep its conversation."""
     spec = yaml.safe_load((task / "task.yaml").read_text(encoding="utf-8"))
     timeout = int(spec.get("timeout", args.timeout))
 
@@ -122,7 +148,12 @@ def run_task(task: Path, args: argparse.Namespace, env: Dict[str, str]) -> Resul
         base = Path(tmp)
         work = base / "work"
         shutil.copytree(task / "files", work)
-        run_env = {**env, "JOSHU_HOME": str(make_home(base, args.mcp, parse_overrides(args.set)))}
+        home = make_home(base, args.mcp, parse_overrides(args.set), sessions=transcript is not None)
+        run_env = {**env, "JOSHU_HOME": str(home)}
+
+        def kept() -> Optional[str]:
+            path = keep_transcript(home, transcript)
+            return str(path.relative_to(ROOT / "results")) if path else None
 
         command = [sys.executable, "-m", "joshu", "run", spec["prompt"]]
         command += ["--output-format", "json", "--permission-mode", args.permission_mode]
@@ -135,7 +166,9 @@ def run_task(task: Path, args: argparse.Namespace, env: Dict[str, str]) -> Resul
         try:
             agent = run_with_timeout(command, work, run_env, timeout)
         except subprocess.TimeoutExpired:
-            return Result(task.name, False, time.monotonic() - start, error="timeout")
+            result = Result(task.name, False, time.monotonic() - start, error="timeout")
+            result.transcript = kept()
+            return result
         seconds = time.monotonic() - start
 
         result = Result(task.name, False, seconds)
@@ -154,6 +187,7 @@ def run_task(task: Path, args: argparse.Namespace, env: Dict[str, str]) -> Resul
 
         # Hidden checks go in only now, so the agent can't edit them
         result.passed, result.check_output = run_check(task, spec, work, run_env)
+        result.transcript = kept()
         return result
 
 
@@ -373,6 +407,11 @@ def main() -> int:
         help="Override a Joshu setting for the runs (repeatable), e.g. --set self_review=false",
     )
     parser.add_argument(
+        "--no-transcripts",
+        action="store_true",
+        help="Don't keep each run's conversation next to the results",
+    )
+    parser.add_argument(
         "--max-errors",
         type=int,
         default=3,
@@ -416,6 +455,7 @@ def main() -> int:
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     name = (args.model or "default").replace("/", "_").replace(":", "_")
     out = out_dir / f"{stamp}-{name}.json"
+    transcripts = None if args.no_transcripts else out.with_suffix("")
 
     def save() -> None:
         # After every task, so an interrupted run keeps what it measured
@@ -436,7 +476,8 @@ def main() -> int:
             for attempt in range(args.repeat):
                 label = task.name + (f" #{attempt + 1}" if args.repeat > 1 else "")
                 print(f"running {label}...", file=sys.stderr, flush=True)
-                result = run_task(task, args, env)
+                dest = transcripts / f"{label.replace(' #', '-')}.json" if transcripts else None
+                result = run_task(task, args, env, dest)
                 results.append(result)
                 save()
                 outcome = (
