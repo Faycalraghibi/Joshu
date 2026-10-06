@@ -63,6 +63,10 @@ DEFAULT_CONFIG = {
     "request_retries": 3,
     # Agent loop settings
     "agent_max_turns": 50,
+    # Spending limits (0 = none): the session's cost in USD (models without a
+    # known price count as free), and the tokens one request may use
+    "max_budget_usd": 0.0,
+    "max_request_tokens": 0,
     # Ask the agent once to check its work before it finishes a request
     # that edited files or ran commands
     "self_review": True,
@@ -184,6 +188,8 @@ class JoshuConfig:
     request_retries: int = 3
     # Agent loop settings
     agent_max_turns: int = 50
+    max_budget_usd: float = 0.0
+    max_request_tokens: int = 0
     self_review: bool = True
     permission_mode: str = "default"
     context_window: int = 128000

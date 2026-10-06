@@ -128,6 +128,8 @@ joshu "list the largest files in this repo"     # same as `joshu run`
 - `--continue`, `-c` - Continue the most recent session in this directory
 - `--resume <id>` - Continue a saved session
 - `--image <path>` - Attach an image (repeatable); `@path.png` in the prompt works too
+- `--max-budget-usd <usd>` - Stop when the session has cost this much
+- `--max-request-tokens <n>` - Stop a request after it has used this many tokens
 - `-i, --interactive` - Start interactive mode instead
 - `-v, --verbose` - Debug logging
 

@@ -513,8 +513,24 @@ def run(
         "--image",
         help="Attach an image (repeatable). @path/to/image.png in the prompt works too.",
     ),
+    max_budget_usd: Optional[float] = typer.Option(
+        None,
+        "--max-budget-usd",
+        help="Stop when the session has cost this much (models without a known price count as free).",
+    ),
+    max_request_tokens: Optional[int] = typer.Option(
+        None, "--max-request-tokens", help="Stop a request after it has used this many tokens."
+    ),
 ) -> None:
     """Run a task with the agent, or start interactive mode."""
+    if max_budget_usd is not None or max_request_tokens is not None:
+        from joshu.core.config import get_config_manager
+
+        limits = get_config_manager()
+        if max_budget_usd is not None:
+            limits.set("max_budget_usd", float(max_budget_usd))
+        if max_request_tokens is not None:
+            limits.set("max_request_tokens", int(max_request_tokens))
     streaming = "stream-json" in (output_format, input_format)
     headless = print_mode or output_format in ("json", "stream-json") or streaming
     if not headless:

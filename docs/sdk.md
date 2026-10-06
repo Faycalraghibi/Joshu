@@ -44,11 +44,13 @@ with Session() as session:
 | `persist` | Save the conversation like the CLI does |
 | `resume` | Continue a saved session: its id, or `"last"` |
 | `max_turns` | Model calls per request before stopping |
+| `max_budget_usd` | Stop when the session has cost this much (0 = no limit) |
+| `max_request_tokens` | Stop a request after this many tokens (0 = no limit) |
 | `client` | A ready chat client (anything with `complete(...)`) instead of `model` / `provider` |
 
 `send()` returns a `Result`: `text`, `session_id`, `turns`, `tool_calls`,
 `usage` (this request), `cost_usd`, `model`, `stopped` (`max_turns`, `loop`,
-`denied`, ... when cut short) and the raw `metadata`. `close()` (or leaving the
+`denied`, `budget` when cut short) and the raw `metadata`. `close()` (or leaving the
 `with` block) runs `session_end` hooks. Configuration, hooks, memory, skills
 and secret protection apply as in the terminal.
 

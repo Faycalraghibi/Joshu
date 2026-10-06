@@ -169,6 +169,8 @@ class Agent:
         provider: Optional[str] = None,
         max_turns: Optional[int] = None,
         max_tokens: Optional[int] = None,
+        max_budget_usd: Optional[float] = None,
+        max_request_tokens: Optional[int] = None,
         temperature: Optional[float] = None,
         context_window: Optional[int] = None,
         compact_threshold: Optional[float] = None,
@@ -191,6 +193,10 @@ class Agent:
             model: Model id used when creating the client
             provider: Provider name used when creating the client (see
                 joshu.core.providers); defaults to the configured one
+            max_budget_usd: Stop when the session has cost this much (0: no limit;
+                default: the max_budget_usd setting)
+            max_request_tokens: Stop a request that has used this many tokens
+                (0: no limit; default: the max_request_tokens setting)
             tool_names: Restrict the agent to these tools (default: all enabled)
             system_prompt: Override the generated system prompt
             is_subagent: Sub-agents get the sub-agent prompt and no `task` tool
@@ -207,6 +213,14 @@ class Agent:
         self.events = events or AgentEvents()
         self.max_turns = max_turns or config.get("agent_max_turns", 50)
         self.max_tokens = max_tokens or config.get("max_tokens", 8192)
+        self.max_budget_usd = float(
+            max_budget_usd if max_budget_usd is not None else config.get("max_budget_usd", 0) or 0
+        )
+        self.max_request_tokens = int(
+            max_request_tokens
+            if max_request_tokens is not None
+            else config.get("max_request_tokens", 0) or 0
+        )
         self.temperature = temperature if temperature is not None else 0.2
         self.context_window = (
             context_window
@@ -517,6 +531,18 @@ class Agent:
         max_tokens = self.max_tokens
 
         for turn_number in range(1, self.max_turns + 1):
+            # Checked before each model call: after a tool round, never between
+            # a call and its results
+            limit = self._limit_reached()
+            if limit is not None:
+                self.messages.append({"role": "assistant", "content": limit})
+                return AgentResponse(
+                    text=limit,
+                    metadata={
+                        **self._metadata(turn_number - 1, tool_calls_before, "budget"),
+                        "stopped": "budget",
+                    },
+                )
             self._maybe_compact()
 
             self.events.on_model_start()
@@ -1000,6 +1026,25 @@ class Agent:
         with self._usage_lock:
             for key in ("prompt_tokens", "completion_tokens", "cached_tokens"):
                 self.usage[key] += usage.get(key, 0)
+
+    def _limit_reached(self) -> Optional[str]:
+        """Why the spending limits stop the request now, or None."""
+        if self.max_budget_usd > 0 and self.cost.total_usd >= self.max_budget_usd:
+            return (
+                f"[Stopped: the session's budget of ${self.max_budget_usd:.2f} is spent "
+                f"(${self.cost.total_usd:.4f}). Raise max_budget_usd to continue.]"
+            )
+        if self.max_request_tokens > 0:
+            used = sum(
+                self.usage.get(key, 0) - self._usage_at_start.get(key, 0)
+                for key in ("prompt_tokens", "completion_tokens")
+            )
+            if used >= self.max_request_tokens:
+                return (
+                    f"[Stopped: this request used {used:,} tokens, over the limit of "
+                    f"{self.max_request_tokens:,} (max_request_tokens).]"
+                )
+        return None
 
     def _metadata(self, turns: int, tool_calls_before: int, finish_reason: Any) -> Dict[str, Any]:
         return {

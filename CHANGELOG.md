@@ -5,6 +5,7 @@ All notable changes to the Joshu project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Spending limits: `max_budget_usd` (the session's cost) and `max_request_tokens` (one request's tokens), as settings, `joshu run --max-budget-usd / --max-request-tokens`, SDK `Session` options and GitHub Action inputs. Checked before each model call, so every tool call keeps its result; the request ends with `stopped: "budget"`.
 - `benchmarks/triage.py` tells why benchmark runs failed (provider error, no edits, out of time or turns, untested, gave up with failing tests, missed cases), from each run's conversation, which `benchmarks/run.py` now keeps next to the results (`--no-transcripts` to skip).
 - Self-review: before finishing a request that edited files or ran commands, the agent is asked once to compare its work with the request (every asked-for change done, edge cases checked, tests run) and fix what is missing. On by default (`self_review: false` turns it off; sub-agents skip it). `benchmarks/run.py --set KEY=VALUE` runs a benchmark with a setting changed, to compare settings.
 - Background shells viewer: Down on an empty prompt (or `/bashes`) lists the commands the agent started in the background; Enter shows one's output live, `k` stops it. The bar under the prompt shows `N shells · ↓ to view` while they run, and the working line counts them during a request (`joshu.ui.shell_viewer`).
