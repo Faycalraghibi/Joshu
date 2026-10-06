@@ -15,6 +15,7 @@ from joshu.tools.filesystem_tools import (
     _with_line_endings,
     generate_diff,
     resolve_path,
+    tolerant_replace,
 )
 
 logger = logging.getLogger(__name__)
@@ -44,6 +45,11 @@ def apply_edits(content: str, edits: List[Dict[str, Any]]) -> str:
         if old == new:
             raise ValueError(f"edit {number}: old_string and new_string are the same")
         count = content.count(old)
+        if count == 0 and not every:
+            tolerant = tolerant_replace(content, old, new)
+            if tolerant is not None:
+                content = tolerant[0]
+                continue
         if count == 0:
             hint = _closest_match(content, old).get("hint", "")
             raise ValueError(

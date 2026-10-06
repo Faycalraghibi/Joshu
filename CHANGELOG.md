@@ -33,6 +33,7 @@ All notable changes to the Joshu project will be documented in this file.
 - `Ctrl+G` writes the prompt in your editor (`$VISUAL`, `$EDITOR`, Notepad on Windows).
 
 ### Changed
+- `replace` and `multi_edit` apply an edit whose `old_string` differs from the file only in trailing spaces or in indentation shifted the same amount on every line, when exactly one block of lines matches; `new_string` is re-indented to fit and the result notes it. Before, the model had to read the file again and retry (about two failed edits per hard benchmark run).
 - The system prompt names the Python command that works on the machine (`python`, `python3` or `py`; the Windows Store stub is skipped) and asks for paths relative to the working directory. Benchmark transcripts showed `python3` failing on Windows and a long absolute path copied wrong.
 - A saved conversation is written after every tool round, not only when the request ends, so a crash or a killed process keeps the work so far.
 - Diffs: added lines are green and removed lines red on a matching background across the row; a diff longer than 24 lines is cut with "ctrl+o to expand", and Ctrl+O shows it whole and colored. A new file from `write_file` shows as added lines, an overwrite as its diff, and the edited path is a link that opens the file (in terminals with OSC 8 links).

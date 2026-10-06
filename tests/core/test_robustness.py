@@ -158,12 +158,18 @@ def test_replace_keeps_lf_line_endings(workspace):
     assert target.read_bytes() == b"x = 2\n"
 
 
-def test_replace_points_at_text_differing_only_in_indentation(workspace):
+def test_replace_applies_text_differing_only_in_indentation(workspace):
     (workspace / "a.py").write_bytes(b"def f():\n    if x:\n        return 1\n")
     result = replace_tool("a.py", "if x:\n    return 1", "if x:\n    return 2")
+    assert result["success"] and "indentation" in result["note"]
+    assert (workspace / "a.py").read_bytes() == b"def f():\n    if x:\n        return 2\n"
+
+
+def test_replace_points_at_text_differing_only_in_indentation_when_ambiguous(workspace):
+    (workspace / "a.py").write_bytes(b"def f():\n    return 1\n\ndef g():\n    return 1\n")
+    result = replace_tool("a.py", "        return 1", "        return 2")  # too deep, twice
     assert not result["success"]
-    assert "lines 2-3" in result["hint"].lower()
-    assert result["closest_match"] == "    if x:\n        return 1"
+    assert "lines 2-2" in result["hint"].lower()
 
 
 def test_replace_points_at_similar_text(workspace):
