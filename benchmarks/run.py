@@ -120,16 +120,7 @@ def run_task(task: Path, args: argparse.Namespace, env: Dict[str, str]) -> Resul
 
         start = time.monotonic()
         try:
-            agent = subprocess.run(
-                command,
-                cwd=work,
-                env=run_env,
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=timeout,
-            )
+            agent = run_with_timeout(command, work, run_env, timeout)
         except subprocess.TimeoutExpired:
             return Result(task.name, False, time.monotonic() - start, error="timeout")
         seconds = time.monotonic() - start
@@ -151,6 +142,59 @@ def run_task(task: Path, args: argparse.Namespace, env: Dict[str, str]) -> Resul
         # Hidden checks go in only now, so the agent can't edit them
         result.passed, result.check_output = run_check(task, spec, work, run_env)
         return result
+
+
+def run_with_timeout(
+    command: List[str], cwd: Path, env: Dict[str, str], timeout: float
+) -> "subprocess.CompletedProcess[str]":
+    """
+    Run the agent; on timeout kill it *and everything it started*.
+
+    subprocess.run(timeout=...) kills only the direct child and then waits for
+    the output pipes to close, which never happens while a grandchild (a test
+    run or server the agent started) still holds them: runs went on for
+    hours past their limit.
+    """
+    flags = subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
+    process = subprocess.Popen(
+        command,
+        cwd=cwd,
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        creationflags=flags,
+        start_new_session=os.name != "nt",
+    )
+    try:
+        stdout, stderr = process.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        kill_tree(process)
+        try:
+            process.communicate(timeout=10)
+        except subprocess.TimeoutExpired:
+            pass
+        raise
+    return subprocess.CompletedProcess(command, process.returncode, stdout, stderr)
+
+
+def kill_tree(process: "subprocess.Popen[str]") -> None:
+    """Kill a process and all its descendants."""
+    if os.name == "nt":
+        subprocess.run(
+            ["taskkill", "/F", "/T", "/PID", str(process.pid)],
+            capture_output=True,
+        )
+    else:
+        import signal
+
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except (ProcessLookupError, PermissionError):
+            pass
+    process.kill()
 
 
 def run_check(task: Path, spec: Dict[str, Any], work: Path, env: Dict[str, str]) -> tuple:
