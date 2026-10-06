@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 # Default configuration
 DEFAULT_CONFIG = {
     "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
-    "max_tokens": 4096,
+    "max_tokens": 8192,
     "temperature": 0.1,
     "sandbox_enabled": True,
     # interactive mode settings
@@ -137,7 +137,7 @@ class JoshuConfig:
     """Joshu Configuration Data Class"""
 
     model: str = "nvidia/nemotron-3.5-lightning-30b-a3b"
-    max_tokens: int = 4096
+    max_tokens: int = 8192
     temperature: float = 0.1
     sandbox_enabled: bool = True
     # interactive mode settings

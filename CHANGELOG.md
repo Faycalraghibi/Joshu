@@ -24,6 +24,7 @@ All notable changes to the Joshu project will be documented in this file.
 - `Ctrl+G` writes the prompt in your editor (`$VISUAL`, `$EDITOR`, Notepad on Windows).
 
 ### Changed
+- `max_tokens` defaults to 8192 (was 4096): reasoning models spend output tokens on thinking.
 - Removed `@@file`, which ran a script directly from the prompt (use `!python script.py`), and the settings that had no effect: `history_size`, `log_level`, `memory_enabled`, `multiline_input`, `persistent_history`, `semantic_memory_enabled` (ignored if still present).
 - `docs/ide-integration.md` says the IDE integration is not available yet: the `joshu ide` commands it describes are not registered.
 - `/<skill>` puts the skill's instructions straight into the request instead of asking the model to load them (one model call less, and small models can't skip it). The `skill` tool says where the skill's directory is (for its scripts) and labels supporting files it returns.
@@ -31,6 +32,7 @@ All notable changes to the Joshu project will be documented in this file.
 - Vim mode uses prompt_toolkit's vi editing (full motions, operators, undo) instead of a handful of custom keys.
 
 ### Fixed
+- A response cut off by the output limit (`finish_reason: length`) was taken as the final answer, so a reasoning model that spent its tokens thinking ended the request with half a thought and no code. The agent now continues it with a doubled limit (up to 32,768 tokens, at most 3 times per request), falling back to the configured limit if the provider refuses the larger one. Found by the hard benchmark tier.
 - A request starting with a file reference (`@app.py what does this do?`) was taken by an older file-injection path, answered "File not found" and never reached the agent; every `@` request now goes to the agent.
 - `/theme` and `/rewind` crashed when the terminal couldn't show a menu (stdin a terminal but output not, or a Windows pipe); menus now fall back to text.
 - `/config <key> <value with spaces>` did nothing, `/config <unknown key>` printed `None` instead of saying the key is unknown, and `/config vim_mode` didn't apply to the running session.

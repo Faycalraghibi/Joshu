@@ -14,7 +14,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Set, Union
+from typing import Any, Dict, List, Optional, Sequence, Set, Tuple, Union
 
 from joshu.core.auto_memory import TYPES as MEMORY_TYPES
 from joshu.core.auto_memory import memory_prompt, run_memory_tool
@@ -26,6 +26,7 @@ from joshu.core.images import build_user_content, message_text
 from joshu.core.llm_client import (
     AssistantTurn,
     ChatClient,
+    LLMError,
     ToolCall,
     create_chat_client,
 )
@@ -71,6 +72,15 @@ DENIALS_WARN = 2
 DENIALS_STOP = 6
 # How many times stop hooks may send the agent back to work in one request
 MAX_STOP_CONTINUES = 3
+# A response cut off by the output limit: continue with a higher limit, this
+# many times per request, up to this many output tokens
+MAX_LENGTH_CONTINUES = 3
+MAX_OUTPUT_TOKENS = 32768
+LENGTH_NOTE = (
+    "[Your last response was cut off at the output limit ({limit} tokens) before you "
+    "finished. Continue from where you stopped. Keep your reasoning short and make the "
+    "next tool call (or write the answer) now.]"
+)
 
 
 @dataclass
@@ -177,7 +187,7 @@ class Agent:
         )
         self.events = events or AgentEvents()
         self.max_turns = max_turns or config.get("agent_max_turns", 50)
-        self.max_tokens = max_tokens or config.get("max_tokens", 4096)
+        self.max_tokens = max_tokens or config.get("max_tokens", 8192)
         self.temperature = temperature if temperature is not None else 0.2
         self.context_window = (
             context_window
@@ -477,25 +487,35 @@ class Agent:
         self._denials = {}
         self._usage_at_start = dict(self.usage)
         stop_continues = 0
+        length_continues = 0
+        max_tokens = self.max_tokens
 
         for turn_number in range(1, self.max_turns + 1):
             self._maybe_compact()
 
             self.events.on_model_start()
-            turn = self.client.complete(
-                self.messages,
-                tools=self.request_tools() or None,
-                max_tokens=self.max_tokens,
-                temperature=self.temperature,
-                on_text=self.events.on_text if self.stream else None,
-                on_reasoning=self.events.on_reasoning if self.stream else None,
-            )
+            turn, max_tokens = self._complete(max_tokens)
             self._add_usage(turn.usage)
             self.cost.add(
                 request_cost(turn.usage, getattr(self.client, "model", ""), self._pricing)
             )
             self.messages.append(turn.to_message_dict())
             self.events.on_turn_end(turn)
+
+            if (
+                turn.finish_reason == "length"
+                and not turn.tool_calls
+                and length_continues < MAX_LENGTH_CONTINUES
+            ):
+                # Cut off mid-thought (reasoning models spend output tokens on
+                # thinking): this is not an answer. Raise the limit and go on.
+                length_continues += 1
+                logger.info(f"Response cut off at {max_tokens} output tokens; continuing")
+                self.messages.append(
+                    {"role": "user", "content": LENGTH_NOTE.format(limit=max_tokens)}
+                )
+                max_tokens = min(max_tokens * 2, MAX_OUTPUT_TOKENS)
+                continue
 
             if not turn.tool_calls:
                 reason = self._stop_hook_reason(prompt, turn.content, stop_continues)
@@ -622,6 +642,27 @@ class Agent:
                     {"role": "tool", "tool_call_id": call.id, "content": "Interrupted by user."}
                 )
             raise
+
+    def _complete(self, max_tokens: int) -> Tuple[AssistantTurn, int]:
+        """
+        One model turn. When a raised output limit is refused by the provider
+        (some cap max_tokens), retry once with the configured limit.
+        Returns the turn and the limit that was used.
+        """
+        request = dict(
+            tools=self.request_tools() or None,
+            temperature=self.temperature,
+            on_text=self.events.on_text if self.stream else None,
+            on_reasoning=self.events.on_reasoning if self.stream else None,
+        )
+        try:
+            return self.client.complete(self.messages, max_tokens=max_tokens, **request), max_tokens
+        except LLMError as e:
+            if max_tokens <= self.max_tokens or e.unavailable:
+                raise
+            logger.info(f"Output limit {max_tokens} refused ({e}); using {self.max_tokens}")
+            limit = self.max_tokens
+            return self.client.complete(self.messages, max_tokens=limit, **request), limit
 
     def _stop_hook_reason(self, prompt: str, response: str, continues: int) -> Optional[str]:
         """Why a stop hook wants the agent to keep working, or None to finish."""
