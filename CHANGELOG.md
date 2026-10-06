@@ -32,6 +32,7 @@ All notable changes to the Joshu project will be documented in this file.
 - Vim mode uses prompt_toolkit's vi editing (full motions, operators, undo) instead of a handful of custom keys.
 
 ### Fixed
+- A shell command with an unbalanced quote (`echo don't panic`, a cut-off `python -c "...`) crashed the whole request in the safety check; it is now checked word by word instead. Found by the hard benchmark tier.
 - A response cut off by the output limit (`finish_reason: length`) was taken as the final answer, so a reasoning model that spent its tokens thinking ended the request with half a thought and no code. The agent now continues it with a doubled limit (up to 32,768 tokens, at most 3 times per request), falling back to the configured limit if the provider refuses the larger one. Found by the hard benchmark tier.
 - A request starting with a file reference (`@app.py what does this do?`) was taken by an older file-injection path, answered "File not found" and never reached the agent; every `@` request now goes to the agent.
 - `/theme` and `/rewind` crashed when the terminal couldn't show a menu (stdin a terminal but output not, or a Windows pipe); menus now fall back to text.
