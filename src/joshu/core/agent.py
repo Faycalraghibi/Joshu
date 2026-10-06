@@ -109,6 +109,20 @@ AFTER_FAILURE_NOTE = (
 )
 
 
+# Tools whose results are just more context: with thinking: auto, the call
+# after a successful round of them doesn't think (a sub-agent's report or the
+# user's answer is a decision point, so task and ask_user aren't here)
+EXPLORE_TOOLS = {
+    "read_file",
+    "list_directory",
+    "glob",
+    "search_file_content",
+    "code_nav",
+    "load_tools",
+    "write_todos",
+}
+
+
 def malformed_reply(content: str, last_tool_failed: bool) -> Optional[str]:
     """The note that sends a broken final reply back to the model, or None."""
     text = (content or "").strip()
@@ -303,6 +317,7 @@ class Agent:
             if self.auto_memory:
                 self._local_tools["memory"] = self._make_memory_tool()
         self.self_review = bool(config.get("self_review", True)) and not is_subagent
+        self.thinking = str(config.get("thinking", "on") or "on").strip().lower()
         self.retry_broken_replies = bool(config.get("retry_broken_replies", True))
         # Set when a request edits a file or runs a command (see _start)
         self._changed_this_request = False
@@ -766,6 +781,8 @@ class Agent:
             on_text=self.events.on_text if self.stream else None,
             on_reasoning=self.events.on_reasoning if self.stream else None,
         )
+        if not self._think_now():
+            request["thinking"] = False
         try:
             return self.client.complete(self.messages, max_tokens=max_tokens, **request), max_tokens
         except LLMError as e:
@@ -1094,6 +1111,33 @@ class Agent:
         with self._usage_lock:
             for key in ("prompt_tokens", "completion_tokens", "cached_tokens"):
                 self.usage[key] += usage.get(key, 0)
+
+    def _think_now(self) -> bool:
+        """
+        Whether the next call may think (the `thinking` setting). auto skips
+        it only right after a round of read-only tools that all succeeded:
+        exploring, where thinking is most of the call's time. The first call
+        of a request, notes, failures, edits and shell output all think.
+        """
+        if self.thinking == "off":
+            return False
+        if self.thinking != "auto":
+            return True
+        results = []
+        for message in reversed(self.messages):
+            if message.get("role") != "tool":
+                break
+            results.append(message)
+        if not results:
+            return True
+        names = {}
+        for message in self.messages:
+            for call in message.get("tool_calls") or []:
+                names[call.get("id")] = (call.get("function") or {}).get("name", "")
+        return not all(
+            names.get(m.get("tool_call_id")) in EXPLORE_TOOLS and not _tool_failed(m.get("content"))
+            for m in results
+        )
 
     def _last_tool_failed(self) -> bool:
         """Did a tool result just before the latest reply report a failure?"""
