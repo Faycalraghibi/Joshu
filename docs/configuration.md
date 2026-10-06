@@ -107,6 +107,7 @@ In interactive mode: `/config`, `/config <key>`, `/config <key> <value>`;
 |--------|------|---------|-------------|
 | `permission_mode` | string | `default` | `default`, `accept_edits`, `plan` or `bypass` |
 | `agent_max_turns` | integer | `50` | Model calls per request before stopping |
+| `self_review` | boolean | `true` | Before finishing a request that edited files or ran commands, the agent checks its work against the request once (one extra model call) |
 | `context_window` | integer | `128000` | Model context size in tokens |
 | `clear_tool_results_at` | integer | `60000` | Clear old tool results past this many tokens (at most half the window; 0 = never) |
 | `compact_threshold` | float | `0.8` | Fraction of the window that triggers compaction |
