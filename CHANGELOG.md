@@ -42,6 +42,7 @@ All notable changes to the Joshu project will be documented in this file.
 - Vim mode uses prompt_toolkit's vi editing (full motions, operators, undo) instead of a handful of custom keys.
 
 ### Fixed
+- A broken final reply ended the request: small models sometimes write a tool call as text (`... </function> </tool_call>`) or stop with a few garbled words right after a failed tool call (2 of 6 hard benchmark runs). Such replies now go back to the model with a note, up to twice per request (`retry_broken_replies`, on by default).
 - On Windows a multi-line shell command (a several-line `python -c`, a heredoc) ran only its first line through cmd.exe and still reported success with no output, so the agent believed its checks printed nothing. Such commands are now refused with advice (write a script file, or join with `&&`), and the environment in the system prompt says so.
 - A shell command with an unbalanced quote (`echo don't panic`, a cut-off `python -c "...`) crashed the whole request in the safety check; it is now checked word by word instead. Found by the hard benchmark tier.
 - A response cut off by the output limit (`finish_reason: length`) was taken as the final answer, so a reasoning model that spent its tokens thinking ended the request with half a thought and no code. The agent now continues it with a doubled limit (up to 32,768 tokens, at most 3 times per request), falling back to the configured limit if the provider refuses the larger one. Found by the hard benchmark tier.

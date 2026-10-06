@@ -126,3 +126,9 @@ def test_keep_transcript_copies_the_latest_session(tmp_path):
     assert bench.keep_transcript(home, dest) == dest and dest.read_text() == "{}"
     assert bench.keep_transcript(home, None) is None
     assert bench.keep_transcript(tmp_path / "empty", dest) is None
+
+
+def test_test_scripts_count_as_test_runs():
+    for command in ["python test_parse.py", "node cache_test.js", "python -m pytest -q"]:
+        assert triage.TEST_COMMAND.search(command), command
+    assert not triage.TEST_COMMAND.search("python iniparse.py")

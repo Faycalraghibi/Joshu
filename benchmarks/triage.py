@@ -56,6 +56,8 @@ SUMMARY_PREFIX = "[Summary of the earlier conversation]"
 TEST_COMMAND = re.compile(
     r"\b(pytest|unittest|tox|nox|(npm|yarn|pnpm)( run)? test|go test|cargo test|"
     r"make (test|check)|jest|vitest|mocha|phpunit|rspec)\b"
+    # A test script the agent wrote: python test_parse.py, node cache_test.js
+    r"|\b(test_\w+|\w+_test)\.(py|js|ts)\b"
 )
 # Lines of a failed check worth showing
 FAILURE_LINE = re.compile(r"^(FAILED |FAIL:|ERROR:|E  +\w*Error|\w+Error: )")
