@@ -51,6 +51,36 @@ python benchmarks/triage.py --json
 Next to the cause: turns, edits that applied and that failed, test runs and
 whether the last passed, compaction, and the first failing hidden check.
 
+## Comparing runs
+
+Six tasks run once can't tell a real improvement from luck: one run more or
+less moves the pass rate by 17 points. Run each task several times and
+compare setups with `compare.py`, which pools repeated runs (`a.json+b.json`)
+and gives the pass rate with a 95% interval per setup:
+
+```bash
+python benchmarks/run.py --tier hard --repeat 3 --set thinking=off
+python benchmarks/run.py --tier hard --repeat 3 --set thinking=auto
+python benchmarks/compare.py --label off --label auto results/<off>.json results/<auto>.json
+```
+
+Tasks whose pass count changed are marked `*`; the verdict says whether the
+intervals overlap (if they do, the difference isn't shown yet: add runs).
+
+The `Benchmark` workflow (Actions > Benchmark > Run workflow) runs the same
+on GitHub with the tier, repeats, provider, model and settings you give it,
+puts the triage table in the run summary and keeps the results as an
+artifact. It needs the provider's API key as a repository secret
+(`NVIDIA_API_KEY` for the default provider).
+
+The hard tier has 16 tasks: bug fixes across several files
+(billing-rounding, timesheet-bugs, booking-overlap, leaderboard-ranking,
+shop-discount-codes), implementing from a docstring or a spec (ttl-lru-cache,
+ini-parser, rate-limiter, semver-compare, json-path-get, markdown-table,
+undo-redo, retry-decorator), a migration and a rename refactor
+(migrate-http-client, rename-with-alias) and a new CLI subcommand
+(cli-subcommand).
+
 ## Adding a task
 
 ```

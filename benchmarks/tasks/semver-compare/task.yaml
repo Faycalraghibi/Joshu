@@ -1,0 +1,5 @@
+tier: hard
+prompt: Implement parse(), compare() and latest() in semver.py so they follow SPEC.md
+  exactly, including the error cases. Use only the standard library.
+check: python -m pytest -q check_test.py
+timeout: 900

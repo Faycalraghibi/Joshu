@@ -1,0 +1,6 @@
+tier: hard
+prompt: Implement the retry() decorator in retry.py exactly as its docstring specifies
+  (attempt counting, exponential backoff through the injectable sleep, which exceptions
+  are retried, validation, and the wrapper's attributes).
+check: python -m pytest -q check_test.py
+timeout: 900

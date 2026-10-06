@@ -1,0 +1,5 @@
+tier: hard
+prompt: Implement render() in mdtable.py so it produces exactly the tables its docstring
+  describes (escaping, widths, alignment rows, validation).
+check: python -m pytest -q check_test.py
+timeout: 900

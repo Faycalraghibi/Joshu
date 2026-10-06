@@ -28,7 +28,7 @@ repos:
     hooks:
       - id: mypy
         args: ["--config-file", "mypy.ini"]
-        exclude: ^benchmarks/tasks/
+        exclude: ^benchmarks/(tasks|solutions)/
         additional_dependencies:
           - types-requests
           - types-setuptools

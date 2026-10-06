@@ -1,0 +1,65 @@
+name: Benchmark
+
+# Run by hand (Actions > Benchmark > Run workflow). Needs the NVIDIA_API_KEY
+# repository secret (or the key of the provider you choose).
+on:
+  workflow_dispatch:
+    inputs:
+      tier:
+        description: "easy, hard, or empty for all"
+        default: hard
+      repeat:
+        description: Runs per task
+        default: "2"
+      provider:
+        default: nvidia
+      model:
+        description: Model id (empty = the provider's default)
+        default: ""
+      settings:
+        description: "Space-separated KEY=VALUE settings, e.g. thinking=auto self_review=false"
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run the benchmark
+        env:
+          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TIER: ${{ inputs.tier }}
+          REPEAT: ${{ inputs.repeat }}
+          PROVIDER: ${{ inputs.provider }}
+          MODEL: ${{ inputs.model }}
+          SETTINGS: ${{ inputs.settings }}
+        run: |
+          args=(--permission-mode bypass --repeat "$REPEAT" --provider "$PROVIDER")
+          [ -n "$TIER" ] && args+=(--tier "$TIER")
+          [ -n "$MODEL" ] && args+=(--model "$MODEL")
+          for setting in $SETTINGS; do args+=(--set "$setting"); done
+          python benchmarks/run.py "${args[@]}" || true
+          python benchmarks/triage.py >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Keep the results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: benchmarks/results/

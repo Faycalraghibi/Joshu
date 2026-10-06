@@ -1,0 +1,8 @@
+tier: hard
+prompt: 'Users of calendar_app report three bugs: back-to-back bookings of a room
+  (one ends at 10:00, the next starts at 10:00) are rejected as a conflict, the weekly
+  report shows wrong hours for bookings longer than a day, and free_slots never offers
+  the slot that ends exactly at the end of the day. Fix them without changing the
+  API.'
+check: python -m pytest -q check_test.py
+timeout: 900

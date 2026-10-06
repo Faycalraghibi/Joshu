@@ -1,0 +1,7 @@
+tier: hard
+prompt: 'Rename calc_avg() in the metrics package to mean(): define mean in metrics/stats.py,
+  use it everywhere in the package and in README.md instead of calc_avg, and keep
+  calc_avg as a deprecated alias that returns the same result and emits a DeprecationWarning
+  (so existing users don''t break).'
+check: python -m pytest -q check_test.py
+timeout: 900
