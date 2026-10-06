@@ -5,6 +5,7 @@ so they can be shared and installed in one step.
 
 ```bash
 joshu plugin install https://github.com/acme/joshu-release-tools.git
+joshu plugin install acme/release-tools   # owner/repo on GitHub
 joshu plugin install ./my-plugin          # a local directory
 joshu plugin list                         # what is installed and what each adds
 joshu plugin update release-tools         # again from where it came from
@@ -50,3 +51,34 @@ Plugins are installed in `~/.joshu/plugins/<name>/` (`$JOSHU_HOME/plugins`).
 Their skills, commands and styles are found after the project's and your own,
 so those win on a name clash; an MCP server configured in `config.yaml` or
 `mcp.json` wins over a plugin's of the same name.
+
+## Claude Code plugins and marketplaces
+
+Plugins and marketplaces made for Claude Code install as they are:
+
+```bash
+joshu plugin marketplace add nykooi1/vibe-wise    # or, in a session: /plugin marketplace add ...
+joshu plugin install vibe-wise@vibe-wise          # plugin@marketplace (or just the name)
+joshu plugin marketplace list | update <name> | remove <name>
+```
+
+A marketplace is a repository with `.claude-plugin/marketplace.json`; it is
+kept in `~/.joshu/plugins/.marketplaces/`, and `update` of a plugin installed
+from one fetches the marketplace again first. A plugin's
+`.claude-plugin/plugin.json` is read like `joshu-plugin.yaml`, and:
+
+| Claude Code | In Joshu |
+|---|---|
+| `skills/`, `commands/` | Skills and slash commands (same formats) |
+| `agents/*.md` | Sub-agents; tool names (`Read`, `Bash`, ...) are translated, model aliases (`sonnet`, ...) use the main model |
+| `hooks/hooks.json` | Hooks: `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PreCompact`, `Notification`, `Stop`, `SubagentStop`, `SessionEnd`, with their `matcher` (over Claude Code tool names) |
+| `.mcp.json` | MCP servers |
+| `${CLAUDE_PLUGIN_ROOT}` | The installed plugin's directory |
+
+Hook scripts written for Claude Code work in Joshu generally (in plugins or
+in `hooks:`): their input has `hook_event_name`, `session_id`, `cwd`,
+`tool_name` / `tool_input` (Claude Code tool names), `prompt` and `source`
+beside Joshu's own fields, and their output is understood
+(`hookSpecificOutput.additionalContext`, `decision: "block"` with `reason`,
+`permissionDecision: "deny"`, `continue: false`). On Windows, a hook command
+starting with `python3` runs with the Python that exists.

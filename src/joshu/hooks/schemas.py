@@ -78,11 +78,17 @@ class HookResponse:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "HookResponse":
         """Create from dictionary."""
-        context = data.get("additional_context", data.get("context"))
+        from joshu.core.claude_compat import response_fields
+
+        # Claude Code's output (hookSpecificOutput, decision, reason) works too
+        claude = response_fields(data)
+        context = data.get("additional_context", data.get("context")) or claude.get(
+            "additional_context"
+        )
         return cls(
-            action=data.get("action", "allow"),
+            action=data.get("action") or claude.get("action", "allow"),
             modified_data=data.get("modified_data"),
-            message=data.get("message"),
+            message=data.get("message") or claude.get("message"),
             additional_context=str(context) if context else None,
         )
 

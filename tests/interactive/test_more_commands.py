@@ -258,3 +258,16 @@ def test_backslash_enter_inserts_newline(mode):
         with create_app_session(input=pipe, output=DummyOutput()):
             mode.start()
     assert seen == ["first\nsecond"]
+
+
+# ------------------------------------------------------------------- plugin
+
+
+def test_plugin_slash_command_lists_and_explains(mode, screen, tmp_path, monkeypatch):
+    monkeypatch.setenv("JOSHU_HOME", str(tmp_path / "home"))
+    run(mode, "/plugin")
+    assert "No plugins" in screen.getvalue()
+    run(mode, "/plugins marketplace list")
+    assert "No marketplaces" in screen.getvalue()
+    run(mode, "/plugin marketplace add")
+    assert "Usage: /plugin" in screen.getvalue()

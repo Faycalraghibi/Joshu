@@ -46,6 +46,8 @@ class RegisteredHook:
     priority: int = 0  # Lower = runs first
     command: Optional[str] = None  # shell command; used instead of script_path when set
     timeout: Optional[int] = None  # seconds; falls back to the dispatcher timeout
+    # Claude Code style: a regex over the tool name (or session_start's source)
+    matcher: Optional[str] = None
 
 
 class HookDispatcher:
@@ -127,11 +129,19 @@ class HookDispatcher:
         return True
 
     def register_command_hook(
-        self, event: HookEvent, command: str, timeout: Optional[int] = None
+        self,
+        event: HookEvent,
+        command: str,
+        timeout: Optional[int] = None,
+        matcher: Optional[str] = None,
     ) -> None:
         """Register a shell command as a hook (payload JSON on stdin)."""
         hook = RegisteredHook(
-            event=event, script_path=Path(command), command=command, timeout=timeout
+            event=event,
+            script_path=Path(command),
+            command=command,
+            timeout=timeout,
+            matcher=matcher,
         )
         self._hooks.setdefault(event, []).append(hook)
         logger.info(f"Registered hook for {event.value}: {command}")
@@ -217,8 +227,10 @@ class HookDispatcher:
             except Exception as e:
                 logger.error(f"Python hook error: {e}")
 
+        from joshu.core.claude_compat import matches
+
         for hook in script_hooks:
-            if not hook.enabled:
+            if not hook.enabled or not matches(hook.matcher, payload.event.value, payload.data):
                 continue
 
             result = self._execute_hook(hook, payload)
@@ -257,7 +269,17 @@ class HookDispatcher:
             Hook result
         """
         try:
-            payload_json = json.dumps(payload.to_dict())
+            from joshu.core.claude_compat import hook_input
+
+            # Joshu's fields, plus those of Claude Code hooks (hook_event_name,
+            # tool_name, tool_input, cwd, ...), so scripts written for it work
+            payload_json = json.dumps(
+                {
+                    **hook_input(payload.event.value, payload.session_id, payload.data),
+                    **payload.to_dict(),
+                },
+                default=str,
+            )
 
             if hook.command:
                 argv: Any = hook.command
@@ -541,6 +563,7 @@ def _register_hooks(dispatcher: Any, settings: Dict[str, Any], where: str) -> Li
                     event,
                     str(entry["command"]).strip(),
                     timeout=timeout if isinstance(timeout, int) and timeout > 0 else None,
+                    matcher=str(entry["matcher"]) if entry.get("matcher") else None,
                 )
             else:
                 problems.append(f"{where}.{event_name}: invalid entry {entry!r}")
