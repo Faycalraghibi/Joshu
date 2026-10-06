@@ -1,0 +1,7 @@
+tier: hard
+prompt: >-
+  The tests in tests/test_timesheet.py fail. Find and fix the bugs in the
+  timesheet package (fix the code, not the tests). Shifts that cross midnight
+  (for example 22:00-06:00) must also be counted correctly.
+check: python -m pytest -q check_test.py
+timeout: 900

@@ -1,0 +1,9 @@
+tier: hard
+prompt: >-
+  Migrate the app package from the old app/http_old.py helper to the new
+  app/http_client.py Client: replace every use of http_old.fetch with
+  Client().get(...), keeping each caller's behaviour exactly (same timeouts,
+  same results, and a FetchError from app.errors for any response with status
+  400 or higher, as fetch raised). Then delete app/http_old.py.
+check: python -m pytest -q check_test.py
+timeout: 900
