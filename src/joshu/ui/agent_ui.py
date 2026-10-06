@@ -439,10 +439,15 @@ class ConsoleAgentUI(AgentEvents):
         return True
 
     def _show_write(self, output: str) -> bool:
+        data = _json(output) or {}
+        if data.get("diff"):
+            return self._show_edit(output)
         content = str(self._arguments.get("content") or "")
         lines = content.count("\n") + (1 if content and not content.endswith("\n") else 0)
-        path = escape(_relative(str(self._arguments.get("path", ""))))
+        path = _file_link(str(self._arguments.get("path", "")))
         self._result_line(f"Wrote [bold]{lines}[/bold] lines to [bold]{path}[/bold]")
+        if content and data.get("success", True):
+            self._print_diff(new_file_diff(content))
         return True
 
     def _show_edit(self, output: str) -> bool:
@@ -456,14 +461,22 @@ class ConsoleAgentUI(AgentEvents):
         removed = sum(
             1 for line in diff.splitlines() if line.startswith("-") and not line.startswith("---")
         )
-        path = escape(_relative(str(self._arguments.get("path", ""))))
+        path = _file_link(str(self._arguments.get("path", "")))
         self._result_line(
             f"Updated [bold]{path}[/bold] with [bold]{added}[/bold] "
             f"addition{'s' if added != 1 else ''} and [bold]{removed}[/bold] "
             f"removal{'s' if removed != 1 else ''}"
         )
-        self.console.print(Padding(render_diff(diff, MAX_DIFF_LINES), (0, 0, 0, 5)))
+        self._print_diff(diff)
         return True
+
+    def _print_diff(self, diff: str) -> None:
+        """A diff, cut to MAX_DIFF_LINES (Ctrl+O shows all of it)."""
+        folded = not self.verbose and _diff_length(diff) > MAX_DIFF_LINES
+        if folded:
+            self.expandable.append((self._call, Diff(diff)))
+        limit = MAX_DIFF_LINES if folded else _diff_length(diff)
+        self.console.print(Padding(render_diff(diff, limit, expandable=folded), (0, 0, 0, 5)))
 
     def _show_shell(self, output: str) -> bool:
         data = _json(output)
@@ -577,6 +590,47 @@ class ConsoleAgentUI(AgentEvents):
                 request.feedback = _ask_feedback()
         return answer
 
+    # ------------------------------------------------------------ questions
+
+    # Set by create_console_agent when someone is at the terminal to answer
+    can_ask_user = False
+
+    def ask_user(self, questions: List[Any]) -> Optional[List[Any]]:
+        """Put the agent's questions to the user (see joshu.core.ask)."""
+        with self._lock:
+            self._stop_spinner()
+            self._end_line()
+            self.notify("Joshu has a question")
+        from joshu.ui.key_listener import paused
+
+        answers: List[Any] = []
+        with paused():
+            for number, question in enumerate(questions, start=1):
+                self.console.print()
+                title = question.header or (
+                    f"Question {number} of {len(questions)}" if len(questions) > 1 else "Question"
+                )
+                body = Text.assemble(
+                    (f"{title}\n", "bold"),
+                    question.question,
+                    ("\n(choose any that apply)" if question.multi_select else "", "dim"),
+                )
+                self.console.print(Panel(body, border_style=_s("accent"), padding=(0, 1)))
+                try:
+                    answer = _ask_one(question)
+                except KeyboardInterrupt:
+                    return None
+                answers.append(answer)
+                shown = (
+                    "skipped"
+                    if answer is None
+                    else answer
+                    if isinstance(answer, str)
+                    else ", ".join(answer)
+                )
+                self._result_line(escape(shown))
+        return answers
+
     # --------------------------------------------------------------- helpers
 
     @_locked
@@ -637,7 +691,10 @@ class ConsoleAgentUI(AgentEvents):
                 no_wrap=True,
                 overflow="ellipsis",
             )
-            self._print_full(text)
+            if isinstance(text, Diff):
+                self.console.print(Padding(render_diff(text, _diff_length(text)), (0, 0, 0, 5)))
+            else:
+                self._print_full(text)
 
     def toggle_verbose(self) -> None:
         """Ctrl+O while the agent works: show the rest of this request's output in full."""
@@ -816,14 +873,45 @@ def _short(tokens: int) -> str:
     return f"{round(tokens / 1000)}k"
 
 
-def render_diff(diff: str, limit: int) -> Any:
-    """A unified diff with line numbers, additions green and removals red."""
-    table = Table.grid(padding=(0, 1))
-    table.add_column(justify="right", style="dim", no_wrap=True)
-    table.add_column(no_wrap=False)
+class Diff(str):
+    """A diff kept for Ctrl+O: shown colored and in full."""
+
+
+def _diff_length(diff: str) -> int:
+    """Lines render_diff shows (headers and hunk markers aside)."""
+    return sum(1 for line in diff.splitlines() if not line.startswith(("---", "+++", "@@")))
+
+
+def new_file_diff(content: str) -> str:
+    """A new file's content as a diff of additions."""
+    lines = content.splitlines()
+    return f"@@ -0,0 +1,{len(lines)} @@\n" + "".join(f"+{line}\n" for line in lines)
+
+
+def _file_link(path: str) -> str:
+    """Markup for a path relative to the working directory, clickable (opens the file)."""
+    from pathlib import Path
+
+    shown = escape(_relative(path))
+    try:
+        uri = Path(path).resolve().as_uri()
+    except (ValueError, OSError):
+        return shown
+    return f"[link={uri}]{shown}[/link]"
+
+
+def render_diff(diff: str, limit: int, expandable: bool = False) -> Any:
+    """
+    A unified diff with line numbers: added lines green on a green background,
+    removed lines red on red, at most `limit` of them (`expandable`: say
+    Ctrl+O shows the rest).
+    """
+    theme = current_theme()
+    add_row = f"on {theme.diff_add_bg}" if theme.diff_add_bg else None
+    remove_row = f"on {theme.diff_remove_bg}" if theme.diff_remove_bg else None
+    rows: List[Tuple[str, Text, Optional[str]]] = []
     old_no = new_no = 0
-    shown = 0
-    hidden = 0
+    shown = hidden = 0
     for line in diff.splitlines():
         if line.startswith(("---", "+++")):
             continue
@@ -834,25 +922,33 @@ def render_diff(diff: str, limit: int) -> Any:
                 new_no = int(ranges[1].split(",")[0].lstrip("+")) - 1
             except (IndexError, ValueError):
                 pass
-            if shown:
-                table.add_row("", Text("⋮", style="dim"))
+            if rows and shown < limit:
+                rows.append(("", Text("⋮", style="dim"), None))
             continue
         if shown >= limit:
             hidden += 1
             continue
+        shown += 1
         if line.startswith("+"):
             new_no += 1
-            table.add_row(str(new_no), Text("+ " + line[1:], style=_s("diff_add")))
+            rows.append((str(new_no), Text("+ " + line[1:], style=_s("diff_add")), add_row))
         elif line.startswith("-"):
             old_no += 1
-            table.add_row(str(old_no), Text("- " + line[1:], style=_s("diff_remove")))
+            rows.append((str(old_no), Text("- " + line[1:], style=_s("diff_remove")), remove_row))
         else:
             old_no += 1
             new_no += 1
-            table.add_row(str(new_no), Text("  " + line[1:], style="dim"))
-        shown += 1
+            rows.append((str(new_no), Text("  " + line[1:], style="dim"), None))
+    # Colored rows span the width: the table fills it, the number column stays narrow
+    width = max((len(number) for number, _, _ in rows), default=1)
+    table = Table.grid(padding=(0, 1), expand=bool(add_row or remove_row))
+    table.add_column(justify="right", style="dim", no_wrap=True, width=width)
+    table.add_column(no_wrap=False, ratio=1)
+    for number, text, row_style in rows:
+        table.add_row(number, text, style=row_style)
     if hidden:
-        table.add_row("", Text(f"… +{hidden} lines", style="dim"))
+        more = f"… +{hidden} lines" + (" (ctrl+o to expand)" if expandable else "")
+        table.add_row("", Text(more, style="dim"))
     return table
 
 
@@ -884,6 +980,75 @@ def _choose(question: str, options: List[tuple]) -> ApprovalChoice:
             return ApprovalChoice.NO
         if answer in ("a", "always") and len(options) == 3:
             return options[1][0]
+
+
+OTHER = "\x00other"  # the "type your own answer" option
+
+
+def _ask_one(question: Any) -> Any:
+    """One question: chosen labels, typed text, or None when skipped (Esc)."""
+    options = [
+        (label, _option_label(label, description)) for label, description in question.options
+    ]
+    options.append((OTHER, _option_label("Other", "type your own answer")))
+    try:
+        from joshu.ui.menu import MenuUnavailable, menu, multi_menu
+
+        try:
+            if question.multi_select:
+                chosen = multi_menu("", options, cancel=None)
+            else:
+                picked = menu("", options, cancel=None)
+                chosen = None if picked is None else [picked]
+        except MenuUnavailable:
+            chosen = _ask_typed(question, options)
+    except ImportError:
+        chosen = _ask_typed(question, options)
+    if chosen is None:
+        return None
+    if OTHER in chosen:
+        try:
+            typed = input("  Your answer: ").strip()
+        except EOFError:
+            typed = ""
+        rest = [c for c in chosen if c != OTHER]
+        if typed:
+            return typed if not rest else ", ".join(rest + [typed])
+        chosen = rest
+    return chosen or None
+
+
+def _option_label(label: str, description: str) -> Any:
+    """Menu text: the label, then its description dimmed."""
+    if not description:
+        return label
+    try:
+        from prompt_toolkit.formatted_text import FormattedText
+
+        return FormattedText([("", label), ("fg:ansibrightblack", f"  {description}")])
+    except ImportError:
+        return f"{label}  {description}"
+
+
+def _ask_typed(question: Any, options: List[tuple]) -> Optional[List[str]]:
+    """Without a terminal menu: numbered options, answered by number(s)."""
+    for number, (value, label) in enumerate(options, start=1):
+        text = label if isinstance(label, str) else "".join(part[1] for part in label)
+        print(f"  {number}. {text}")
+    hint = "numbers separated by commas" if question.multi_select else "a number"
+    while True:
+        try:
+            raw = input(f"  Choose ({hint}, Enter to skip): ").strip()
+        except EOFError:
+            return None
+        if not raw:
+            return None
+        picks = [p.strip() for p in raw.split(",") if p.strip()]
+        if all(p.isdigit() and 1 <= int(p) <= len(options) for p in picks) and (
+            question.multi_select or len(picks) == 1
+        ):
+            return [options[int(p) - 1][0] for p in picks]
+        print(f"  Please enter {hint} from the list.")
 
 
 def _ask_feedback() -> Optional[str]:
@@ -992,6 +1157,7 @@ def create_console_agent(
 
     config = get_config_manager()
     ui = ConsoleAgentUI(console, quiet=quiet)
+    ui.can_ask_user = interactive and not quiet
     # MCP tools must be registered before the agent lists its tools
     load_mcp_tools(report=None if quiet else lambda line: ui.console.print(f"[dim]{line}[/dim]"))
     untrusted = getattr(config, "untrusted_project_config", None)

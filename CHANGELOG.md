@@ -6,6 +6,7 @@ All notable changes to the Joshu project will be documented in this file.
 
 ### Added
 - Background shells viewer: Down on an empty prompt (or `/bashes`) lists the commands the agent started in the background; Enter shows one's output live, `k` stops it. The bar under the prompt shows `N shells · ↓ to view` while they run, and the working line counts them during a request (`joshu.ui.shell_viewer`).
+- The agent asks multiple-choice questions when a decision is the user's (`ask_user` tool): up to four questions with two to six choices each, single choice (arrow menu, number keys) or several (checkboxes), "Other" to type an answer, Esc to skip. Interactive sessions only; the SDK takes an `ask_user` callback (`joshu.core.ask`).
 - `@path` in a request attaches the file to it (`@src/app.py:10-40` for lines, `@dir` for a listing), in interactive mode and `joshu run`; the agent sees it without a tool call. Up to 40,000 characters per file and 100,000 per request; protected files are never attached and secrets are masked (`joshu.core.file_refs`).
 - `/memory add <text> [--user]` saves a memory for the agent.
 - A test runs every slash command (and its main forms) through the real interactive mode with a fake model, so a broken command fails CI.
@@ -25,6 +26,7 @@ All notable changes to the Joshu project will be documented in this file.
 - `Ctrl+G` writes the prompt in your editor (`$VISUAL`, `$EDITOR`, Notepad on Windows).
 
 ### Changed
+- Diffs: added lines are green and removed lines red on a matching background across the row; a diff longer than 24 lines is cut with "ctrl+o to expand", and Ctrl+O shows it whole and colored. A new file from `write_file` shows as added lines, an overwrite as its diff, and the edited path is a link that opens the file (in terminals with OSC 8 links).
 - `max_tokens` defaults to 8192 (was 4096): reasoning models spend output tokens on thinking.
 - Removed `@@file`, which ran a script directly from the prompt (use `!python script.py`), and the settings that had no effect: `history_size`, `log_level`, `memory_enabled`, `multiline_input`, `persistent_history`, `semantic_memory_enabled` (ignored if still present).
 - `docs/ide-integration.md` says the IDE integration is not available yet: the `joshu ide` commands it describes are not registered.

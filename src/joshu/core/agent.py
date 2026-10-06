@@ -119,6 +119,18 @@ class AgentEvents:
     def on_parallel_start(self, count: int) -> None:
         """Several read-only tools are about to run at the same time."""
 
+    # Set by interfaces that can put questions to the user (the ask_user tool
+    # is only offered when this is true)
+    can_ask_user = False
+
+    def ask_user(self, questions: List[Any]) -> Optional[List[Any]]:
+        """
+        Ask the user `questions` (joshu.core.ask.Question): one answer per
+        question, a list of chosen labels or typed text (None = skipped), or
+        None when the user dismissed them.
+        """
+        return None
+
 
 @dataclass
 class _Prepared:
@@ -224,6 +236,8 @@ class Agent:
             if model_skills(self.skills):
                 self._local_tools["skill"] = self._make_skill_tool()
             self._local_tools["install_skill"] = self._make_install_skill_tool()
+            if getattr(self.events, "can_ask_user", False):
+                self._local_tools["ask_user"] = self._make_ask_user_tool()
             self.auto_memory = bool(config.get("auto_memory", True))
             if self.auto_memory:
                 self._local_tools["memory"] = self._make_memory_tool()
@@ -914,6 +928,10 @@ class Agent:
             sections.append(skills_prompt(self.skills))
         if self.auto_memory:
             sections.append(memory_prompt(self.cwd))
+        if "ask_user" in self._local_tools:
+            from joshu.core.ask import ASK_PROMPT_RULE
+
+            sections.append(ASK_PROMPT_RULE)
         deferred = self.deferred_tools()
         if deferred:
             from joshu.core.deferred_tools import index_prompt
@@ -1082,6 +1100,30 @@ class Agent:
         else:
             self._local_tools.pop("skill", None)
         self.refresh_system_prompt()
+
+    def _make_ask_user_tool(self) -> ToolSpec:
+        from joshu.core.ask import (
+            ASK_TOOL_DESCRIPTION,
+            PARAMETERS,
+            AskError,
+            format_answers,
+            parse_questions,
+        )
+
+        def ask_user(questions: Any) -> str:
+            try:
+                parsed = parse_questions(questions)
+            except AskError as e:
+                return f"Error: {e}"
+            return format_answers(parsed, self.events.ask_user(parsed))
+
+        return ToolSpec(
+            name="ask_user",
+            description=ASK_TOOL_DESCRIPTION,
+            parameters=PARAMETERS,
+            function=ask_user,
+            requires_approval=False,
+        )
 
     def _make_install_skill_tool(self) -> ToolSpec:
         def install_skill(
