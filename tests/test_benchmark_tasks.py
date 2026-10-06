@@ -16,6 +16,22 @@ spec.loader.exec_module(bench)
 TASKS = bench.load_tasks(None)
 
 
+@pytest.mark.parametrize(
+    "error, infra",
+    [
+        ("x at https://h/v1 request failed: Connection error.", True),
+        ("x request failed: Request timed out.", True),
+        ("Model error: x request failed: HTTP 500: Internal server error", True),
+        ("x request failed: HTTP 429 rate limited: slow down", True),
+        ("x request failed: HTTP 401 unauthorized (check the API key)", False),
+        ("", False),
+    ],
+)
+def test_unreachable_endpoints_are_not_counted_as_failures(error, infra):
+    result = bench.Result("t", passed=False, seconds=1, error=error)
+    assert bench.is_infra_error(result) is infra
+
+
 def test_there_are_tasks_of_both_tiers():
     tiers = {bench.task_spec(t)["tier"] for t in TASKS}
     assert tiers == {"easy", "hard"}

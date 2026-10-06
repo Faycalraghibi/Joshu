@@ -31,19 +31,29 @@ it has one).
 ## Choosing a model
 
 The default is NVIDIA's **Nemotron 3.5 Lightning** (`nvidia/nemotron-3.5-lightning-30b-a3b`):
-free with a key from build.nvidia.com, supports tool calling, and is fast. On
-Joshu's benchmark (8 coding tasks, each run 3 times, graded by hidden tests):
+free with a key from build.nvidia.com, supports tool calling, and is fast.
 
-| Model | Passed | Avg. tokens per task | Avg. time per task |
+Joshu's benchmark has an **easy tier** (8 small tasks: fix a bug, add a flag,
+rename across files, ...) and a **hard tier** (6 tasks: a feature across
+several modules, interacting bugs, a data structure from a spec, an API
+migration across many call sites, a parser with many edge cases, a rounding
+bug found from its symptom). Hidden tests grade every run. Results on NVIDIA's
+free models (October 2026, one run per task, `--permission-mode bypass`):
+
+| Model | Easy | Hard | Notes |
 |---|---|---|---|
-| NVIDIA Nemotron 3.5 Lightning | 20/24 (83%) | ~34k | ~64s |
+| Nemotron 3.5 Lightning 30B (default) | 8/8 | 3/5 | ~110k tokens per hard task; 1 hard task not measured (endpoint timeouts) |
+| Nemotron 3 Super 120B | 7/8 | 3/6 | ~410k tokens per hard task |
+| Nemotron 3 Ultra 550B | 8/8 | 1/1 | 5 hard tasks not measured: NVIDIA returned HTTP 500 |
 
-It reliably fixes bugs, renames across files, adds features and edits nested
-code; it is weaker at tasks that need careful reasoning about edge cases
-(Unicode handling, off-by-one). For harder work pick a larger model, e.g.
-`joshu use nvidia/nemotron-3-ultra-550b-a55b -p nvidia`, or a frontier model
-from another provider. Compare models on your own tasks with
-`python benchmarks/run.py --provider <p> --model <m> --repeat 3`.
+The easy tier is solved reliably by all three. On the hard tier, all models
+failed the half-up rounding task (floating-point halves such as 1.005) and the
+INI parser's edge cases; the larger models were not better on what could be
+measured, and Super used about four times the tokens. One run per task is a
+small sample, so treat differences of one task as noise. For harder work a
+frontier model from another provider is the safer choice. Compare models on
+your own tasks with
+`python benchmarks/run.py --provider <p> --model <m> --tier hard --repeat 3`.
 
 ## Built-in providers
 
