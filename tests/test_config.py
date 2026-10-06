@@ -34,7 +34,7 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(config.model, "nvidia/nemotron-3.5-lightning-30b-a3b")
         self.assertEqual(config.sandbox_enabled, True)
         self.assertEqual(config.vim_mode, False)
-        self.assertEqual(config.max_tokens, 4096)
+        self.assertEqual(config.max_tokens, 8192)
         self.assertEqual(config.temperature, 0.1)
 
     def test_config_from_dict(self):
@@ -119,7 +119,7 @@ class TestConfig(unittest.TestCase):
 
         # Fractional value for an int field is rejected
         self.assertFalse(config_manager.set("max_tokens", 0.8))
-        self.assertEqual(config_manager.get("max_tokens"), 4096)
+        self.assertEqual(config_manager.get("max_tokens"), 8192)
 
         # Strings and bools for numeric fields are rejected
         self.assertFalse(config_manager.set("max_tokens", "lots"))
@@ -140,7 +140,7 @@ class TestConfig(unittest.TestCase):
             f.write("max_tokens: 0.8\ntemperature: 0.5\n")
 
         config_manager = ConfigManager(str(self.test_config_path))
-        self.assertEqual(config_manager.get("max_tokens"), 4096)
+        self.assertEqual(config_manager.get("max_tokens"), 8192)
         self.assertEqual(config_manager.get("temperature"), 0.5)
 
     def test_config_manager_reset_to_defaults(self):

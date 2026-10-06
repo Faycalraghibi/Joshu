@@ -1,6 +1,6 @@
 provider: openrouter
 model: poolside/laguna-s-2.1:free
-max_tokens: 4096
+max_tokens: 8192
 temperature: 0.5
 sandbox_enabled: true
 interactive: true

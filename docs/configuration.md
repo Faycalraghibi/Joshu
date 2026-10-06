@@ -41,7 +41,7 @@ can't add itself to `trusted_projects`.
 # Model
 provider: nvidia
 model: nvidia/nemotron-3.5-lightning-30b-a3b
-max_tokens: 4096
+max_tokens: 8192
 temperature: 0.1
 
 # Agent
@@ -98,7 +98,7 @@ In interactive mode: `/config`, `/config <key>`, `/config <key> <value>`;
 | `models` | map | `{}` | Named models: `provider`, `model`, `context_window` |
 | `request_retries` | integer | `3` | Retries per request on connection errors, 408/409/429 and 5xx |
 | `request_timeout` | number | `120` | Seconds to wait for a model response |
-| `max_tokens` | integer | `4096` | Max tokens per model response |
+| `max_tokens` | integer | `8192` | Max output tokens per model response; a response cut off at this limit is continued with a higher one (up to 32,768) |
 | `temperature` | float | `0.1` | Sampling temperature for ask mode |
 
 ### Agent

@@ -459,7 +459,7 @@ sub-agents are included.
 | `compact_threshold` | `0.8` | Fraction of the window that triggers compaction |
 | `tool_output_limit` | `16000` | Max characters of one tool result sent to the model (`read_file` returns up to ~40,000 in whole lines) |
 | `clear_tool_results_at` | `60000` | Clear old tool results past this many tokens (0 = never) |
-| `max_tokens` | `4096` | Max tokens per model response |
+| `max_tokens` | `8192` | Max output tokens per model response (raised automatically, up to 32,768, when a response is cut off) |
 | `provider` | `openrouter` | Model provider (see `joshu providers`) |
 | `providers` | `{}` | Custom providers and overrides |
 | `fallback_providers` | `[]` | Providers or named models tried when the model can't serve a request |
