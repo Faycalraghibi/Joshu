@@ -73,6 +73,9 @@ DEFAULT_CONFIG = {
     # Ask the agent once to check its work before it finishes a request
     # that edited files or ran commands
     "self_review": True,
+    # Send a broken final reply (a tool call written as text, a few words right
+    # after a failed tool call) back to the model, up to twice per request
+    "retry_broken_replies": True,
     "permission_mode": "default",
     "context_window": 128000,
     "compact_threshold": 0.8,
@@ -195,6 +198,7 @@ class JoshuConfig:
     max_budget_usd: float = 0.0
     max_request_tokens: int = 0
     self_review: bool = True
+    retry_broken_replies: bool = True
     permission_mode: str = "default"
     context_window: int = 128000
     compact_threshold: float = 0.8

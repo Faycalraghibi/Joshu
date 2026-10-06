@@ -84,6 +84,7 @@ def _isolated_config(monkeypatch, tmp_path):
     # Scripted fake models list every turn; the self-check adds one, so tests
     # that cover it turn it on themselves
     manager.set("self_review", False)
+    manager.set("retry_broken_replies", False)
     monkeypatch.setattr(config_module, "_config_manager_instance", manager)
 
 

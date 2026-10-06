@@ -8,7 +8,9 @@ answers without calling a tool (or the turn limit is reached).
 
 from __future__ import annotations
 
+import json
 import logging
+import re
 import threading
 import uuid
 from dataclasses import dataclass, field
@@ -88,6 +90,44 @@ LENGTH_NOTE = (
     "finished. Continue from where you stopped. Keep your reasoning short and make the "
     "next tool call (or write the answer) now.]"
 )
+
+# A final reply that isn't one: the model wrote a tool call as text, or gave
+# up with a few words right after a tool call failed (seen with small models)
+MAX_MALFORMED_RETRIES = 2
+TOOL_MARKUP = re.compile(
+    r"</?(?:tool_call|tool_use|function_call|function|invoke|parameter)\b|<\|tool_call|"
+    r'"name"\s*:\s*"\w+"\s*,\s*"(?:arguments|parameters)"'
+)
+TOOL_AS_TEXT_NOTE = (
+    "[Your last message contains a tool call written as text, so it did not run. "
+    "Call the tool through the tool-calling interface, or reply in plain words if "
+    "you are done.]"
+)
+AFTER_FAILURE_NOTE = (
+    "[Your last tool call failed and your reply doesn't say what happens next. Read the "
+    "error, fix the call and continue the task, or explain to the user why you can't.]"
+)
+
+
+def malformed_reply(content: str, last_tool_failed: bool) -> Optional[str]:
+    """The note that sends a broken final reply back to the model, or None."""
+    text = (content or "").strip()
+    if TOOL_MARKUP.search(text):
+        return TOOL_AS_TEXT_NOTE
+    if last_tool_failed and len(text) < 80:
+        return AFTER_FAILURE_NOTE
+    return None
+
+
+def _tool_failed(output: Any) -> bool:
+    text = str(output or "").lstrip()
+    if text.startswith("Error"):
+        return True
+    try:
+        data = json.loads(text)
+    except ValueError:
+        return False
+    return isinstance(data, dict) and data.get("success") is False
 
 
 @dataclass
@@ -263,6 +303,7 @@ class Agent:
             if self.auto_memory:
                 self._local_tools["memory"] = self._make_memory_tool()
         self.self_review = bool(config.get("self_review", True)) and not is_subagent
+        self.retry_broken_replies = bool(config.get("retry_broken_replies", True))
         # Set when a request edits a file or runs a command (see _start)
         self._changed_this_request = False
 
@@ -528,6 +569,7 @@ class Agent:
         self._changed_this_request = False
         reviewed = False
         length_continues = 0
+        malformed_retries = 0
         max_tokens = self.max_tokens
 
         for turn_number in range(1, self.max_turns + 1):
@@ -570,6 +612,16 @@ class Agent:
                 continue
 
             if not turn.tool_calls:
+                note = (
+                    malformed_reply(turn.content, self._last_tool_failed())
+                    if self.retry_broken_replies
+                    else None
+                )
+                if note is not None and malformed_retries < MAX_MALFORMED_RETRIES:
+                    malformed_retries += 1
+                    logger.info("Final reply looks broken; sending it back")
+                    self.messages.append({"role": "user", "content": note})
+                    continue
                 reason = self._stop_hook_reason(prompt, turn.content, stop_continues)
                 if reason is not None:
                     # A stop hook sent the agent back to work
@@ -1042,6 +1094,15 @@ class Agent:
         with self._usage_lock:
             for key in ("prompt_tokens", "completion_tokens", "cached_tokens"):
                 self.usage[key] += usage.get(key, 0)
+
+    def _last_tool_failed(self) -> bool:
+        """Did a tool result just before the latest reply report a failure?"""
+        failed = False
+        for message in reversed(self.messages[:-1]):
+            if message.get("role") != "tool":
+                break
+            failed = failed or _tool_failed(message.get("content"))
+        return failed
 
     def _limit_reached(self) -> Optional[str]:
         """Why the spending limits stop the request now, or None."""
