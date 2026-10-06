@@ -63,6 +63,9 @@ DEFAULT_CONFIG = {
     "request_retries": 3,
     # Agent loop settings
     "agent_max_turns": 50,
+    # Ask the agent once to check its work before it finishes a request
+    # that edited files or ran commands
+    "self_review": True,
     "permission_mode": "default",
     "context_window": 128000,
     "compact_threshold": 0.8,
@@ -181,6 +184,7 @@ class JoshuConfig:
     request_retries: int = 3
     # Agent loop settings
     agent_max_turns: int = 50
+    self_review: bool = True
     permission_mode: str = "default"
     context_window: int = 128000
     compact_threshold: float = 0.8
