@@ -214,29 +214,3 @@ def perform_restore(
         message=f"Restoration complete: {tool_call_data.checkpoint_tag}",
         message_type="success",
     )
-
-
-def list_extensions(config: Dict[str, Any]) -> CommandActionReturn:
-    """
-    List configured extensions.
-
-    Args:
-        config: Application configuration
-
-    Returns:
-        MessageActionReturn with extension list
-    """
-    extensions = config.get("extensions", [])
-
-    if not extensions:
-        return MessageActionReturn(
-            message="No extensions configured",
-            message_type="info",
-        )
-
-    ext_list = "\n".join(f"  - {ext}" for ext in extensions)
-    return MessageActionReturn(
-        message=f"Configured extensions:\n{ext_list}",
-        message_type="info",
-        metadata={"extensions": extensions},
-    )

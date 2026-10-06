@@ -26,13 +26,10 @@ Complete documentation for Joshu AI-powered command-line assistant.
 
 ## Agent System
 
-- **[Agent Definitions](agent-system.md)** - Declarative agent definitions and registration
 - **[Chat & Scheduling](chat-and-scheduling.md)** - Session management, tools, and hooks
-- **[Command Processing](command-processing.md)** - CLI commands and state restoration
 
 ## Advanced
 
-- **[Extensions Framework](extensions.md)** - Create and manage extensions
 - **[Hooks System](hooks.md)** - Intercept and customize agent behavior
 - **[MCP Servers](mcp-servers.md)** - External tool servers via MCP protocol
 - **[CLI Reference](cli-reference.md)** - All CLI commands and discovery features
@@ -41,7 +38,7 @@ Complete documentation for Joshu AI-powered command-line assistant.
 ## Development
 
 - **[Contributing](contributing.md)** - Development setup and workflow
-- **[Development Automation](development-automation.md)** - Build, lint, and release scripts
+- **[Development Automation](development-automation.md)** - Lint, CI, benchmarks and releasing
 - **[Testing Guide](testing-guide.md)** - Running and writing tests
 
 ---

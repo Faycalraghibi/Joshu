@@ -6,13 +6,12 @@ consistent action return types for agent integration.
 
 Key components:
 - types: Command action return types
-- handlers: Init, restore, and extension commands
+- handlers: init and restore
 """
 
 from joshu.commands.handlers import (
     GitService,
     RestoreToolCallData,
-    list_extensions,
     perform_init,
     perform_restore,
 )
@@ -42,7 +41,6 @@ __all__ = [
     # Handlers
     "perform_init",
     "perform_restore",
-    "list_extensions",
     "GitService",
     "RestoreToolCallData",
 ]

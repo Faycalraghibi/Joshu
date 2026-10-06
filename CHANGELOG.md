@@ -52,6 +52,11 @@ All notable changes to the Joshu project will be documented in this file.
 - `Ctrl+L` ran `cls`/`clear` in a subprocess behind the prompt; it now redraws the screen.
 - Removed key bindings that did nothing (`Ctrl+B`, `Ctrl+J`, `Ctrl+K`, `Ctrl+T`, the custom vim keys).
 
+### Removed
+- Code no command reaches (see docs/plans/2026-10-05-code-audit.md): the agent registry, delegate tool, tool wrapper and schema converter (`joshu.agents` keeps the YAML/JSON definitions and loader used for sub-agents), the extension framework (`joshu.extensions` keeps the TOML command parser used by custom commands), the A2A `extensions` command, `joshu.commands.mcp` and `ui/interactive/utils.py`; with their tests and the docs pages agent-system.md, extensions.md and command-processing.md.
+- The `tqdm` and `requests` dependencies (nothing imported them).
+- 25 helper scripts from the project template that nothing ran (builds for other languages, packaging, telemetry collectors, release helpers, ...); `scripts/lint.py` stays. `docs/development-automation.md` describes what is actually used.
+
 ## [0.3.0] - 2026-10-04
 
 ### Added

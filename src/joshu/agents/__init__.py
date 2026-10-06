@@ -1,16 +1,12 @@
 """
-Agent Definition and Registration System for Joshu.
+Declarative agent definitions (YAML/JSON).
 
-This package provides a declarative agent definition and registration system
-that allows AI agents to be discovered, validated, configured, and exposed
-as callable tools for agent-to-agent delegation.
+Sub-agents for the `task` tool can be written in this format as well as in
+Markdown (see joshu.core.subagents, which loads them with load_agents_from_path).
 
-Key components:
-- definitions: Core dataclasses for agent configuration
-- schema_converter: InputConfig to JSON Schema conversion
-- registry: Central registry for agent definitions
-- tool_wrapper: SubagentToolWrapper for agent-as-tool exposure
-- exceptions: Custom exception classes
+- definitions: dataclasses for an agent's prompt, model, tools and limits
+- loader: JSON / YAML loaders
+- exceptions: errors raised while loading
 """
 
 from joshu.agents.definitions import (
@@ -22,11 +18,6 @@ from joshu.agents.definitions import (
     PromptConfig,
     RunConfig,
     ToolConfig,
-)
-from joshu.agents.delegate_tool import (
-    DelegateToAgentTool,
-    DelegationRequest,
-    create_delegate_tool,
 )
 from joshu.agents.exceptions import (
     AgentError,
@@ -42,9 +33,6 @@ from joshu.agents.loader import (
     YamlAgentLoader,
     load_agents_from_path,
 )
-from joshu.agents.registry import AgentRegistry, get_agent_registry
-from joshu.agents.schema_converter import input_config_to_json_schema
-from joshu.agents.tool_wrapper import SubagentToolWrapper
 
 __all__ = [
     # Definitions
@@ -56,17 +44,6 @@ __all__ = [
     "ModelConfig",
     "RunConfig",
     "ToolConfig",
-    # Registry
-    "AgentRegistry",
-    "get_agent_registry",
-    # Tool Wrapper
-    "SubagentToolWrapper",
-    # Delegation
-    "DelegateToAgentTool",
-    "DelegationRequest",
-    "create_delegate_tool",
-    # Schema Conversion
-    "input_config_to_json_schema",
     # Loaders
     "AgentLoader",
     "JsonAgentLoader",
