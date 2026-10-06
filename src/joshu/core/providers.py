@@ -41,6 +41,9 @@ class Provider:
     request_options: Dict[str, Any] = field(default_factory=dict)
     # Model id prefixes ("*" = all) whose requests get prompt-cache breakpoints
     cache_control_models: List[str] = field(default_factory=list)
+    # Extra fields that turn a reasoning model's thinking off for one request
+    # (the `thinking` setting); empty when the provider has no such switch
+    no_thinking_options: Dict[str, Any] = field(default_factory=dict)
 
     def resolve_api_key(self) -> Optional[str]:
         """The API key, from the config value or the environment."""
@@ -65,6 +68,7 @@ BUILTIN_PROVIDERS: Dict[str, Provider] = {
             headers={"X-Title": "Joshu Assistant"},
             request_options={"usage": {"include": True}},  # cost in every response
             cache_control_models=["anthropic/"],  # Anthropic needs explicit breakpoints
+            no_thinking_options={"reasoning": {"enabled": False}},
             default_model="poolside/laguna-s-2.1:free",
             description="Hundreds of models from many vendors behind one key",
         ),
@@ -132,6 +136,7 @@ BUILTIN_PROVIDERS: Dict[str, Provider] = {
             api_key_env="NVIDIA_API_KEY",
             default_model="nvidia/nemotron-3.5-lightning-30b-a3b",
             description="NVIDIA-hosted open models (free key from build.nvidia.com)",
+            no_thinking_options={"chat_template_kwargs": {"enable_thinking": False}},
         ),
         Provider(
             "ollama",
@@ -150,6 +155,7 @@ BUILTIN_PROVIDERS: Dict[str, Provider] = {
             "http://localhost:8000/v1",
             requires_key=False,
             description="vLLM OpenAI-compatible server",
+            no_thinking_options={"chat_template_kwargs": {"enable_thinking": False}},
         ),
     ]
 }
@@ -164,6 +170,7 @@ _PROVIDER_FIELDS = {
     "description",
     "request_options",
     "cache_control_models",
+    "no_thinking_options",
 }
 
 

@@ -113,6 +113,7 @@ class OpenAIChatClient:
         model: str,
         extra_headers: Optional[Dict[str, str]] = None,
         extra_body: Optional[Dict[str, Any]] = None,
+        no_thinking_options: Optional[Dict[str, Any]] = None,
         cache_breakpoints: bool = False,
         timeout: float = DEFAULT_REQUEST_TIMEOUT,
         max_retries: int = DEFAULT_REQUEST_RETRIES,
@@ -124,6 +125,8 @@ class OpenAIChatClient:
         self.extra_headers = {k: v for k, v in (extra_headers or {}).items() if v}
         # Provider-specific request fields, e.g. OpenRouter's usage accounting
         self.extra_body = dict(extra_body or {})
+        # Fields that turn thinking off for a request (complete(thinking=False))
+        self.no_thinking_options = dict(no_thinking_options or {})
         # Mark the cacheable prompt prefix (see joshu.core.prompt_cache)
         self.cache_breakpoints = cache_breakpoints
         # Context size of the model, when known (named models can set it)
@@ -150,8 +153,13 @@ class OpenAIChatClient:
         temperature: float = 0.1,
         on_text: Optional[Callable[[str], None]] = None,
         on_reasoning: Optional[Callable[[str], None]] = None,
+        thinking: Optional[bool] = None,
     ) -> AssistantTurn:
-        """Run one completion, streaming text to `on_text` when given."""
+        """
+        Run one completion, streaming text to `on_text` when given.
+        `thinking=False` asks a reasoning model not to think first, where the
+        provider has a switch for it (no_thinking_options).
+        """
         if self.cache_breakpoints:
             from joshu.core.prompt_cache import add_cache_breakpoints
 
@@ -166,8 +174,11 @@ class OpenAIChatClient:
             request["tools"] = tools
         if self.extra_headers:
             request["extra_headers"] = self.extra_headers
-        if self.extra_body:
-            request["extra_body"] = self.extra_body
+        extra_body = dict(self.extra_body)
+        if thinking is False and self.no_thinking_options:
+            extra_body = _merged(extra_body, self.no_thinking_options)
+        if extra_body:
+            request["extra_body"] = extra_body
 
         try:
             if on_text is None:
@@ -269,6 +280,17 @@ class OpenAIChatClient:
             finish_reason=finish_reason,
             usage=usage,
         )
+
+
+def _merged(base: Dict[str, Any], extra: Dict[str, Any]) -> Dict[str, Any]:
+    """`base` with `extra` laid over it, merging nested mappings."""
+    merged = dict(base)
+    for key, value in extra.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = _merged(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
 
 
 def _describe_error(error: Exception) -> str:
@@ -490,6 +512,7 @@ def _client_for_provider(
         model=model,
         extra_headers=dict(provider.headers),
         extra_body=dict(provider.request_options),
+        no_thinking_options=dict(provider.no_thinking_options),
         cache_breakpoints=model_wants_breakpoints(model, provider.cache_control_models),
         timeout=timeout or DEFAULT_REQUEST_TIMEOUT,
         max_retries=retries,
