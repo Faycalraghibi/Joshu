@@ -27,7 +27,7 @@ joshu "add a --verbose flag to the CLI and update the tests"
 - **Lean on tokens**: on-demand tool loading, compact results and context
   clearing keep a plain "hi" around 2k tokens
 - **Extensible**: custom commands, sub-agents, skills, hooks, MCP tools,
-  prompts and resources, output styles
+  prompts and resources, output styles, and plugins that bundle them
 - **Programmable**: a Python SDK, JSON / streaming JSON output, an HTTP server
   (`joshu serve`) and a GitHub Action that works on `@joshu` comments
 
@@ -85,7 +85,7 @@ print(run("summarize README.md").text)
 - [Models & providers](docs/models-and-providers.md)
 - [Python SDK and streaming](docs/sdk.md)
 - [GitHub Action](docs/github-action.md)
-- [Hooks](docs/hooks.md) · [MCP servers](docs/mcp-servers.md) · [Configuration](docs/configuration.md)
+- [Hooks](docs/hooks.md) · [MCP servers](docs/mcp-servers.md) · [Plugins](docs/plugins.md) · [Configuration](docs/configuration.md)
 - [Roadmap](docs/roadmap.md) · [All documentation](docs/README.md)
 
 ## License

@@ -255,6 +255,14 @@ See [A2A Server](a2a-server.md).
 Manage MCP servers: `joshu mcp list|add|remove|status|connect|disconnect|discover`.
 See [MCP Servers](mcp-servers.md).
 
+---
+
+### plugin
+
+Install bundles of skills, commands, output styles, hooks and MCP servers:
+`joshu plugin install <git-url | dir> [--yes] [--force]`, `list`, `update <name>`,
+`enable <name>`, `disable <name>`, `remove <name>`. See [Plugins](plugins.md).
+
 ## Usage Patterns
 
 ### Scripts and CI

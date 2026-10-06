@@ -48,8 +48,9 @@ Its counts decide the order of step 2.
   and session (setting, `joshu run` flag, SDK option); the loop stops cleanly
   with `stopped="budget"`.
 - **Plugins**: `joshu plugin install <git-url|path>` for bundles of commands,
-  skills, hooks and MCP servers (`joshu-plugin.toml`), with list, remove and
-  update, through the existing loaders.
+  skills, hooks and MCP servers (`joshu-plugin.yaml`; YAML because Python 3.10
+  has no TOML reader), with list, update, enable, disable and remove, through
+  the existing loaders (done).
 - **Managed settings**: a read-only `managed-settings.yaml` in a system path,
   the highest config layer, able to lock settings; shown in `/doctor`.
 

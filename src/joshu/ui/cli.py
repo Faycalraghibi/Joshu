@@ -35,11 +35,13 @@ mcp_app = typer.Typer(help="Manage MCP server integrations.")
 app.add_typer(mcp_app, name="mcp")
 
 from .cli_models import models_app, providers_app, use  # noqa: E402
+from .cli_plugins import plugin_app  # noqa: E402
 from .cli_skills import skills_app  # noqa: E402
 
 app.add_typer(providers_app, name="providers")
 app.add_typer(models_app, name="models")
 app.add_typer(skills_app, name="skills")
+app.add_typer(plugin_app, name="plugin")
 app.command(name="use")(use)
 console = Console()
 
