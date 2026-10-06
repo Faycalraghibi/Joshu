@@ -266,6 +266,44 @@ def test_reads_file(tmp_path):
     assert agent.run("read a.txt").text == "done"
 ```
 
+## Terminal Tests
+
+`tests/e2e/test_terminal.py` starts interactive Joshu in a real pseudo-terminal
+(ConPTY through `pywinpty` on Windows, `pexpect` elsewhere), sends keys as
+bytes and checks the screen. `pyte` draws the output as a terminal would, so
+checks see the final screen rather than the raw stream (`Terminal.rendered()`,
+`wait_drawn`). With `Terminal(home, script)` the agent talks to a scripted
+model (`tests/e2e/scripted_joshu.py`): a list of turns with text and tool
+calls, so whole requests (questions, approvals, diffs, background shells) run
+without an API key.
+
+```bash
+pytest tests/e2e -q                     # about 30 seconds
+JOSHU_SKIP_TERMINAL_TESTS=1 pytest -q   # skip them
+```
+
+### Manual checklist
+
+Before a release, in Windows Terminal, the classic console (conhost), mintty
+(Git Bash) and a macOS or Linux terminal:
+
+- [ ] The welcome box, prompt, placeholder and bottom bar draw without broken
+      lines at 80 columns and when the window is resized.
+- [ ] Shift+Tab cycles the modes; Esc clears the input; Esc Esc opens rewind;
+      Ctrl+C twice exits.
+- [ ] An approval menu: arrows, number keys and Esc work; the diff in it is
+      colored.
+- [ ] A question with choices: a number picks at once; a multi-select
+      question toggles with Space and numbers; "Other" asks for text; Esc
+      skips.
+- [ ] An edit shows a colored diff; a long one says "ctrl+o to expand" and
+      Ctrl+O shows all of it; the path opens the file where links work.
+- [ ] A background command: the bar says "1 shell · ↓ to view"; Down opens
+      the viewer; Enter shows live output; k stops it; Esc returns.
+- [ ] Esc interrupts a running request; Ctrl+O while it works shows full
+      output.
+- [ ] mintty (no console): menus fall back to numbered prompts.
+
 ## Troubleshooting
 
 ### Tests Failing with "Module not found"
