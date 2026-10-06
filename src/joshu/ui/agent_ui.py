@@ -427,10 +427,15 @@ class ConsoleAgentUI(AgentEvents):
         return True
 
     def _show_write(self, output: str) -> bool:
+        data = _json(output) or {}
+        if data.get("diff"):
+            return self._show_edit(output)
         content = str(self._arguments.get("content") or "")
         lines = content.count("\n") + (1 if content and not content.endswith("\n") else 0)
-        path = escape(_relative(str(self._arguments.get("path", ""))))
+        path = _file_link(str(self._arguments.get("path", "")))
         self._result_line(f"Wrote [bold]{lines}[/bold] lines to [bold]{path}[/bold]")
+        if content and data.get("success", True):
+            self._print_diff(new_file_diff(content))
         return True
 
     def _show_edit(self, output: str) -> bool:
@@ -444,14 +449,22 @@ class ConsoleAgentUI(AgentEvents):
         removed = sum(
             1 for line in diff.splitlines() if line.startswith("-") and not line.startswith("---")
         )
-        path = escape(_relative(str(self._arguments.get("path", ""))))
+        path = _file_link(str(self._arguments.get("path", "")))
         self._result_line(
             f"Updated [bold]{path}[/bold] with [bold]{added}[/bold] "
             f"addition{'s' if added != 1 else ''} and [bold]{removed}[/bold] "
             f"removal{'s' if removed != 1 else ''}"
         )
-        self.console.print(Padding(render_diff(diff, MAX_DIFF_LINES), (0, 0, 0, 5)))
+        self._print_diff(diff)
         return True
+
+    def _print_diff(self, diff: str) -> None:
+        """A diff, cut to MAX_DIFF_LINES (Ctrl+O shows all of it)."""
+        folded = not self.verbose and _diff_length(diff) > MAX_DIFF_LINES
+        if folded:
+            self.expandable.append((self._call, Diff(diff)))
+        limit = MAX_DIFF_LINES if folded else _diff_length(diff)
+        self.console.print(Padding(render_diff(diff, limit, expandable=folded), (0, 0, 0, 5)))
 
     def _show_shell(self, output: str) -> bool:
         data = _json(output)
@@ -625,7 +638,10 @@ class ConsoleAgentUI(AgentEvents):
                 no_wrap=True,
                 overflow="ellipsis",
             )
-            self._print_full(text)
+            if isinstance(text, Diff):
+                self.console.print(Padding(render_diff(text, _diff_length(text)), (0, 0, 0, 5)))
+            else:
+                self._print_full(text)
 
     def toggle_verbose(self) -> None:
         """Ctrl+O while the agent works: show the rest of this request's output in full."""
@@ -804,14 +820,45 @@ def _short(tokens: int) -> str:
     return f"{round(tokens / 1000)}k"
 
 
-def render_diff(diff: str, limit: int) -> Any:
-    """A unified diff with line numbers, additions green and removals red."""
-    table = Table.grid(padding=(0, 1))
-    table.add_column(justify="right", style="dim", no_wrap=True)
-    table.add_column(no_wrap=False)
+class Diff(str):
+    """A diff kept for Ctrl+O: shown colored and in full."""
+
+
+def _diff_length(diff: str) -> int:
+    """Lines render_diff shows (headers and hunk markers aside)."""
+    return sum(1 for line in diff.splitlines() if not line.startswith(("---", "+++", "@@")))
+
+
+def new_file_diff(content: str) -> str:
+    """A new file's content as a diff of additions."""
+    lines = content.splitlines()
+    return f"@@ -0,0 +1,{len(lines)} @@\n" + "".join(f"+{line}\n" for line in lines)
+
+
+def _file_link(path: str) -> str:
+    """Markup for a path relative to the working directory, clickable (opens the file)."""
+    from pathlib import Path
+
+    shown = escape(_relative(path))
+    try:
+        uri = Path(path).resolve().as_uri()
+    except (ValueError, OSError):
+        return shown
+    return f"[link={uri}]{shown}[/link]"
+
+
+def render_diff(diff: str, limit: int, expandable: bool = False) -> Any:
+    """
+    A unified diff with line numbers: added lines green on a green background,
+    removed lines red on red, at most `limit` of them (`expandable`: say
+    Ctrl+O shows the rest).
+    """
+    theme = current_theme()
+    add_row = f"on {theme.diff_add_bg}" if theme.diff_add_bg else None
+    remove_row = f"on {theme.diff_remove_bg}" if theme.diff_remove_bg else None
+    rows: List[Tuple[str, Text, Optional[str]]] = []
     old_no = new_no = 0
-    shown = 0
-    hidden = 0
+    shown = hidden = 0
     for line in diff.splitlines():
         if line.startswith(("---", "+++")):
             continue
@@ -822,25 +869,33 @@ def render_diff(diff: str, limit: int) -> Any:
                 new_no = int(ranges[1].split(",")[0].lstrip("+")) - 1
             except (IndexError, ValueError):
                 pass
-            if shown:
-                table.add_row("", Text("⋮", style="dim"))
+            if rows and shown < limit:
+                rows.append(("", Text("⋮", style="dim"), None))
             continue
         if shown >= limit:
             hidden += 1
             continue
+        shown += 1
         if line.startswith("+"):
             new_no += 1
-            table.add_row(str(new_no), Text("+ " + line[1:], style=_s("diff_add")))
+            rows.append((str(new_no), Text("+ " + line[1:], style=_s("diff_add")), add_row))
         elif line.startswith("-"):
             old_no += 1
-            table.add_row(str(old_no), Text("- " + line[1:], style=_s("diff_remove")))
+            rows.append((str(old_no), Text("- " + line[1:], style=_s("diff_remove")), remove_row))
         else:
             old_no += 1
             new_no += 1
-            table.add_row(str(new_no), Text("  " + line[1:], style="dim"))
-        shown += 1
+            rows.append((str(new_no), Text("  " + line[1:], style="dim"), None))
+    # Colored rows span the width: the table fills it, the number column stays narrow
+    width = max((len(number) for number, _, _ in rows), default=1)
+    table = Table.grid(padding=(0, 1), expand=bool(add_row or remove_row))
+    table.add_column(justify="right", style="dim", no_wrap=True, width=width)
+    table.add_column(no_wrap=False, ratio=1)
+    for number, text, row_style in rows:
+        table.add_row(number, text, style=row_style)
     if hidden:
-        table.add_row("", Text(f"… +{hidden} lines", style="dim"))
+        more = f"… +{hidden} lines" + (" (ctrl+o to expand)" if expandable else "")
+        table.add_row("", Text(more, style="dim"))
     return table
 
 

@@ -29,6 +29,8 @@ class Theme:
     bypass: str  # bypass mode
     diff_add: str
     diff_remove: str
+    diff_add_bg: str = ""  # background of added / removed diff lines
+    diff_remove_bg: str = ""
 
 
 THEMES: Dict[str, Theme] = {
@@ -48,6 +50,8 @@ THEMES: Dict[str, Theme] = {
         bypass="#f7768e",
         diff_add="#9ece6a",
         diff_remove="#f7768e",
+        diff_add_bg="#1d3320",
+        diff_remove_bg="#3d1d24",
     ),
     "light": Theme(
         name="light",
@@ -65,6 +69,8 @@ THEMES: Dict[str, Theme] = {
         bypass="#c62828",
         diff_add="#2e7d32",
         diff_remove="#c62828",
+        diff_add_bg="#dcf5e0",
+        diff_remove_bg="#fde4e4",
     ),
     "colorblind": Theme(
         name="colorblind",
@@ -82,6 +88,8 @@ THEMES: Dict[str, Theme] = {
         bypass="#e69f00",
         diff_add="#56b4e9",
         diff_remove="#e69f00",
+        diff_add_bg="#10303f",
+        diff_remove_bg="#3a2a05",
     ),
     "plain": Theme(
         name="plain",

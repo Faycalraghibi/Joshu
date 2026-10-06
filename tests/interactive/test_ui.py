@@ -248,6 +248,45 @@ def test_render_diff_numbers_lines():
     assert lines[1].split()[:2] == ["2", "-"]
 
 
+def test_new_file_shows_as_additions():
+    ui, out = terminal_ui()
+    ui.on_tool_start("write_file", {"path": "new.py", "content": "a = 1\nb = 2\n"})
+    ui.on_tool_end("write_file", json.dumps({"success": True}), True)
+    shown = text_of(out)
+    assert "Wrote 2 lines to new.py" in shown
+    assert "+ a = 1" in shown and "+ b = 2" in shown
+
+
+def test_overwrite_shows_its_diff():
+    ui, out = terminal_ui()
+    ui.on_tool_start("write_file", {"path": "x.py", "content": "def f():\n    return 2\n"})
+    ui.on_tool_end("write_file", json.dumps({"success": True, "diff": DIFF}), True)
+    assert "Updated x.py with 1 addition and 1 removal" in text_of(out)
+
+
+def test_long_diff_folds_and_ctrl_o_shows_all_of_it():
+    ui, out = terminal_ui()
+    content = "".join(f"line {i}\n" for i in range(40))
+    ui.on_tool_start("write_file", {"path": "big.txt", "content": content})
+    ui.on_tool_end("write_file", json.dumps({"success": True}), True)
+    shown = text_of(out)
+    assert "+ line 23" in shown and "+ line 24" not in shown
+    assert "… +16 lines (ctrl+o to expand)" in shown
+    ui.show_expanded()
+    assert "+ line 39" in text_of(out)
+
+
+def test_diff_lines_have_a_background():
+    console = Console(file=io.StringIO(), width=60, color_system="truecolor", force_terminal=True)
+    console.print(render_diff(DIFF, 10))
+    added = next(line for line in console.file.getvalue().splitlines() if "return 2" in line)
+    assert "48;2;" in added  # a background color
+
+
+def test_edited_path_is_a_link():
+    assert agent_ui._file_link("x.py").startswith("[link=file:")
+
+
 # ---------------------------------------------------------------- approvals
 
 
