@@ -6,12 +6,14 @@ elsewhere; skipped when neither is installed.
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import sys
 import threading
 import time
 from pathlib import Path
+from typing import Any, List, Optional
 
 import pytest
 
@@ -35,7 +37,7 @@ ANSI = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07]*\x07|\x1b[=>()][0-9A
 class Terminal:
     """Joshu's prompt running in a pseudo-terminal."""
 
-    def __init__(self, home: Path) -> None:
+    def __init__(self, home: Path, script: Optional[List[Any]] = None) -> None:
         env = dict(
             os.environ,
             PYTHONPATH=str(ROOT / "src"),
@@ -45,6 +47,11 @@ class Terminal:
         )
         self._chunks: list[str] = []
         argv = [sys.executable, "-c", START]
+        if script is not None:
+            # A scripted model (see scripted_joshu.py) instead of a real one
+            (home / "script.json").write_text(json.dumps(script), encoding="utf-8")
+            env["JOSHU_TEST_SCRIPT"] = str(home / "script.json")
+            argv = [sys.executable, str(Path(__file__).with_name("scripted_joshu.py"))]
         if os.name == "nt":
             self._process = winpty.PtyProcess.spawn(
                 argv, cwd=str(home), env=env, dimensions=(40, 120)
@@ -80,6 +87,14 @@ class Terminal:
     def screen(self) -> str:
         return ANSI.sub("", "".join(self._chunks))
 
+    def rendered(self) -> str:
+        """The screen as a terminal draws it (cursor moves applied), scrollback included."""
+        pyte = pytest.importorskip("pyte")
+        screen = pyte.HistoryScreen(120, 40, history=5000)
+        pyte.Stream(screen).feed("".join(self._chunks))
+        history = ["".join(char.data for char in line.values()) for line in screen.history.top]
+        return "\n".join(line.rstrip() for line in history + screen.display)
+
     def mark(self) -> int:
         return len(self.screen)
 
@@ -89,6 +104,15 @@ class Terminal:
             if text in self.screen[since:]:
                 return True
             time.sleep(0.1)
+        return False
+
+    def wait_drawn(self, text: str, seconds: float = 20) -> bool:
+        """Like wait_for, on the drawn screen (text that redraws went over is gone)."""
+        deadline = time.time() + seconds
+        while time.time() < deadline:
+            if text in self.rendered():
+                return True
+            time.sleep(0.3)
         return False
 
     def send(self, keys: str, pause: float = 0.5) -> None:
@@ -145,3 +169,123 @@ def test_keys_in_a_real_terminal(terminal):
     while terminal.alive() and time.time() < deadline:
         time.sleep(0.1)
     assert not terminal.alive()
+
+
+def scripted(tmp_path, script, config=""):
+    (tmp_path / "config.yaml").write_text("mcp_enabled: false\n" + config, encoding="utf-8")
+    term = Terminal(tmp_path, script)
+    # The placeholder shows in every permission mode
+    assert term.wait_for("explain this codebase", seconds=60), term.screen[-2000:]
+    return term
+
+
+def ask(question, options, multi=False):
+    return {
+        "tool_calls": [
+            {
+                "name": "ask_user",
+                "arguments": {
+                    "questions": [
+                        {
+                            "question": question,
+                            "options": [{"label": o} for o in options],
+                            "multi_select": multi,
+                        }
+                    ]
+                },
+            }
+        ]
+    }
+
+
+def test_questions_with_choices(tmp_path):
+    script = [
+        ask("Which database?", ["Postgres", "SQLite"]),
+        ask("Which extras?", ["Docker", "CI", "Docs"], multi=True),
+        {"content": "Setting it up."},
+    ]
+    term = scripted(tmp_path, script)
+    try:
+        term.send("set up the project\r", pause=1.0)
+        assert term.wait_for("Which database?"), term.screen[-2000:]
+        mark = term.mark()
+        term.send("2", pause=1.0)  # a number picks at once
+        assert term.wait_for("SQLite", mark), term.screen[-2000:]
+        assert term.wait_for("Which extras?", mark), term.screen[-2000:]
+        mark = term.mark()
+        term.send("1", pause=0.4)
+        term.send("3", pause=0.4)
+        term.send("\r", pause=1.0)
+        assert term.wait_for("Docker, Docs", mark), term.screen[-2000:]
+        assert term.wait_for("Setting it up.", mark), term.screen[-2000:]
+    finally:
+        term.close()
+
+
+def test_approval_menu_and_diff(tmp_path):
+    (tmp_path / "app.py").write_text("def total(items):\n    return sum(items)\n", encoding="utf-8")
+    script = [
+        {
+            "tool_calls": [
+                {
+                    "name": "replace",
+                    "arguments": {
+                        "path": "app.py",
+                        "old_string": "    return sum(items)",
+                        "new_string": "    return round(sum(items), 2)",
+                    },
+                }
+            ]
+        },
+        {"content": "Rounded."},
+    ]
+    term = scripted(tmp_path, script)
+    try:
+        term.send("round the total\r", pause=1.0)
+        assert term.wait_for("Yes"), term.screen[-2000:]  # the approval menu
+        term.send("1", pause=1.0)
+        assert term.wait_drawn("Rounded."), term.rendered()[-3000:]
+        shown = term.rendered()
+        assert "⎿  Updated app.py with 1 addition and 1 removal" in shown, shown
+        assert (
+            "2 -     return sum(items)" in shown and "2 +     return round(sum(items), 2)" in shown
+        )
+        assert "round(sum(items), 2)" in (tmp_path / "app.py").read_text(encoding="utf-8")
+    finally:
+        term.close()
+
+
+def test_background_shell_viewer(tmp_path):
+    talk = "import time\nfor i in range(300):\n    print(f'tick {i}', flush=True)\n    time.sleep(0.2)\n"
+    (tmp_path / "talk.py").write_text(talk, encoding="utf-8")
+    script = [
+        {
+            "tool_calls": [
+                {
+                    "name": "run_shell_command",
+                    "arguments": {"command": f'"{sys.executable}" talk.py', "background": True},
+                }
+            ]
+        },
+        {"content": "Started it."},
+    ]
+    term = scripted(tmp_path, script, config="permission_mode: bypass\n")
+    try:
+        term.send("start the ticker\r", pause=1.0)
+        assert term.wait_for("Started it."), term.screen[-2000:]
+        assert term.wait_for("1 shell · ↓ to view"), term.screen[-2000:]
+        mark = term.mark()
+        term.send("\x1b[B", pause=1.5)  # Down on the empty prompt
+        assert term.wait_for("Background shells", mark), term.screen[-2000:]
+        mark = term.mark()
+        term.send("\r", pause=2.0)
+        assert term.wait_for("tick ", mark), term.screen[-2000:]
+        mark = term.mark()
+        term.send("k", pause=1.5)
+        assert term.wait_for("Background shells", mark), term.screen[-2000:]
+        term.send("\x1b", pause=1.0)
+        mark = term.mark()
+        term.send("?\r")
+        assert term.wait_for("ctrl+o", mark), term.screen[-2000:]  # back at the prompt
+    finally:
+        term.close()

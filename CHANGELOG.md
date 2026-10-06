@@ -5,6 +5,7 @@ All notable changes to the Joshu project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Terminal tests with a scripted model (`tests/e2e/scripted_joshu.py`): questions with choices, the approval menu and diff, and the background shells viewer run in a real pseudo-terminal and are checked on the screen as drawn (`pyte`). A manual checklist for terminals is in the testing guide.
 - Spending limits: `max_budget_usd` (the session's cost) and `max_request_tokens` (one request's tokens), as settings, `joshu run --max-budget-usd / --max-request-tokens`, SDK `Session` options and GitHub Action inputs. Checked before each model call, so every tool call keeps its result; the request ends with `stopped: "budget"`.
 - `benchmarks/triage.py` tells why benchmark runs failed (provider error, no edits, out of time or turns, untested, gave up with failing tests, missed cases), from each run's conversation, which `benchmarks/run.py` now keeps next to the results (`--no-transcripts` to skip).
 - Self-review: before finishing a request that edited files or ran commands, the agent is asked once to compare its work with the request (every asked-for change done, edge cases checked, tests run) and fix what is missing. On by default (`self_review: false` turns it off; sub-agents skip it). `benchmarks/run.py --set KEY=VALUE` runs a benchmark with a setting changed, to compare settings.
