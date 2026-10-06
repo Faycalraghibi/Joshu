@@ -292,7 +292,15 @@ def _last_json(stdout: str) -> Optional[Dict[str, Any]]:
 
 
 # Failures that say nothing about the model: the endpoint couldn't be reached
-INFRA_ERRORS = ("Connection error", "request failed: Connection", "timed out", "Read timeout")
+INFRA_ERRORS = (
+    "Connection error",
+    "request failed: Connection",
+    "timed out",
+    "Read timeout",
+    # The provider answered with a server error or a rate limit (after retries)
+    "request failed: HTTP 5",
+    "request failed: HTTP 429",
+)
 
 
 def is_infra_error(result: Result) -> bool:
