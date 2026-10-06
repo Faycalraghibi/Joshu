@@ -30,6 +30,7 @@ All notable changes to the Joshu project will be documented in this file.
 - `Ctrl+G` writes the prompt in your editor (`$VISUAL`, `$EDITOR`, Notepad on Windows).
 
 ### Changed
+- The system prompt names the Python command that works on the machine (`python`, `python3` or `py`; the Windows Store stub is skipped) and asks for paths relative to the working directory. Benchmark transcripts showed `python3` failing on Windows and a long absolute path copied wrong.
 - A saved conversation is written after every tool round, not only when the request ends, so a crash or a killed process keeps the work so far.
 - Diffs: added lines are green and removed lines red on a matching background across the row; a diff longer than 24 lines is cut with "ctrl+o to expand", and Ctrl+O shows it whole and colored. A new file from `write_file` shows as added lines, an overwrite as its diff, and the edited path is a link that opens the file (in terminals with OSC 8 links).
 - `max_tokens` defaults to 8192 (was 4096): reasoning models spend output tokens on thinking.
