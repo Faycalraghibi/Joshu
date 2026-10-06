@@ -578,6 +578,47 @@ class ConsoleAgentUI(AgentEvents):
                 request.feedback = _ask_feedback()
         return answer
 
+    # ------------------------------------------------------------ questions
+
+    # Set by create_console_agent when someone is at the terminal to answer
+    can_ask_user = False
+
+    def ask_user(self, questions: List[Any]) -> Optional[List[Any]]:
+        """Put the agent's questions to the user (see joshu.core.ask)."""
+        with self._lock:
+            self._stop_spinner()
+            self._end_line()
+            self.notify("Joshu has a question")
+        from joshu.ui.key_listener import paused
+
+        answers: List[Any] = []
+        with paused():
+            for number, question in enumerate(questions, start=1):
+                self.console.print()
+                title = question.header or (
+                    f"Question {number} of {len(questions)}" if len(questions) > 1 else "Question"
+                )
+                body = Text.assemble(
+                    (f"{title}\n", "bold"),
+                    question.question,
+                    ("\n(choose any that apply)" if question.multi_select else "", "dim"),
+                )
+                self.console.print(Panel(body, border_style=_s("accent"), padding=(0, 1)))
+                try:
+                    answer = _ask_one(question)
+                except KeyboardInterrupt:
+                    return None
+                answers.append(answer)
+                shown = (
+                    "skipped"
+                    if answer is None
+                    else answer
+                    if isinstance(answer, str)
+                    else ", ".join(answer)
+                )
+                self._result_line(escape(shown))
+        return answers
+
     # --------------------------------------------------------------- helpers
 
     @_locked
@@ -929,6 +970,75 @@ def _choose(question: str, options: List[tuple]) -> ApprovalChoice:
             return options[1][0]
 
 
+OTHER = "\x00other"  # the "type your own answer" option
+
+
+def _ask_one(question: Any) -> Any:
+    """One question: chosen labels, typed text, or None when skipped (Esc)."""
+    options = [
+        (label, _option_label(label, description)) for label, description in question.options
+    ]
+    options.append((OTHER, _option_label("Other", "type your own answer")))
+    try:
+        from joshu.ui.menu import MenuUnavailable, menu, multi_menu
+
+        try:
+            if question.multi_select:
+                chosen = multi_menu("", options, cancel=None)
+            else:
+                picked = menu("", options, cancel=None)
+                chosen = None if picked is None else [picked]
+        except MenuUnavailable:
+            chosen = _ask_typed(question, options)
+    except ImportError:
+        chosen = _ask_typed(question, options)
+    if chosen is None:
+        return None
+    if OTHER in chosen:
+        try:
+            typed = input("  Your answer: ").strip()
+        except EOFError:
+            typed = ""
+        rest = [c for c in chosen if c != OTHER]
+        if typed:
+            return typed if not rest else ", ".join(rest + [typed])
+        chosen = rest
+    return chosen or None
+
+
+def _option_label(label: str, description: str) -> Any:
+    """Menu text: the label, then its description dimmed."""
+    if not description:
+        return label
+    try:
+        from prompt_toolkit.formatted_text import FormattedText
+
+        return FormattedText([("", label), ("fg:ansibrightblack", f"  {description}")])
+    except ImportError:
+        return f"{label}  {description}"
+
+
+def _ask_typed(question: Any, options: List[tuple]) -> Optional[List[str]]:
+    """Without a terminal menu: numbered options, answered by number(s)."""
+    for number, (value, label) in enumerate(options, start=1):
+        text = label if isinstance(label, str) else "".join(part[1] for part in label)
+        print(f"  {number}. {text}")
+    hint = "numbers separated by commas" if question.multi_select else "a number"
+    while True:
+        try:
+            raw = input(f"  Choose ({hint}, Enter to skip): ").strip()
+        except EOFError:
+            return None
+        if not raw:
+            return None
+        picks = [p.strip() for p in raw.split(",") if p.strip()]
+        if all(p.isdigit() and 1 <= int(p) <= len(options) for p in picks) and (
+            question.multi_select or len(picks) == 1
+        ):
+            return [options[int(p) - 1][0] for p in picks]
+        print(f"  Please enter {hint} from the list.")
+
+
 def _ask_feedback() -> Optional[str]:
     """Optional note for the model after declining (Enter to skip)."""
     try:
@@ -1035,6 +1145,7 @@ def create_console_agent(
 
     config = get_config_manager()
     ui = ConsoleAgentUI(console, quiet=quiet)
+    ui.can_ask_user = interactive and not quiet
     # MCP tools must be registered before the agent lists its tools
     load_mcp_tools(report=None if quiet else lambda line: ui.console.print(f"[dim]{line}[/dim]"))
     untrusted = getattr(config, "untrusted_project_config", None)

@@ -209,6 +209,16 @@ line under the input, e.g.:
 /statusline git branch --show-current
 ```
 
+### Questions with choices
+
+When a decision is yours (an unclear requirement, several reasonable designs),
+the agent asks instead of guessing: up to four questions, each with two to six
+choices. Pick one with the arrows and Enter (or its number); a question that
+allows several answers shows checkboxes (Space or numbers toggle, Enter
+confirms). "Other" lets you type your own answer, and Esc skips the question
+so the agent chooses and says which. Questions are only asked in interactive
+sessions; `joshu run` and `--quiet` never stop to ask.
+
 ### Background commands
 
 The agent can start long-running commands (dev servers, watchers, long test

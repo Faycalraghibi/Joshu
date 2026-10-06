@@ -33,6 +33,7 @@ READ_ONLY_TOOLS: Set[str] = {
     "web_search",
     "write_todos",
     "task",
+    "ask_user",
 }
 
 EDIT_TOOLS: Set[str] = {"replace", "write_file", "multi_edit", "notebook_edit"}

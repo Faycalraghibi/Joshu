@@ -36,6 +36,7 @@ with Session() as session:
 | `cwd` | Project directory; file tools work inside it (one workspace per process) |
 | `tools` | Only offer these tools, e.g. `["read_file", "search_file_content"]` |
 | `can_use_tool` | `(name, input) -> bool`, decides calls that need approval; without it they're denied |
+| `ask_user` | `(questions) -> answers`, answers the agent's multiple-choice questions (`joshu.core.ask.Question`: `question`, `options` as `(label, description)`, `multi_select`, `header`); return one answer per question (a list of chosen labels, typed text, or `None` to skip) or `None`. Without it the agent isn't offered the `ask_user` tool |
 | `system_prompt` | Replace the generated system prompt |
 | `on_event` | Called with every event |
 | `stream_text` | Also emit `text` events while the model writes |
