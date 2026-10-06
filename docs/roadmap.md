@@ -62,6 +62,15 @@ a live check against a real model.
 - Tag a release, publish to PyPI through a trusted-publishing workflow,
   `pipx install joshu`, and an update check.
 
+## Phase 5: Completing the harness
+
+Plan: [plans/2026-10-06-harness-completion.md](plans/2026-10-06-harness-completion.md).
+
+- Self-review before finishing (done).
+- Failure triage for benchmark runs (`benchmarks/triage.py`, transcripts kept).
+- Repository map, verification gate, and planning, in the order triage shows.
+- Spending limits, terminal tests, plugins, managed settings.
+
 ## Later
 - VS Code extension (building on `ide/` and `scripts/build_vscode_companion.py`).
 - Plugins: `joshu plugin install <git-url>` for bundles of commands, skills,

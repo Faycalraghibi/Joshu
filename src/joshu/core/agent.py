@@ -560,6 +560,9 @@ class Agent:
                 )
 
             self._run_tool_calls(turn.tool_calls)
+            if self.persist:
+                # Also mid-request: a crash or a killed process keeps the work so far
+                self._save()
             if sum(self._denials.values()) >= DENIALS_STOP:
                 note = (
                     "[Stopped: tool calls kept being denied. Allow them (e.g. /permissions) "

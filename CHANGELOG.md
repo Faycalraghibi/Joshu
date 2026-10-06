@@ -5,6 +5,7 @@ All notable changes to the Joshu project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- `benchmarks/triage.py` tells why benchmark runs failed (provider error, no edits, out of time or turns, untested, gave up with failing tests, missed cases), from each run's conversation, which `benchmarks/run.py` now keeps next to the results (`--no-transcripts` to skip).
 - Self-review: before finishing a request that edited files or ran commands, the agent is asked once to compare its work with the request (every asked-for change done, edge cases checked, tests run) and fix what is missing. On by default (`self_review: false` turns it off; sub-agents skip it). `benchmarks/run.py --set KEY=VALUE` runs a benchmark with a setting changed, to compare settings.
 - Background shells viewer: Down on an empty prompt (or `/bashes`) lists the commands the agent started in the background; Enter shows one's output live, `k` stops it. The bar under the prompt shows `N shells · ↓ to view` while they run, and the working line counts them during a request (`joshu.ui.shell_viewer`).
 - The agent asks multiple-choice questions when a decision is the user's (`ask_user` tool): up to four questions with two to six choices each, single choice (arrow menu, number keys) or several (checkboxes), "Other" to type an answer, Esc to skip. Interactive sessions only; the SDK takes an `ask_user` callback (`joshu.core.ask`).
@@ -27,6 +28,7 @@ All notable changes to the Joshu project will be documented in this file.
 - `Ctrl+G` writes the prompt in your editor (`$VISUAL`, `$EDITOR`, Notepad on Windows).
 
 ### Changed
+- A saved conversation is written after every tool round, not only when the request ends, so a crash or a killed process keeps the work so far.
 - Diffs: added lines are green and removed lines red on a matching background across the row; a diff longer than 24 lines is cut with "ctrl+o to expand", and Ctrl+O shows it whole and colored. A new file from `write_file` shows as added lines, an overwrite as its diff, and the edited path is a link that opens the file (in terminals with OSC 8 links).
 - `max_tokens` defaults to 8192 (was 4096): reasoning models spend output tokens on thinking.
 - Removed `@@file`, which ran a script directly from the prompt (use `!python script.py`), and the settings that had no effect: `history_size`, `log_level`, `memory_enabled`, `multiline_input`, `persistent_history`, `semantic_memory_enabled` (ignored if still present).
