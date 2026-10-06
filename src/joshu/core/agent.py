@@ -8,6 +8,7 @@ answers without calling a tool (or the turn limit is reached).
 
 from __future__ import annotations
 
+import contextvars
 import json
 import logging
 import re
@@ -49,6 +50,13 @@ from joshu.core.tool_registry import ToolSpec, load_builtin_tools
 logger = logging.getLogger(__name__)
 
 SUBAGENT_MAX_TURNS = 25
+EDIT_SUBAGENT_NOTE = (
+    "You are a sub-agent of Joshu doing one task in your own git worktree (a separate "
+    "checkout of the project). Make the changes, check them (run the tests if there are "
+    "any), and don't commit: your work is committed and applied for you when you finish. "
+    "The main agent sees only your final message: say what you changed and how you "
+    "checked it."
+)
 # Identical calls with identical results in a row: warn the model, then stop
 LOOP_WARN = 3
 LOOP_STOP = 5
@@ -234,6 +242,7 @@ class Agent:
         cwd: Optional[Path] = None,
         session_id: Optional[str] = None,
         is_subagent: bool = False,
+        workspace: Optional[Path] = None,
         stream: bool = True,
         persist: bool = False,
     ) -> None:
@@ -254,6 +263,8 @@ class Agent:
             tool_names: Restrict the agent to these tools (default: all enabled)
             system_prompt: Override the generated system prompt
             is_subagent: Sub-agents get the sub-agent prompt and no `task` tool
+            workspace: An editing sub-agent's worktree: its file tools and
+                commands work there (and it gets the full agent prompt)
             stream: Stream text to events.on_text
             persist: Save the conversation after every request (see
                 joshu.core.sessions) so it can be resumed
@@ -292,6 +303,7 @@ class Agent:
         self.created_at = datetime.now().isoformat(timespec="seconds")
         self.persist = persist and not is_subagent
         self.is_subagent = is_subagent
+        self.workspace = Path(workspace).resolve() if workspace else None
         self.stream = stream
 
         self._registry = load_builtin_tools()
@@ -512,7 +524,13 @@ class Agent:
         from joshu.hooks.dispatcher import dispatch_after_agent
 
         try:
-            response = self._run(prompt, images)
+            if self.workspace is not None:
+                from joshu.tools.filesystem_tools import workspace
+
+                with workspace(self.workspace):
+                    response = self._run(prompt, images)
+            else:
+                response = self._run(prompt, images)
             dispatch_after_agent(self.session_id, prompt, response.text)
             return response
         finally:
@@ -746,8 +764,15 @@ class Agent:
             with ThreadPoolExecutor(
                 max_workers=min(MAX_PARALLEL_TOOLS, len(runnable) or 1)
             ) as pool:
+                # Each in a copy of this context (an editing sub-agent's workspace root)
                 futures = {
-                    id(p): pool.submit(self._invoke, p.spec, p.arguments, self._formatter)
+                    id(p): pool.submit(
+                        contextvars.copy_context().run,
+                        self._invoke,
+                        p.spec,
+                        p.arguments,
+                        self._formatter,
+                    )
                     for p in runnable
                 }
                 for call, item in zip(calls, prepared):
@@ -1069,10 +1094,12 @@ class Agent:
             from joshu.core.deferred_tools import index_prompt
 
             sections.append(index_prompt(deferred))
+        if self.workspace is not None:
+            sections.append(EDIT_SUBAGENT_NOTE)
         return build_system_prompt(
             self.cwd,
             plan_mode=self.permissions.mode == PermissionMode.PLAN,
-            subagent=self.is_subagent,
+            subagent=self.is_subagent and self.workspace is None,
             sections=sections,
         )
 
@@ -1183,7 +1210,11 @@ class Agent:
         }
 
     def _make_task_tool(self) -> ToolSpec:
-        def task(description: str, prompt: str, agent: Optional[str] = None) -> str:
+        def task(
+            description: str, prompt: str, agent: Optional[str] = None, edit: bool = False
+        ) -> str:
+            if edit:
+                return self._run_editing_task(description, prompt)
             if agent:
                 spec = self.subagents.get(agent)
                 if spec is None:
@@ -1220,6 +1251,17 @@ class Agent:
                 "description": "Complete instructions for the sub-agent",
             },
         }
+        if self._can_edit_in_worktrees():
+            description += (
+                " With edit=true the sub-agent may edit files and run commands in its own git "
+                "worktree (a checkout of HEAD, without uncommitted changes); its changes are "
+                "applied to the working tree when it finishes. Several independent edit tasks "
+                "can run at once."
+            )
+            properties["edit"] = {
+                "type": "boolean",
+                "description": "Let the sub-agent change code, in its own worktree",
+            }
         if self.subagents:
             listing = "\n".join(
                 f"- {spec.name}: {spec.description}" for spec in self.subagents.values()
@@ -1242,6 +1284,58 @@ class Agent:
             function=task,
             requires_approval=False,
         )
+
+    def _can_edit_in_worktrees(self) -> bool:
+        if self.permissions.mode == PermissionMode.PLAN:
+            return False
+        from joshu.core.worktrees import repo_root
+
+        return repo_root(self.cwd) is not None
+
+    def _run_editing_task(self, description: str, prompt: str) -> str:
+        """A sub-agent that edits in its own worktree; its work is applied when it finishes."""
+        if self.permissions.mode == PermissionMode.PLAN:
+            return "Error: plan mode is read-only, so sub-agents can't edit"
+        from joshu.core.worktrees import WorktreeError, create, finish
+        from joshu.hooks.dispatcher import dispatch_subagent_stop
+
+        try:
+            worktree = create(self.cwd, description)
+        except WorktreeError as e:
+            return f"Error: {e}"
+        sub_agent = self._make_subagent(
+            self.permissions, description, max_turns=self.max_turns, workspace=worktree.path
+        )
+        try:
+            response = sub_agent.run(prompt)
+        except BaseException:
+            from joshu.core.worktrees import remove
+
+            remove(worktree, delete_branch=True)
+            raise
+        finally:
+            self._add_usage(sub_agent.usage)
+            with self._usage_lock:
+                self.cost.merge(sub_agent.cost)
+        dispatch_subagent_stop(self.session_id, description, response.text)
+
+        def snapshot(paths: List[Path]) -> None:
+            for path in paths:
+                self.checkpoints.snapshot(path)
+
+        try:
+            outcome = finish(worktree, description, before_apply=snapshot)
+        except WorktreeError as e:
+            return f"{response.text}\n\n[Worktree] Error: {e}"
+        if outcome.applied:
+            self._changed_this_request = True
+        parts = [
+            response.text or "(the sub-agent returned no answer)",
+            f"[Worktree] {outcome.message}",
+        ]
+        if outcome.stat:
+            parts.append(outcome.stat)
+        return "\n\n".join(parts)
 
     def _load_tools_spec(self) -> ToolSpec:
         from joshu.core.deferred_tools import (
@@ -1442,6 +1536,7 @@ class Agent:
         client: Optional[ChatClient] = None,
         tool_names: Optional[Sequence[str]] = None,
         system_prompt: Optional[str] = None,
+        workspace: Optional[Path] = None,
     ) -> "Agent":
         return Agent(
             client=client or self.client,
@@ -1454,9 +1549,10 @@ class Agent:
             tool_output_limit=self.tool_output_limit,
             tool_names=tool_names,
             system_prompt=system_prompt,
-            cwd=self.cwd,
+            cwd=workspace or self.cwd,
             session_id=f"{self.session_id}-sub",
             is_subagent=True,
+            workspace=workspace,
             stream=False,
         )
 

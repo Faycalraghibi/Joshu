@@ -134,7 +134,7 @@ to your user config.
 | `write_todos` | Track steps | no |
 | `memory` | Save, read or delete notes kept across sessions | no |
 | `skill` | Load a skill's instructions (when skills exist) | no |
-| `task` | Delegate research to a read-only sub-agent | no |
+| `task` | Delegate research to a read-only sub-agent, or (`edit: true`) changes to one working in its own git worktree | no |
 | MCP tools | Tools from configured MCP servers (loaded on demand with `load_tools` when there are many) | yes |
 
 ### Parallel tool calls
@@ -354,6 +354,25 @@ agent's permission gate, so its edits and commands still ask you. Without a
 `tools` list it is read-only. `/agents` lists the defined sub-agents. YAML/JSON
 definitions in the `joshu.agents` format also work (use `model_name: inherit`
 for the main model).
+
+### Sub-agents that edit
+
+In a git repository (and outside plan mode), `task` with `edit: true` gives
+the sub-agent the full set of tools in its own **git worktree**: a separate
+checkout of `HEAD` on a new branch `joshu/<task>-<id>`, under
+`~/.joshu/worktrees/`. It edits and runs commands there, with the main agent's
+permission gate (so it asks you like the main agent does), and several such
+tasks can run at once without touching each other.
+
+When it finishes, its changes are committed on the branch and applied to your
+working tree, uncommitted, like any other edit (and recorded in the request's
+checkpoint, so `/rewind` undoes them). Then the worktree and the branch are
+removed. If a changed file has uncommitted changes in your working tree, or
+the patch doesn't apply, nothing is applied: the work stays on the branch and
+the result says how to merge it (`git merge joshu/...`).
+
+The worktree starts from `HEAD`, so a sub-agent doesn't see uncommitted
+changes; commit first if it needs them.
 
 ## Checks after edits
 

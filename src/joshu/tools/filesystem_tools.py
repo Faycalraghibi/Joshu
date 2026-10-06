@@ -11,11 +11,13 @@ import fnmatch
 import logging
 import re
 import subprocess
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import datetime
 from difflib import unified_diff
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, Iterator, List, Optional, Union
 
 from joshu.core.secrets import is_protected
 from joshu.core.tool_registry import register_tool
@@ -27,6 +29,9 @@ READ_MAX_CHARS = 40000
 
 # Default workspace root (can be overridden)
 _workspace_root: Optional[Path] = None
+# The root for the agent running in this context (an editing sub-agent's
+# worktree), over the process-wide one
+_context_root: ContextVar[Optional[Path]] = ContextVar("joshu_workspace_root", default=None)
 # More directories the tools may use (/add-dir), by absolute path
 _extra_dirs: List[Path] = []
 
@@ -55,9 +60,27 @@ def set_workspace_root(root: Union[str, Path]) -> None:
 
 def get_workspace_root() -> Path:
     """Get the current workspace root."""
+    override = _context_root.get()
+    if override is not None:
+        return override
     if _workspace_root is None:
         return Path.cwd()
     return _workspace_root
+
+
+def context_root() -> Optional[Path]:
+    """The workspace root set for this context with `workspace()`, if any."""
+    return _context_root.get()
+
+
+@contextmanager
+def workspace(root: Union[str, Path]) -> Iterator[None]:
+    """File tools (and shell commands) in this context work in `root`."""
+    token = _context_root.set(Path(root).resolve())
+    try:
+        yield
+    finally:
+        _context_root.reset(token)
 
 
 def resolve_path(path: str) -> Path:

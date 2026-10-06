@@ -185,6 +185,19 @@ def strip_ansi_codes(text: str) -> str:
     return ansi_escape.sub("", text)
 
 
+def _default_cwd(cwd: Optional[str]) -> Optional[str]:
+    """In an editing sub-agent's worktree, commands run there (relative paths too)."""
+    from joshu.tools.filesystem_tools import context_root
+
+    root = context_root()
+    if root is None:
+        return cwd
+    if not cwd:
+        return str(root)
+    path = Path(cwd)
+    return str(path if path.is_absolute() else root / path)
+
+
 def run_shell_command(
     command: str,
     timeout: Optional[int] = None,
@@ -207,7 +220,7 @@ def run_shell_command(
     """
     config = get_shell_config()
     timeout = timeout or config.timeout
-    cwd = cwd or config.working_directory
+    cwd = _default_cwd(cwd) or config.working_directory
 
     allowed, reason = is_command_allowed(command)
     if not allowed:
@@ -290,7 +303,7 @@ def start_background_process(
         Dictionary with process info
     """
     config = get_shell_config()
-    cwd = cwd or config.working_directory
+    cwd = _default_cwd(cwd) or config.working_directory
 
     # Check if command is allowed
     allowed, reason = is_command_allowed(command)
