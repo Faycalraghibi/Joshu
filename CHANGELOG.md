@@ -5,6 +5,7 @@ All notable changes to the Joshu project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- A project map in the system prompt: the files grouped by directory with their top-level definitions (Python through `ast`; JS/TS, Go, Rust and Java by pattern), built once per conversation and capped near 1,500 tokens, so the agent goes to the right file instead of listing directories and reading files to learn the layout. `repo_map`: `auto` (default: only when the project fits), `always` (cut to fit), `never` (`joshu.core.repo_map`).
 - Terminal tests with a scripted model (`tests/e2e/scripted_joshu.py`): questions with choices, the approval menu and diff, and the background shells viewer run in a real pseudo-terminal and are checked on the screen as drawn (`pyte`). A manual checklist for terminals is in the testing guide.
 - Spending limits: `max_budget_usd` (the session's cost) and `max_request_tokens` (one request's tokens), as settings, `joshu run --max-budget-usd / --max-request-tokens`, SDK `Session` options and GitHub Action inputs. Checked before each model call, so every tool call keeps its result; the request ends with `stopped: "budget"`.
 - `benchmarks/triage.py` tells why benchmark runs failed (provider error, no edits, out of time or turns, untested, gave up with failing tests, missed cases), from each run's conversation, which `benchmarks/run.py` now keeps next to the results (`--no-transcripts` to skip).
