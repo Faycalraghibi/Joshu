@@ -63,6 +63,9 @@ DEFAULT_CONFIG = {
     "request_retries": 3,
     # Agent loop settings
     "agent_max_turns": 50,
+    # A map of the project's files and definitions in the system prompt:
+    # auto (when the project is small enough), always, never
+    "repo_map": "auto",
     # Spending limits (0 = none): the session's cost in USD (models without a
     # known price count as free), and the tokens one request may use
     "max_budget_usd": 0.0,
@@ -87,7 +90,7 @@ DEFAULT_CONFIG = {
 }
 
 
-TRI_STATE_KEYS = {"defer_mcp_tools"}
+TRI_STATE_KEYS = {"defer_mcp_tools", "repo_map"}
 
 
 def _coerce_config_value(key: str, value: Any) -> Tuple[bool, Any]:
@@ -188,6 +191,7 @@ class JoshuConfig:
     request_retries: int = 3
     # Agent loop settings
     agent_max_turns: int = 50
+    repo_map: str = "auto"
     max_budget_usd: float = 0.0
     max_request_tokens: int = 0
     self_review: bool = True

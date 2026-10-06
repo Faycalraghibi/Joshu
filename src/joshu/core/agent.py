@@ -962,6 +962,19 @@ class Agent:
         if self.messages and self.messages[0].get("role") == "system":
             self.messages[0] = {"role": "system", "content": self._build_system_prompt()}
 
+    def _repo_map(self) -> Optional[str]:
+        """The project map, built once per conversation (see joshu.core.repo_map)."""
+        if not hasattr(self, "_repo_map_text"):
+            from joshu.core.repo_map import build_repo_map
+
+            try:
+                mode = str(get_config_manager().get("repo_map", "auto"))
+                self._repo_map_text = build_repo_map(self.cwd, mode)
+            except Exception as e:  # never let the map stop the agent
+                logger.debug(f"No project map: {e}")
+                self._repo_map_text = None
+        return self._repo_map_text
+
     def _build_system_prompt(self) -> str:
         if self._system_prompt_override is not None:
             return self._system_prompt_override
@@ -979,6 +992,9 @@ class Agent:
             from joshu.core.ask import ASK_PROMPT_RULE
 
             sections.append(ASK_PROMPT_RULE)
+        repo_map = self._repo_map()
+        if repo_map:
+            sections.append(repo_map)
         deferred = self.deferred_tools()
         if deferred:
             from joshu.core.deferred_tools import index_prompt
