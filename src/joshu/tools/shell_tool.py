@@ -392,6 +392,23 @@ def read_process_output(info: ProcessInfo, new_only: bool = True, limit: int = 2
     return text
 
 
+def peek_process_output(info: ProcessInfo, limit: int = 65536) -> str:
+    """The end of a background process's output, without moving the agent's read offset."""
+    if info.log_path is None or not info.log_path.is_file():
+        return ""
+    with open(info.log_path, "rb") as log:
+        log.seek(0, 2)
+        size = log.tell()
+        log.seek(max(0, size - limit))
+        data = log.read()
+    return strip_ansi_codes(data.decode("utf-8", errors="replace"))
+
+
+def running_background_count() -> int:
+    """Background processes still running."""
+    return sum(1 for p in _background_processes.values() if p.process.poll() is None)
+
+
 def list_background_processes() -> List[ProcessInfo]:
     """Background processes started in this session, oldest first."""
     return list(_background_processes.values())

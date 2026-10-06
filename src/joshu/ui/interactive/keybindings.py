@@ -133,6 +133,22 @@ def create_key_bindings(interactive_mode) -> Optional[KeyBindings]:
             interactive_mode.notice = "No tool output yet"
             event.app.invalidate()
 
+    def shells_to_view() -> bool:
+        buffer = get_app().current_buffer
+        if buffer.text or buffer.complete_state:
+            return False
+        try:
+            from joshu.tools.shell_tool import list_background_processes
+
+            return bool(list_background_processes())
+        except Exception:
+            return False
+
+    @kb.add("down", filter=Condition(shells_to_view))
+    def _(event):
+        """Down on an empty prompt while background shells exist: the shells viewer."""
+        event.app.exit(result="/bashes")
+
     @kb.add("c-l")
     def _(event):
         """Ctrl+L clears the screen, keeping what you typed."""

@@ -85,7 +85,12 @@ COMMANDS: List[SlashCommand] = [
         "pr-comments", "Bring a pull request's review comments into the chat", "Project", "[number]"
     ),
     SlashCommand("add-dir", "Let the agent work in another directory too", "Project", "<path>"),
-    SlashCommand("bashes", "Background commands (kill <id> stops one)", "Project", "[kill <id>]"),
+    SlashCommand(
+        "bashes",
+        "Background commands and their live output (kill <id> stops one)",
+        "Project",
+        "[list | kill <id>]",
+    ),
     SlashCommand("hooks", "Show, add or remove hooks", "Project", "[add|remove ...]"),
     # Settings
     SlashCommand("status", "Version, model, mode and loaded configuration", "Settings"),
