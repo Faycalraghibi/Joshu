@@ -103,6 +103,15 @@ _ACTIVITY = {
 }
 
 
+def _running_shells() -> int:
+    try:
+        from joshu.tools.shell_tool import running_background_count
+
+        return running_background_count()
+    except Exception:
+        return 0
+
+
 def activity_label(tool: str, arguments: Dict[str, Any]) -> str:
     verb, key = _ACTIVITY.get(tool, ("Running " + TOOL_LABELS.get(tool, tool), None))
     if key and arguments.get(key):
@@ -126,6 +135,9 @@ class _Working:
         details = [_elapsed(elapsed)]
         if self.chars:
             details.append(f"↓ {_short(max(1, self.chars // 4))} tokens")
+        shells = _running_shells()
+        if shells:
+            details.append(f"{shells} shell{'s' if shells != 1 else ''} running")
         details.append("esc to interrupt")
         yield Text.assemble(
             (f"{frame} ", _s("accent", "bold")),

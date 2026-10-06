@@ -169,7 +169,7 @@ list. Custom commands (`.joshu/commands/`) and skills appear there too.
 | `/security-review [focus]` | Review the current changes for security issues (injection, auth, secrets, ...) |
 | `/pr-comments [number]` | Bring a pull request's review comments into the chat (uses `gh`) |
 | `/add-dir <path>` | Let the agent read and edit files in another directory this session |
-| `/bashes [kill <id>]` | Commands the agent started in the background; stop one |
+| `/bashes [list \| kill <id>]` | Commands the agent started in the background and their live output; stop one |
 | `/hooks [add <event> <command> \| remove <event> <n>]` | Show, add or remove hooks |
 | `/skills`, `/agents`, `/commands` | List skills, sub-agents, custom commands |
 | `/mcp` | MCP servers, whether they're connected and how many tools each has |
@@ -223,7 +223,11 @@ sessions; `joshu run` and `--quiet` never stop to ask.
 
 The agent can start long-running commands (dev servers, watchers, long test
 runs) with `background: true`, read their output while they run
-(`bash_output`) and stop them (`kill_bash`). `/bashes` lists them.
+(`bash_output`) and stop them (`kill_bash`). While one runs, the bar under
+the prompt says so (`1 shell · ↓ to view`) and so does the working line during
+a request. Down on an empty prompt (or `/bashes`) opens the viewer: arrows
+pick a command, Enter shows its output as it is written, `k` stops it, Esc
+goes back and closes. `/bashes list` prints the list instead.
 
 `/rewind` removes the requests and everything the agent did for them from the
 conversation, restores files the agent edited meanwhile, and puts the first

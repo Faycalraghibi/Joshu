@@ -361,13 +361,13 @@ class InteractiveMode:
             if done < total:
                 parts.append(f"☐ {done}/{total}" + (f" {current}" if current else ""))
         try:
-            from joshu.tools.shell_tool import list_background_processes
+            from joshu.tools.shell_tool import running_background_count
 
-            running = sum(1 for p in list_background_processes() if p.process.poll() is None)
+            running = running_background_count()
         except Exception:
             running = 0
         if running:
-            parts.append(f"{running} shell{'s' if running != 1 else ''} running (/bashes)")
+            parts.append(f"{running} shell{'s' if running != 1 else ''} · ↓ to view")
         return "  ·  ".join(parts)
 
     def model_label(self) -> str:

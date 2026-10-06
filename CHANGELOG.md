@@ -5,6 +5,7 @@ All notable changes to the Joshu project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Background shells viewer: Down on an empty prompt (or `/bashes`) lists the commands the agent started in the background; Enter shows one's output live, `k` stops it. The bar under the prompt shows `N shells · ↓ to view` while they run, and the working line counts them during a request (`joshu.ui.shell_viewer`).
 - The agent asks multiple-choice questions when a decision is the user's (`ask_user` tool): up to four questions with two to six choices each, single choice (arrow menu, number keys) or several (checkboxes), "Other" to type an answer, Esc to skip. Interactive sessions only; the SDK takes an `ask_user` callback (`joshu.core.ask`).
 - `@path` in a request attaches the file to it (`@src/app.py:10-40` for lines, `@dir` for a listing), in interactive mode and `joshu run`; the agent sees it without a tool call. Up to 40,000 characters per file and 100,000 per request; protected files are never attached and secrets are masked (`joshu.core.file_refs`).
 - `/memory add <text> [--user]` saves a memory for the agent.

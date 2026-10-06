@@ -135,6 +135,14 @@ class MoreCommands:
         if not processes:
             console.print("No background commands. The agent starts them for long-running tasks.")
             return True
+        if not arg.strip():
+            from joshu.ui.menu import can_show_menu
+
+            if can_show_menu():
+                from joshu.ui.shell_viewer import run_viewer
+
+                run_viewer()
+                return True
         table = Table.grid(padding=(0, 2))
         for _ in range(4):
             table.add_column(no_wrap=True)
@@ -149,7 +157,7 @@ class MoreCommands:
             table.add_row(info.process_id, state, info.started_at[11:19], Text(command))
         console.print(Text("Background commands", style="bold"))
         console.print(table)
-        console.print(Text("/bashes kill <id> stops one.", style="dim"))
+        console.print(Text("/bashes kill <id> stops one, /bashes list prints this.", style="dim"))
         return True
 
     # ---------------------------------------------------------------- hooks
