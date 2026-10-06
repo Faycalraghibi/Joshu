@@ -20,6 +20,12 @@ inputs:
   max_turns:
     description: Model calls per request before stopping.
     default: "40"
+  max_budget_usd:
+    description: Stop when the run has cost this much in USD (0 = no limit; models without a known price count as free).
+    default: "0"
+  max_request_tokens:
+    description: Stop after the request has used this many tokens (0 = no limit).
+    default: "0"
   joshu_version:
     description: Version to install from PyPI (empty = the action's own source).
     default: ""
@@ -99,6 +105,8 @@ runs:
           echo "mcp_enabled: false"
           echo "save_sessions: false"
           echo "agent_max_turns: ${{ inputs.max_turns }}"
+          echo "max_budget_usd: ${{ inputs.max_budget_usd }}"
+          echo "max_request_tokens: ${{ inputs.max_request_tokens }}"
         } > "$JOSHU_HOME/config.yaml"
         args=(run --output-format json)
         args+=(--permission-mode "${{ inputs.permission_mode }}" --provider "${{ inputs.provider }}")

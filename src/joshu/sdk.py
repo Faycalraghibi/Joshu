@@ -55,7 +55,7 @@ class Result:
     usage: Dict[str, int] = field(default_factory=dict)
     cost_usd: Optional[float] = None
     model: Optional[str] = None
-    stopped: Optional[str] = None  # "max_turns", "loop", "denied", ... when cut short
+    stopped: Optional[str] = None  # "max_turns", "loop", "denied", "budget" when cut short
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     def to_event(self) -> Event:
@@ -141,6 +141,8 @@ class Session:
         persist: bool = False,
         resume: Optional[str] = None,
         max_turns: Optional[int] = None,
+        max_budget_usd: Optional[float] = None,
+        max_request_tokens: Optional[int] = None,
         client: Any = None,
     ) -> None:
         """
@@ -160,6 +162,8 @@ class Session:
             load_mcp: Start the configured MCP servers and offer their tools
             persist: Save the conversation like the CLI does (resumable)
             resume: Continue a saved session: its id, or "last" for the latest here
+            max_budget_usd: Stop when the session has cost this much (0: no limit)
+            max_request_tokens: Stop a request after this many tokens (0: no limit)
             client: A ready chat client (anything with `complete`), instead of
                 building one from model / provider
 
@@ -211,6 +215,8 @@ class Session:
             stream=stream_text,
             persist=persist,
             max_turns=max_turns,
+            max_budget_usd=max_budget_usd,
+            max_request_tokens=max_request_tokens,
         )
         if resume:
             self._resume(resume)

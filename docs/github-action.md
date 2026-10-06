@@ -56,6 +56,8 @@ please fix it and add a test`.
 | `model` | provider default | Model id or named model |
 | `permission_mode` | `accept_edits` | `accept_edits` (edits, no shell commands), `plan` (read-only, just answers) or `bypass` (also runs commands) |
 | `max_turns` | `40` | Model calls per request |
+| `max_budget_usd` | `0` | Stop when the run has cost this much (0 = no limit) |
+| `max_request_tokens` | `0` | Stop after this many tokens (0 = no limit) |
 | `joshu_version` | the action's source | A PyPI version to install instead |
 
 Outputs: `result` (Joshu's answer) and `branch` (where its changes are).
