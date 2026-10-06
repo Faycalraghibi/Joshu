@@ -280,9 +280,8 @@ def test_background_shell_viewer(tmp_path):
         mark = term.mark()
         term.send("\r", pause=2.0)
         assert term.wait_for("tick ", mark), term.screen[-2000:]
-        mark = term.mark()
         term.send("k", pause=1.5)
-        assert term.wait_for("Background shells", mark), term.screen[-2000:]
+        assert term.wait_drawn("terminated"), term.rendered()[-3000:]  # back in the list
         term.send("\x1b", pause=1.0)
         mark = term.mark()
         term.send("?\r")
