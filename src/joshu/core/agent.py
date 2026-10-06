@@ -72,6 +72,13 @@ DENIALS_WARN = 2
 DENIALS_STOP = 6
 # How many times stop hooks may send the agent back to work in one request
 MAX_STOP_CONTINUES = 3
+# Before finishing a request that changed files or ran commands, the agent is
+# asked once to check its work against the request (the `self_review` setting)
+SELF_REVIEW_NOTE = """[Self-check before you finish] Compare your work with the request before replying:
+1. List each thing the request asked for (every file, function, call site, flag, removal) and confirm it is done.
+2. Check the edge cases the request or the code's documentation mention (empty input, zero, negative numbers, boundaries, halves when rounding, input that should raise an error), with a quick check or the project's tests.
+3. If the project has tests, run them.
+Fix anything that is missing or wrong. If everything is done, reply with your final summary now."""
 # A response cut off by the output limit: continue with a higher limit, this
 # many times per request, up to this many output tokens
 MAX_LENGTH_CONTINUES = 3
@@ -241,6 +248,9 @@ class Agent:
             self.auto_memory = bool(config.get("auto_memory", True))
             if self.auto_memory:
                 self._local_tools["memory"] = self._make_memory_tool()
+        self.self_review = bool(config.get("self_review", True)) and not is_subagent
+        # Set when a request edits a file or runs a command (see _start)
+        self._changed_this_request = False
 
         self._system_prompt_override = system_prompt
         self.messages: List[Dict[str, Any]] = [
@@ -501,6 +511,8 @@ class Agent:
         self._denials = {}
         self._usage_at_start = dict(self.usage)
         stop_continues = 0
+        self._changed_this_request = False
+        reviewed = False
         length_continues = 0
         max_tokens = self.max_tokens
 
@@ -537,6 +549,10 @@ class Agent:
                     # A stop hook sent the agent back to work
                     stop_continues += 1
                     self.messages.append({"role": "user", "content": f"[Stop hook] {reason}"})
+                    continue
+                if self.self_review and self._changed_this_request and not reviewed:
+                    reviewed = True
+                    self.messages.append({"role": "user", "content": SELF_REVIEW_NOTE})
                     continue
                 return AgentResponse(
                     text=turn.content,
@@ -798,6 +814,8 @@ class Agent:
         self.events.on_tool_start(call.name, arguments)
         # A deferred tool the model called directly stays offered from now on
         self._loaded_tools.add(call.name)
+        if call.name in EDIT_TOOLS or call.name == "run_shell_command":
+            self._changed_this_request = True
         if call.name == "run_shell_command" and arguments.get("background"):
             self._loaded_tools.update({"bash_output", "kill_bash"})
 

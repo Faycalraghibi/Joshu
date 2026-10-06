@@ -81,6 +81,9 @@ def _isolated_config(monkeypatch, tmp_path):
     manager = config_module.ConfigManager(str(tmp_path / "config.yaml"))
     # Don't launch the real MCP servers (npx downloads) whenever a test starts the REPL
     manager.set("mcp_enabled", False)
+    # Scripted fake models list every turn; the self-check adds one, so tests
+    # that cover it turn it on themselves
+    manager.set("self_review", False)
     monkeypatch.setattr(config_module, "_config_manager_instance", manager)
 
 

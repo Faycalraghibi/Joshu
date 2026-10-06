@@ -455,6 +455,7 @@ sub-agents are included.
 |---|---|---|
 | `permission_mode` | `default` | See above |
 | `agent_max_turns` | `50` | Model calls per request before stopping |
+| `self_review` | `true` | One check of the work against the request before finishing, when files were edited or commands run |
 | `context_window` | `128000` | Model context size in tokens |
 | `compact_threshold` | `0.8` | Fraction of the window that triggers compaction |
 | `tool_output_limit` | `16000` | Max characters of one tool result sent to the model (`read_file` returns up to ~40,000 in whole lines) |

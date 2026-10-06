@@ -85,7 +85,7 @@ def load_tasks(names: Optional[List[str]], tier: Optional[str] = None) -> List[P
     return tasks
 
 
-def make_home(base: Path, mcp: bool) -> Path:
+def make_home(base: Path, mcp: bool, overrides: Optional[Dict[str, Any]] = None) -> Path:
     """A JOSHU_HOME with a copy of the user config (providers, named models)."""
     from joshu.core.paths import joshu_home
 
@@ -98,8 +98,20 @@ def make_home(base: Path, mcp: bool) -> Path:
     if not mcp:
         config["mcp_enabled"] = False
     config["save_sessions"] = False
+    config.update(overrides or {})
     (home / "config.yaml").write_text(yaml.safe_dump(config), encoding="utf-8")
     return home
+
+
+def parse_overrides(items: Optional[List[str]]) -> Dict[str, Any]:
+    """`--set self_review=false` -> {"self_review": False} (values parsed as YAML)."""
+    overrides: Dict[str, Any] = {}
+    for item in items or []:
+        key, sep, value = item.partition("=")
+        if not sep or not key.strip():
+            sys.exit(f"--set expects key=value, got {item!r}")
+        overrides[key.strip()] = yaml.safe_load(value)
+    return overrides
 
 
 def run_task(task: Path, args: argparse.Namespace, env: Dict[str, str]) -> Result:
@@ -110,7 +122,7 @@ def run_task(task: Path, args: argparse.Namespace, env: Dict[str, str]) -> Resul
         base = Path(tmp)
         work = base / "work"
         shutil.copytree(task / "files", work)
-        run_env = {**env, "JOSHU_HOME": str(make_home(base, args.mcp))}
+        run_env = {**env, "JOSHU_HOME": str(make_home(base, args.mcp, parse_overrides(args.set)))}
 
         command = [sys.executable, "-m", "joshu", "run", spec["prompt"]]
         command += ["--output-format", "json", "--permission-mode", args.permission_mode]
@@ -355,6 +367,12 @@ def main() -> int:
     parser.add_argument("--list", action="store_true", help="List tasks and exit")
     parser.add_argument("--tier", choices=TIERS, help="Only tasks of this tier")
     parser.add_argument(
+        "--set",
+        action="append",
+        metavar="KEY=VALUE",
+        help="Override a Joshu setting for the runs (repeatable), e.g. --set self_review=false",
+    )
+    parser.add_argument(
         "--max-errors",
         type=int,
         default=3,
@@ -405,6 +423,7 @@ def main() -> int:
             "provider": args.provider,
             "model": args.model,
             "permission_mode": args.permission_mode,
+            "settings": parse_overrides(args.set),
             "results": [asdict(r) for r in results],
         }
         out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
