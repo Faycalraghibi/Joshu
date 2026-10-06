@@ -158,6 +158,13 @@ class PermissionRules:
         return next((r for r in self.allow if r.matches(tool_name, arguments)), None)
 
 
+def bypass_allowed() -> bool:
+    """False when the allow_bypass setting (normally managed) forbids bypass mode."""
+    from joshu.core.config import get_config_manager
+
+    return bool(get_config_manager().get("allow_bypass", True))
+
+
 class PermissionManager:
     """Decides whether a tool call may run."""
 
@@ -180,6 +187,7 @@ class PermissionManager:
             rules: Persistent allow/deny rules; defaults to the `permissions`
                 setting
         """
+        self.bypass_refused = False
         self.mode = mode
         self.approver = approver
         self.sandbox = sandbox
@@ -191,6 +199,19 @@ class PermissionManager:
         self.rules = rules
         self._always_allowed_tools: Set[str] = set()
         self._always_allowed_commands: Set[str] = set()
+
+    @property
+    def mode(self) -> PermissionMode:
+        return self._mode
+
+    @mode.setter
+    def mode(self, value: PermissionMode) -> None:
+        # allow_bypass: false (managed settings) rules bypass out everywhere
+        if value == PermissionMode.BYPASS and not bypass_allowed():
+            logger.warning("Bypass mode is turned off by your administrator; using default")
+            self.bypass_refused = True
+            value = PermissionMode.DEFAULT
+        self._mode = value
 
     def check(
         self, tool_name: str, arguments: Dict[str, Any], requires_approval: bool

@@ -45,7 +45,9 @@ class InteractiveMode:
         from .statusline import StatusLine
 
         self.statusline = StatusLine()
-        self._bypass_cycle = self.config_manager.get("permission_mode", "default") == "bypass"
+        self._bypass_cycle = self.config_manager.get(
+            "permission_mode", "default"
+        ) == "bypass" and self.config_manager.get("allow_bypass", True)
         self.multiline_mode = False
         self.verbose_mode = verbose
         self.suggestions_enabled = True

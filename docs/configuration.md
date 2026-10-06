@@ -85,6 +85,34 @@ joshu config --edit                 # open the file in $EDITOR
 In interactive mode: `/config`, `/config <key>`, `/config <key> <value>`;
 `/permissions <mode>` changes the permission mode.
 
+## Managed settings
+
+An administrator can fix settings for everyone on a machine with a
+`managed-settings.yaml`:
+
+| Platform | Path |
+|---|---|
+| Windows | `%ProgramData%\joshu\managed-settings.yaml` |
+| macOS | `/Library/Application Support/joshu/managed-settings.yaml` |
+| Linux and others | `/etc/joshu/managed-settings.yaml` |
+
+(`JOSHU_MANAGED_SETTINGS` points elsewhere.) It is read after every other
+layer, so its settings win, and they can't be changed: `joshu config --set`,
+`/config` and Shift+Tab refuse them and say why. Two keys behave differently:
+
+```yaml
+# managed-settings.yaml
+mcp_enabled: false
+fallback_providers: []
+allow_bypass: false          # no bypass mode: Shift+Tab, --permission-mode bypass, -y
+permissions:                 # added to everyone's rules, which can't drop them
+  deny:
+    - run_shell_command(git push*)
+    - web_fetch
+```
+
+`joshu config --list` and `/doctor` show the file and which settings it locks.
+
 ## Reference
 
 ### Model
@@ -111,6 +139,7 @@ In interactive mode: `/config`, `/config <key>`, `/config <key> <value>`;
 | `max_budget_usd` | number | `0` | Stop when the session has cost this much in USD; 0 = no limit. Models without a known price (`model_pricing`, or a provider-reported cost) count as free |
 | `max_request_tokens` | integer | `0` | Stop a request after it has used this many prompt + completion tokens; 0 = no limit |
 | `self_review` | boolean | `true` | Before finishing a request that edited files or ran commands, the agent checks its work against the request once (one extra model call) |
+| `allow_bypass` | boolean | `true` | `false` forbids bypass mode everywhere; meant for managed settings |
 | `retry_broken_replies` | boolean | `true` | Send a broken final reply back to the model (a tool call written as text, or a few words right after a failed tool call), up to twice per request |
 | `context_window` | integer | `128000` | Model context size in tokens |
 | `clear_tool_results_at` | integer | `60000` | Clear old tool results past this many tokens (at most half the window; 0 = never) |

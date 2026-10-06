@@ -246,6 +246,10 @@ class ExtraCommands:
         untrusted = getattr(config, "untrusted_project_config", None)
         if untrusted is not None:
             console.print(_check(None, "Project config", f"{untrusted} ignored: run joshu trust"))
+        managed = dict(getattr(config, "layers", [])).get("managed")
+        if managed is not None:
+            locked = ", ".join(config.locked_keys()) or "rules only"
+            console.print(_check(True, "Managed settings", f"{managed} (locked: {locked})"))
         return True
 
     # --------------------------------------------------------------- context

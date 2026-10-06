@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import copy
 import logging
+import os
+import sys
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -77,6 +79,9 @@ DEFAULT_CONFIG = {
     # after a failed tool call) back to the model, up to twice per request
     "retry_broken_replies": True,
     "permission_mode": "default",
+    # False forbids bypass mode (Shift+Tab, --permission-mode bypass, -y); meant
+    # for managed settings
+    "allow_bypass": True,
     "context_window": 128000,
     "compact_threshold": 0.8,
     "tool_output_limit": 16000,
@@ -198,6 +203,7 @@ class JoshuConfig:
     max_budget_usd: float = 0.0
     max_request_tokens: int = 0
     self_review: bool = True
+    allow_bypass: bool = True
     retry_broken_replies: bool = True
     permission_mode: str = "default"
     context_window: int = 128000
@@ -250,6 +256,37 @@ def install_config_path() -> Path:
     return Path(__file__).resolve().parents[3] / "config" / "config.yaml"
 
 
+def managed_settings_path() -> Path:
+    """
+    The administrator's managed-settings.yaml ($JOSHU_MANAGED_SETTINGS, else
+    %ProgramData%\\joshu on Windows, /Library/Application Support/joshu on
+    macOS, /etc/joshu elsewhere).
+    """
+    override = os.environ.get("JOSHU_MANAGED_SETTINGS")
+    if override:
+        return Path(override)
+    if os.name == "nt":
+        base = Path(os.environ.get("ProgramData") or r"C:\ProgramData")
+    elif sys.platform == "darwin":
+        base = Path("/Library/Application Support")
+    else:
+        base = Path("/etc")
+    return base / "joshu" / "managed-settings.yaml"
+
+
+def _union_rules(*rule_sets: Any) -> Dict[str, List[str]]:
+    """permissions mappings combined: every allow and deny rule of each, once."""
+    combined: Dict[str, List[str]] = {"allow": [], "deny": []}
+    for rules in rule_sets:
+        if not isinstance(rules, dict):
+            continue
+        for kind in ("allow", "deny"):
+            for rule in rules.get(kind) or []:
+                if rule not in combined[kind]:
+                    combined[kind].append(rule)
+    return combined
+
+
 def user_config_path() -> Path:
     from joshu.core.paths import joshu_home
 
@@ -295,6 +332,9 @@ class ConfigManager:
            directory), only if the project is trusted (`joshu trust`), because
            a project config can run commands (hooks, diagnostics) and choose
            where code and API keys are sent (providers)
+        5. managed-settings.yaml set by an administrator (managed_settings_path):
+           its settings win and can't be changed (`set` refuses them), except
+           `permissions`, whose rules are added to everyone's
     """
 
     def __init__(self, config_path: Optional[str] = None):
@@ -309,6 +349,7 @@ class ConfigManager:
         self._layer_data: List[Dict[str, Any]] = []
         self._user_data: Dict[str, Any] = {}
         self._project_data: Dict[str, Any] = {}
+        self._managed_data: Dict[str, Any] = {}
         self.config: JoshuConfig = JoshuConfig()
         self.load_config()
 
@@ -353,8 +394,31 @@ class ConfigManager:
         else:
             self._project_data = {}
 
+        self._managed_data = {}
+        managed = managed_settings_path()
+        if managed.is_file():
+            data, read_ok = self._read(managed)
+            ok &= read_ok
+            self._managed_data = data
+            self.layers.append(("managed", managed))
+
         self._rebuild()
         return ok
+
+    def locked_keys(self) -> List[str]:
+        """Settings fixed by managed settings (permissions rules only add, so not listed)."""
+        return sorted(k for k in self._managed_data if k != "permissions")
+
+    def locked_reason(self, key: str, value: Any = None) -> Optional[str]:
+        """Why `set(key, value)` is refused by managed settings, or None."""
+        if not self.layered:
+            return None
+        if key in self.locked_keys():
+            return f"{key} is set by your administrator ({managed_settings_path()})"
+        if key == "permission_mode" and str(value).strip().lower() == "bypass":
+            if not self.get("allow_bypass", True):
+                return "bypass mode is turned off by your administrator"
+        return None
 
     def _effective_value(self, key: str) -> Any:
         value = DEFAULT_CONFIG.get(key)
@@ -367,6 +431,14 @@ class ConfigManager:
         merged: Dict[str, Any] = {}
         for data in [*self._layer_data, self._user_data, self._project_data]:
             merged.update(data)
+        if self._managed_data:
+            merged.update({k: v for k, v in self._managed_data.items() if k != "permissions"})
+            if "permissions" in self._managed_data:
+                merged["permissions"] = _union_rules(
+                    merged.get("permissions"), self._managed_data["permissions"]
+                )
+            if merged.get("allow_bypass") is False and merged.get("permission_mode") == "bypass":
+                merged["permission_mode"] = "default"
         self.config = JoshuConfig.from_dict(merged)
 
     def _read(self, path: Path) -> Tuple[Dict[str, Any], bool]:
@@ -434,10 +506,16 @@ class ConfigManager:
         is_valid, coerced = _coerce_config_value(key, value)
         if not is_valid:
             return False
+        reason = self.locked_reason(key, coerced)
+        if reason is not None:
+            logger.warning(f"Not changed: {reason}")
+            return False
 
         setattr(self.config, key, coerced)
         if self.layered:
             self._user_data[key] = coerced
+            if key == "permissions" and "permissions" in self._managed_data:
+                self._rebuild()  # the administrator's rules stay
         return True
 
     def reset_to_defaults(self) -> None:

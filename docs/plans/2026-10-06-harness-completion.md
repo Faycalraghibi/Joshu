@@ -52,7 +52,7 @@ Its counts decide the order of step 2.
   has no TOML reader), with list, update, enable, disable and remove, through
   the existing loaders (done).
 - **Managed settings**: a read-only `managed-settings.yaml` in a system path,
-  the highest config layer, able to lock settings; shown in `/doctor`.
+  the highest config layer, able to lock settings; shown in `/doctor` (done).
 
 ## 4. Quality
 

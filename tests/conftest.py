@@ -71,6 +71,8 @@ def _env_defaults(monkeypatch):
 def _isolated_joshu_home(monkeypatch, tmp_path):
     """Keep sessions and other per-user data out of the real ~/.joshu."""
     monkeypatch.setenv("JOSHU_HOME", str(tmp_path / "joshu_home"))
+    # Nor the machine's managed settings (tests that cover them point here)
+    monkeypatch.setenv("JOSHU_MANAGED_SETTINGS", str(tmp_path / "managed-settings.yaml"))
 
 
 @pytest.fixture(autouse=True)

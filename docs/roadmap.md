@@ -73,7 +73,7 @@ Plan: [plans/2026-10-06-harness-completion.md](plans/2026-10-06-harness-completi
   Python command named. A verification gate and planning wait until triage
   shows untested or lost-track failures.
 - Spending limits (done), terminal tests with a scripted model (done),
-  plugins (done), managed settings.
+  plugins (done), managed settings (done).
 
 ## Later
 - VS Code extension (building on `ide/` and `scripts/build_vscode_companion.py`).
