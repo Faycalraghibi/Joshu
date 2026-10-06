@@ -458,6 +458,23 @@ def stop_background_process(process_id: str) -> Dict[str, Any]:
         }
 
 
+# cmd.exe ends a command at the first line break: the rest never runs, and the
+# command still reports success, so a multi-line `python -c` "runs" silently
+MULTILINE_ON_WINDOWS = (
+    "Not run: on Windows commands go through cmd.exe, which ignores everything after "
+    "the first line break, so multi-line commands (python -c with several lines, "
+    "heredocs) don't work. Write the script to a file with write_file and run it "
+    "(e.g. `python check.py`), or put the commands on one line joined with &&."
+)
+
+
+def multiline_error(command: str) -> Optional[str]:
+    """Why a command can't run as given on this platform, or None."""
+    if os.name == "nt" and "\n" in command.strip():
+        return MULTILINE_ON_WINDOWS
+    return None
+
+
 # Register the tool
 @register_tool(
     name="run_shell_command",
@@ -510,6 +527,9 @@ def run_shell_command_tool(
             "success": False,
             "error": "Empty command provided",
         }
+    multiline = multiline_error(command)
+    if multiline:
+        return {"success": False, "error": multiline}
 
     if background:
         return start_background_process(command, cwd=working_directory)
