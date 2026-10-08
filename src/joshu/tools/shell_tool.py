@@ -197,10 +197,14 @@ def strip_ansi_codes(text: str) -> str:
 
 
 def _default_cwd(cwd: Optional[str]) -> Optional[str]:
-    """In an editing sub-agent's worktree, commands run there (relative paths too)."""
-    from joshu.tools.filesystem_tools import context_root
+    """
+    Commands run in the agent's workspace (an editing sub-agent's worktree, or
+    the root the file tools use), relative paths too; not the process's
+    current directory, which an SDK session's `cwd` doesn't change.
+    """
+    from joshu.tools import filesystem_tools
 
-    root = context_root()
+    root = filesystem_tools.context_root() or filesystem_tools._workspace_root
     if root is None:
         return cwd
     if not cwd:

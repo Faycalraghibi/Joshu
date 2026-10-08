@@ -24,6 +24,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import logging
+import re
 import shutil
 import subprocess
 import sys
@@ -104,6 +105,44 @@ def _run_command_check(command: str, path: Path) -> Optional[str]:
     return _run(command.replace("{file}", quoted), cwd=path.parent, shell=True)
 
 
+# Lines that are code, not text: inside a string they mean a quote went missing
+_CODE_LINE = re.compile(r"\n\s*(def |class |import |from \S+ import |return\b|@\w)")
+
+
+def runaway_string_hint(source: str) -> Optional[str]:
+    """
+    The usual cause of a confusing SyntaxError after an edit: a string whose
+    closing quote went missing runs on and swallows code, so Python reports
+    an error many lines later. Says where that string starts, or None.
+    """
+    import io
+    import tokenize
+
+    tokens = []
+    failed = None
+    try:
+        # One at a time: the tokens before an error are the ones that explain it
+        for token in tokenize.generate_tokens(io.StringIO(source).readline):
+            tokens.append(token)
+    except (tokenize.TokenError, SyntaxError) as e:
+        failed = str(e)
+    for token in tokens:
+        if token.type == tokenize.STRING and token.start[0] != token.end[0]:
+            if _CODE_LINE.search(token.string):
+                start, end = token.start[0], token.end[0]
+                return (
+                    f"Likely cause: the string that starts on line {start} runs on to line {end} "
+                    f"and swallows code: its closing quotes on line {start} (or soon after) are "
+                    f"missing."
+                )
+    if failed and ("EOF in multi-line string" in failed or "unterminated" in failed):
+        return (
+            "Likely cause: a multi-line string is never closed. Check that every "
+            "triple-quoted string has its closing quotes."
+        )
+    return None
+
+
 def _check_python(path: Path) -> Optional[str]:
     source = path.read_text(encoding="utf-8", errors="replace")
     try:
@@ -111,7 +150,10 @@ def _check_python(path: Path) -> Optional[str]:
     except SyntaxError as e:
         line = (e.text or "").rstrip()
         pointer = f"\n    {line}" if line else ""
-        return f"{path.name}:{e.lineno}:{e.offset or 0}: SyntaxError: {e.msg}{pointer}"
+        hint = runaway_string_hint(source)
+        return f"{path.name}:{e.lineno}:{e.offset or 0}: SyntaxError: {e.msg}{pointer}" + (
+            f"\n{hint}" if hint else ""
+        )
 
     ruff = _ruff_command()
     if ruff is None:

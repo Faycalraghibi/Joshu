@@ -53,6 +53,12 @@ logger = logging.getLogger(__name__)
 SUBAGENT_MAX_TURNS = 25
 MAX_TRACE = 5000  # trace entries kept per conversation
 MAX_VERIFY_ROUNDS = 2  # test failures sent back per request
+SELF_CHECK_NOTE = (
+    "[Check your change] This project has no tests Joshu can run, and you haven't run "
+    "anything since your last edit. Before finishing, check the change works: run it, or "
+    "write a small script that exercises what you changed (with write_file), run it and "
+    "read the output. Then finish."
+)
 EDIT_SUBAGENT_NOTE = (
     "You are a sub-agent of Joshu doing one task in your own git worktree (a separate "
     "checkout of the project). Make the changes, check them (run the tests if there are "
@@ -114,6 +120,43 @@ TOOL_AS_TEXT_NOTE = (
     "Call the tool through the tool-calling interface, or reply in plain words if "
     "you are done.]"
 )
+EMPTY_REPLY_NOTE = (
+    "[Your reply was empty. Continue the task with the next tool call, or answer the user.]"
+)
+# The model says what it will do next, then stops without doing it
+ANNOUNCED_STEP = re.compile(
+    r"\b(let me(?! know)|i'?ll(?! leave| let you)|i will|i'm going to|i am going to|"
+    r"next,? i|now i)\b",
+    re.I,
+)
+ANNOUNCED_STEP_NOTE = (
+    "[You described your next step but didn't call a tool, so nothing happened. Call the "
+    "tool now, or give your final answer if you are done.]"
+)
+STILL_BROKEN_AFTER = 2  # edits in a row leaving the same file broken
+
+
+def still_broken_note(path: Path, problems: str, edits: int) -> str:
+    """A stronger hint when edits keep leaving a file broken: the lines, and how to fix them."""
+    match = re.search(r":(\d+):\d*:? ", problems)
+    excerpt = ""
+    if match:
+        try:
+            lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+        except OSError:
+            lines = []
+        hint = re.search(r"starts on line (\d+)", problems)
+        focus = int(hint.group(1)) if hint else int(match.group(1))
+        start, end = max(1, focus - 3), min(len(lines), focus + 3)
+        excerpt = "\n".join(f"{n:>5}: {lines[n - 1]}" for n in range(start, end + 1))
+    return (
+        f"\n\n{path.name} has been left broken by {edits} edits in a row. Don't rewrite the "
+        "whole file again (that repeats the same mistake): fix only the broken lines with "
+        "`replace`, copying old_string exactly from the numbered lines below."
+        + (f"\n{excerpt}" if excerpt else "")
+    )
+
+
 AFTER_FAILURE_NOTE = (
     "[Your last tool call failed and your reply doesn't say what happens next. Read the "
     "error, fix the call and continue the task, or explain to the user why you can't.]"
@@ -142,13 +185,20 @@ EXPLORE_TOOLS = {
 }
 
 
-def malformed_reply(content: str, last_tool_failed: bool) -> Optional[str]:
+def malformed_reply(
+    content: str, last_tool_failed: bool, changed_anything: bool = True
+) -> Optional[str]:
     """The note that sends a broken final reply back to the model, or None."""
     text = (content or "").strip()
     if TOOL_MARKUP.search(text):
         return TOOL_AS_TEXT_NOTE
     if last_tool_failed and len(text) < 80:
         return AFTER_FAILURE_NOTE
+    if not text:
+        return EMPTY_REPLY_NOTE
+    # "Let me read the files..." as the whole answer, before doing anything
+    if not changed_anything and len(text) < 600 and ANNOUNCED_STEP.search(text[-300:]):
+        return ANNOUNCED_STEP_NOTE
     return None
 
 
@@ -345,6 +395,10 @@ class Agent:
         # once the test runner turns out to be missing
         self._verify_off = False
         self._untested_edits = False
+        self._ran_after_edit = False
+        self._asked_self_check = False
+        # Files left with errors by consecutive edits (to stop rewrite loops)
+        self._broken_edits: Dict[Path, int] = {}
         # Timing of model calls and tools (saved with the session; `joshu trace`)
         self.trace: List[Dict[str, Any]] = []
         self._thinking_now = True
@@ -622,6 +676,8 @@ class Agent:
         stop_continues = 0
         self._changed_this_request = False
         self._untested_edits = False
+        self._ran_after_edit = False
+        self._asked_self_check = False
         self.last_verification = None
         verify_rounds = 0
         reviewed = False
@@ -681,7 +737,9 @@ class Agent:
 
             if not turn.tool_calls:
                 note = (
-                    malformed_reply(turn.content, self._last_tool_failed())
+                    malformed_reply(
+                        turn.content, self._last_tool_failed(), self._changed_this_request
+                    )
                     if self.retry_broken_replies
                     else None
                 )
@@ -992,6 +1050,9 @@ class Agent:
         call, arguments = prepared.call, prepared.arguments
         if success and call.name in EDIT_TOOLS:
             self._untested_edits = True
+            self._ran_after_edit = False
+        if call.name == "run_shell_command" and success:
+            self._ran_after_edit = True
         if call.name == "run_shell_command":
             from joshu.core.verify import runs_tests
 
@@ -1031,11 +1092,17 @@ class Agent:
         if not problems:
             problems = self._language_server_errors(path)
         if not problems:
+            self._broken_edits.pop(path, None)
             return ""
-        return (
+        broken = self._broken_edits.get(path, 0) + 1
+        self._broken_edits[path] = broken
+        message = (
             f"\n\nThe edit was applied, but {self._display_path(path)} now has problems. "
             f"Fix them before moving on:\n{problems}"
         )
+        if broken >= STILL_BROKEN_AFTER:
+            message += still_broken_note(path, problems, broken)
+        return message
 
     def _language_server_errors(self, path: Path) -> Optional[str]:
         """Errors a language server reports for the file, if one handles it."""
@@ -1192,6 +1259,12 @@ class Agent:
             for key in ("prompt_tokens", "completion_tokens", "cached_tokens"):
                 self.usage[key] += usage.get(key, 0)
 
+    def _can_run_commands(self) -> bool:
+        """Could a check command run now (bypass mode, or someone to approve it)?"""
+        return (
+            self.permissions.mode == PermissionMode.BYPASS or self.permissions.approver is not None
+        )
+
     def _verify(self) -> Optional[str]:
         """
         Run the project's tests after edits the agent didn't test: the note
@@ -1203,10 +1276,17 @@ class Agent:
         self._untested_edits = False
         if self._verify_off:
             return None
+        setting = str(get_config_manager().get("verify_command", "") or "").strip().lower()
+        if setting in ("off", "false", "none", "no"):
+            return None  # no checks at all, not even the agent's own
         root = self.workspace or self.cwd
         command = configured_command(root)
         if not command:
-            return None
+            # No tests to run: ask once for a check of its own, if it can run one
+            if self._ran_after_edit or self._asked_self_check or not self._can_run_commands():
+                return None
+            self._asked_self_check = True
+            return SELF_CHECK_NOTE
         decision = self.permissions.check(
             "run_shell_command", {"command": command}, requires_approval=True
         )

@@ -5,6 +5,7 @@ All notable changes to the Joshu project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- In a project without tests, an agent that edited code and ran nothing since is asked once to check its change itself (run it or a small script) before finishing, when it can run commands; `verify_command: off` turns this off too.
 - Background jobs: `joshu run --background "<request>"` (or `/background` in a session) runs a request detached, in its own worktree, after the terminal closes, in `accept_edits` mode by default. `joshu jobs` / `/jobs` lists them, `show` gives the answer and log, `apply` puts the work into the working tree, `stop` ends one (`joshu.core.jobs`).
 - A trace of every conversation: each model call (seconds, tokens, tool calls, thinking on or off) and tool run (seconds, success), saved with the session. `joshu trace [session] [--json]` shows the timeline and totals, and benchmark triage reports seconds per model call (`joshu.core.trace`).
 - Tests before finishing: when a request edited code and the agent didn't run the tests afterwards, Joshu runs the project's tests (the `verify_command` setting, or found: pytest, `npm test`, `go test`, `cargo test`) through the permission gate, and sends a failure back to fix, twice at most. A missing test runner turns it off for the session. Benchmark triage now tells `untested` (the project had tests) from `unchecked` (it had none).
@@ -53,6 +54,9 @@ All notable changes to the Joshu project will be documented in this file.
 - Vim mode uses prompt_toolkit's vi editing (full motions, operators, undo) instead of a handful of custom keys.
 
 ### Fixed
+- An edit that leaves a Python file unparsable now says where the trouble likely starts (a string whose closing quotes are missing, found from the tokens before the error), and when edits keep leaving the same file broken, the note shows the numbered lines and asks for a `replace` of those lines instead of another full rewrite. In the hard benchmark two runs spent all 50 turns rewriting files that kept losing a closing `"""`.
+- Empty replies, and replies that only announce a step ("Let me read the files...") before anything was done, go back to the model instead of ending the request (two benchmark runs ended that way).
+- Shell commands ran in the process's directory, not the agent's workspace, so an SDK session with another `cwd` ran its commands in the wrong place.
 - Prompt injection: tool results had no marking and the rules didn't say they aren't instructions. The system prompt now says tool results are data, not instructions, and `web_fetch`, `web_search` and MCP tool results are labeled as external content.
 - With an OS sandbox, a shell command of an editing sub-agent ran in the main working directory (the sandbox fell back to it) and couldn't write in the worktree; the sandbox now follows the sub-agent's worktree.
 - A broken final reply ended the request: small models sometimes write a tool call as text (`... </function> </tool_call>`) or stop with a few garbled words right after a failed tool call (2 of 6 hard benchmark runs). Such replies now go back to the model with a note, up to twice per request (`retry_broken_replies`, on by default).
