@@ -48,6 +48,8 @@ class RegisteredHook:
     timeout: Optional[int] = None  # seconds; falls back to the dispatcher timeout
     # Claude Code style: a regex over the tool name (or session_start's source)
     matcher: Optional[str] = None
+    # A "prompt" hook: a model decides, from this prompt and the event
+    prompt: Optional[str] = None
 
 
 class HookDispatcher:
@@ -145,6 +147,24 @@ class HookDispatcher:
         )
         self._hooks.setdefault(event, []).append(hook)
         logger.info(f"Registered hook for {event.value}: {command}")
+
+    def register_prompt_hook(
+        self,
+        event: HookEvent,
+        prompt: str,
+        timeout: Optional[int] = None,
+        matcher: Optional[str] = None,
+    ) -> None:
+        """Register a hook a model decides (see joshu.hooks.prompt_hooks)."""
+        hook = RegisteredHook(
+            event=event,
+            script_path=Path("prompt"),
+            timeout=timeout,
+            matcher=matcher,
+            prompt=prompt,
+        )
+        self._hooks.setdefault(event, []).append(hook)
+        logger.info(f"Registered prompt hook for {event.value}")
 
     def clear_script_hooks(self) -> None:
         """Remove all script and command hooks (Python hooks are kept)."""
@@ -280,6 +300,10 @@ class HookDispatcher:
                 },
                 default=str,
             )
+            if hook.prompt is not None:
+                from joshu.hooks.prompt_hooks import run_prompt_hook
+
+                return run_prompt_hook(hook.prompt, payload_json, hook.timeout)
 
             if hook.command:
                 argv: Any = hook.command
@@ -557,6 +581,14 @@ def _register_hooks(dispatcher: Any, settings: Dict[str, Any], where: str) -> Li
         for entry in entries:
             if isinstance(entry, str) and entry.strip():
                 dispatcher.register_command_hook(event, entry.strip())
+            elif isinstance(entry, dict) and str(entry.get("prompt", "")).strip():
+                timeout = entry.get("timeout")
+                dispatcher.register_prompt_hook(
+                    event,
+                    str(entry["prompt"]).strip(),
+                    timeout=timeout if isinstance(timeout, int) and timeout > 0 else None,
+                    matcher=str(entry["matcher"]) if entry.get("matcher") else None,
+                )
             elif isinstance(entry, dict) and str(entry.get("command", "")).strip():
                 timeout = entry.get("timeout")
                 dispatcher.register_command_hook(

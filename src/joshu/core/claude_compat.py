@@ -146,7 +146,19 @@ def read_hooks_json(path: Path, root: Path) -> Dict[str, List[Dict[str, Any]]]:
             if not isinstance(group, dict):
                 continue
             for hook in group.get("hooks") or []:
-                if not isinstance(hook, dict) or hook.get("type", "command") != "command":
+                if not isinstance(hook, dict):
+                    continue
+                if hook.get("type") == "prompt" and str(hook.get("prompt") or "").strip():
+                    prompt_entry: Dict[str, Any] = {
+                        "prompt": str(expand_root(hook["prompt"], root))
+                    }
+                    if isinstance(hook.get("timeout"), int):
+                        prompt_entry["timeout"] = hook["timeout"]
+                    if group.get("matcher"):
+                        prompt_entry["matcher"] = str(group["matcher"])
+                    hooks.setdefault(joshu_event, []).append(prompt_entry)
+                    continue
+                if hook.get("type", "command") != "command":
                     continue
                 command = str(expand_root(hook.get("command") or "", root)).strip()
                 if not command:
