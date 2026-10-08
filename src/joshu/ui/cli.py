@@ -34,6 +34,7 @@ app = typer.Typer(no_args_is_help=True)
 mcp_app = typer.Typer(help="Manage MCP server integrations.")
 app.add_typer(mcp_app, name="mcp")
 
+from .cli_jobs import jobs_app  # noqa: E402
 from .cli_models import models_app, providers_app, use  # noqa: E402
 from .cli_plugins import plugin_app  # noqa: E402
 from .cli_skills import skills_app  # noqa: E402
@@ -42,6 +43,7 @@ app.add_typer(providers_app, name="providers")
 app.add_typer(models_app, name="models")
 app.add_typer(skills_app, name="skills")
 app.add_typer(plugin_app, name="plugin")
+app.add_typer(jobs_app, name="jobs")
 app.command(name="use")(use)
 console = Console()
 
@@ -560,8 +562,27 @@ def run(
     max_request_tokens: Optional[int] = typer.Option(
         None, "--max-request-tokens", help="Stop a request after it has used this many tokens."
     ),
+    background: bool = typer.Option(
+        False,
+        "--background",
+        "-b",
+        help="Run it as a background job in its own worktree; returns at once (see `joshu jobs`).",
+    ),
 ) -> None:
     """Run a task with the agent, or start interactive mode."""
+    if background:
+        from pathlib import Path as _Path
+
+        from .cli_jobs import JobCommands
+
+        ok = JobCommands(console).start(
+            prompt or "",
+            _Path.cwd(),
+            permission_mode or ("bypass" if yes else None),
+            model,
+            provider,
+        )
+        raise typer.Exit(code=0 if ok else 1)
     if max_budget_usd is not None or max_request_tokens is not None:
         from joshu.core.config import get_config_manager
 

@@ -189,58 +189,71 @@ def finish(
             outcome.branch = worktree.branch
             outcome.message = f"Its changes are on branch {worktree.branch}."
             return outcome
-        with _apply_lock:
-            # Seeded: the patch is relative to the uncommitted changes, so it applies
-            # over them (and fails cleanly if they changed meanwhile)
-            busy = (
-                ""
-                if worktree.seeded
-                else _git(worktree.repo, "status", "--porcelain", "--", *outcome.files).strip()
-            )
-            if busy:
-                outcome.branch = worktree.branch
-                outcome.message = (
-                    f"Not applied: these files have uncommitted changes in the working tree:\n{busy}\n"
-                    f"The changes are on branch {worktree.branch} (git merge {worktree.branch})."
-                )
-                return outcome
-            if before_apply is not None:
-                before_apply([worktree.repo / name for name in outcome.files])
-            # As bytes: a text pipe would turn the patch's \n into \r\n on Windows
-            patch = subprocess.run(
-                ["git", "diff", "--binary", worktree.base, worktree.branch],
-                cwd=worktree.repo,
-                capture_output=True,
-                check=True,
-            ).stdout
-            applied = subprocess.run(
-                ["git", "apply", "--whitespace=nowarn"]
-                if worktree.seeded
-                else ["git", "apply", "--3way", "--whitespace=nowarn"],
-                cwd=worktree.repo,
-                input=patch,
-                capture_output=True,
-            )
-            result = subprocess.CompletedProcess(
-                applied.args,
-                applied.returncode,
-                applied.stdout.decode("utf-8", "replace"),
-                applied.stderr.decode("utf-8", "replace"),
-            )
-            if result.returncode != 0:
-                outcome.branch = worktree.branch
-                outcome.message = (
-                    f"Not applied: {(result.stderr or result.stdout).strip()[:300]}\n"
-                    f"The changes are on branch {worktree.branch} (git merge {worktree.branch})."
-                )
-                return outcome
-            # --3way stages what it applies; leave it unstaged like any other edit
-            _git(worktree.repo, "reset", "-q", "--", *outcome.files, check=False)
-        outcome.applied = True
-        outcome.message = "Applied to the working tree (not committed)."
-        return outcome
+        return apply_work(worktree, outcome, before_apply)
     finally:
         remove(worktree, delete_branch=outcome.applied or not outcome.files)
+
+
+def apply_work(
+    worktree: Worktree,
+    outcome: Outcome,
+    before_apply: Optional[Callable[[List[Path]], None]] = None,
+) -> Outcome:
+    """
+    Apply the work on `worktree.branch` (since `worktree.base`) to the working
+    tree, or keep it on the branch and say why. Needs only the repository and
+    the branch: the worktree directory may be gone (a finished job).
+    """
+    with _apply_lock:
+        # Seeded: the patch is relative to the uncommitted changes, so it applies
+        # over them (and fails cleanly if they changed meanwhile)
+        busy = (
+            ""
+            if worktree.seeded
+            else _git(worktree.repo, "status", "--porcelain", "--", *outcome.files).strip()
+        )
+        if busy:
+            outcome.branch = worktree.branch
+            outcome.message = (
+                f"Not applied: these files have uncommitted changes in the working tree:\n{busy}\n"
+                f"The changes are on branch {worktree.branch} (git merge {worktree.branch})."
+            )
+            return outcome
+        if before_apply is not None:
+            before_apply([worktree.repo / name for name in outcome.files])
+        # As bytes: a text pipe would turn the patch's \n into \r\n on Windows
+        patch = subprocess.run(
+            ["git", "diff", "--binary", worktree.base, worktree.branch],
+            cwd=worktree.repo,
+            capture_output=True,
+            check=True,
+        ).stdout
+        applied = subprocess.run(
+            ["git", "apply", "--whitespace=nowarn"]
+            if worktree.seeded
+            else ["git", "apply", "--3way", "--whitespace=nowarn"],
+            cwd=worktree.repo,
+            input=patch,
+            capture_output=True,
+        )
+        result = subprocess.CompletedProcess(
+            applied.args,
+            applied.returncode,
+            applied.stdout.decode("utf-8", "replace"),
+            applied.stderr.decode("utf-8", "replace"),
+        )
+        if result.returncode != 0:
+            outcome.branch = worktree.branch
+            outcome.message = (
+                f"Not applied: {(result.stderr or result.stdout).strip()[:300]}\n"
+                f"The changes are on branch {worktree.branch} (git merge {worktree.branch})."
+            )
+            return outcome
+        # --3way stages what it applies; leave it unstaged like any other edit
+        _git(worktree.repo, "reset", "-q", "--", *outcome.files, check=False)
+    outcome.applied = True
+    outcome.message = "Applied to the working tree (not committed)."
+    return outcome
 
 
 def remove(worktree: Worktree, delete_branch: bool) -> None:

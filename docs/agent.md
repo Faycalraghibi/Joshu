@@ -377,6 +377,29 @@ seed, is applied back, on top of your uncommitted changes. If you change the
 same lines while it works, the patch doesn't apply and its work stays on the
 branch.
 
+## Background jobs
+
+A request can run on its own, and keep running after you close the terminal:
+
+```bash
+joshu run --background "migrate the tests to pytest"    # or /background ... in a session
+joshu jobs                    # list: running, done, failed, stopped
+joshu jobs show <id>          # its answer, changed files, log while it runs
+joshu jobs apply <id>         # put its work into your working tree (uncommitted)
+joshu jobs stop <id>          # end a running one
+joshu jobs log <id>           # the job process's output
+```
+
+A job works in its own git worktree (the project as it is, uncommitted
+changes included, like an editing sub-agent) and nobody is there to approve,
+so it runs in `accept_edits` mode by default: edits run, shell commands are
+refused unless your permission rules allow them. `--permission-mode bypass`
+(or `-y`) lets it run commands too. When it finishes, its work is committed on
+a branch `joshu/job-<id>` and the worktree is removed; `apply` puts the work
+in your working tree when it still applies (else merge the branch), and the
+session is saved, so `joshu trace <session>` shows its timeline. Records are
+in `~/.joshu/jobs/`.
+
 ## Checks after edits
 
 After `replace` or `write_file` succeeds, the edited file is checked and any

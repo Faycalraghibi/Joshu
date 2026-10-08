@@ -131,6 +131,28 @@ class MoreCommands:
         console.print(f"Added {directory} for this session.", highlight=False)
         return True
 
+    # ----------------------------------------------------------------- jobs
+
+    def cmd_background(self, arg: str = "") -> bool:
+        """/background <request>: run it detached, in its own worktree."""
+        from joshu.ui.cli_jobs import JobCommands
+
+        mode = self.interactive_mode.config_manager.get("permission_mode", "default")
+        JobCommands(_console()).start(
+            arg,
+            Path.cwd(),
+            permission_mode=mode if mode in ("accept_edits", "bypass") else "accept_edits",
+            model=getattr(self.interactive_mode, "model", None),
+        )
+        return True
+
+    def cmd_jobs(self, arg: str = "") -> bool:
+        """/jobs [show|apply|stop|log <id>]"""
+        from joshu.ui.cli_jobs import JobCommands
+
+        JobCommands(_console()).run(arg)
+        return True
+
     # --------------------------------------------------------------- plugin
 
     def cmd_plugin(self, arg: str = "") -> bool:
