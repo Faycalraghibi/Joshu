@@ -75,6 +75,10 @@ DEFAULT_CONFIG = {
     # Ask the agent once to check its work before it finishes a request
     # that edited files or ran commands
     "self_review": True,
+    # The project's tests, run before finishing a request that edited code
+    # without running them: "" finds the command, "off" turns it off
+    "verify_command": "",
+    "verify_timeout": 300,
     # Reasoning models' thinking: on (the model's default), off, or auto (skip
     # it right after successful reads and searches, where it mostly costs time)
     "thinking": "on",
@@ -206,6 +210,8 @@ class JoshuConfig:
     max_budget_usd: float = 0.0
     max_request_tokens: int = 0
     self_review: bool = True
+    verify_command: str = ""
+    verify_timeout: int = 300
     thinking: str = "on"
     allow_bypass: bool = True
     retry_broken_replies: bool = True

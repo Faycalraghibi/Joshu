@@ -87,6 +87,7 @@ def _isolated_config(monkeypatch, tmp_path):
     # that cover it turn it on themselves
     manager.set("self_review", False)
     manager.set("retry_broken_replies", False)
+    manager.set("verify_command", "off")
     monkeypatch.setattr(config_module, "_config_manager_instance", manager)
 
 

@@ -8,7 +8,9 @@ transcripts next to it, and gives each failed run one cause:
     no edits          finished (or was stopped) without changing any file
     out of time       killed at the task's timeout
     out of turns      stopped by max_turns, a loop or repeated denials
-    untested          edited the code after its last test run, or never ran tests
+    untested          edited the code after its last test run, or never ran the
+                      project's tests
+    unchecked         same, in a project without tests (and wrote no check of its own)
     gave up failing   its own last test run failed and it finished anyway
     missed cases      its own tests passed, the hidden checks did not
 
@@ -68,6 +70,7 @@ CAUSES = [
     "out of time",
     "out of turns",
     "untested",
+    "unchecked",
     "gave up failing",
     "missed cases",
 ]
@@ -152,6 +155,16 @@ def failing_checks(check_output: str, limit: int = 3) -> List[str]:
     return [line[:120] for line in lines[:limit]]
 
 
+def has_tests(task: str) -> bool:
+    """Whether the task's starting project has tests the agent could run."""
+    files = ROOT / "tasks" / task / "files"
+    return (
+        any(files.rglob("test_*.py"))
+        or any(files.rglob("*_test.py"))
+        or any(files.rglob("*.test.js"))
+    )
+
+
 def cause_of(result: Dict[str, Any], signals: Optional[Signals]) -> str:
     bench = _bench()
     known = {k: v for k, v in result.items() if k in bench.Result.__dataclass_fields__}
@@ -168,7 +181,8 @@ def cause_of(result: Dict[str, Any], signals: Optional[Signals]) -> str:
     if signals is None:
         return "no transcript"
     if signals.test_runs == 0 or signals.edited_after_last_test:
-        return "untested"
+        # Tests it could have run, or none: it should have written its own check
+        return "untested" if has_tests(str(result.get("task", ""))) else "unchecked"
     if signals.last_test_passed is False:
         return "gave up failing"
     return "missed cases"
