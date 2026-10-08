@@ -121,6 +121,11 @@ def activity_label(tool: str, arguments: Dict[str, Any]) -> str:
     return verb
 
 
+def queued_count() -> int:
+    """Messages queued while the request runs (set by interactive mode)."""
+    return 0
+
+
 class _Working:
     """Working indicator with elapsed time, re-rendered by rich.live."""
 
@@ -138,6 +143,13 @@ class _Working:
         shells = _running_shells()
         if shells:
             details.append(f"{shells} shell{'s' if shells != 1 else ''} running")
+        queued = queued_count()
+        if queued:
+            details.append(f"{queued} queued")
+        from joshu.tools.shell_tool import foreground_running
+
+        if foreground_running():
+            details.append("ctrl+b to background")
         details.append("esc to interrupt")
         yield Text.assemble(
             (f"{frame} ", _s("accent", "bold")),
@@ -149,7 +161,9 @@ class _Working:
         typed = typing_now()
         if typed:
             hint = (
-                "enter asks it now" if typed.lstrip().startswith("/btw") else "sent when this ends"
+                "enter asks it now"
+                if typed.lstrip().startswith("/btw")
+                else "enter queues it for when this ends"
             )
             yield Text.assemble(("› ", _s("accent")), (typed, ""), (f"  ({hint})", "dim"))
 

@@ -14,7 +14,14 @@ from rich.console import Console
 from rich.table import Table
 
 from joshu.core.config import get_config_manager
-from joshu.mcp.loop import run as run_on_mcp_loop
+
+
+def run_on_mcp_loop(coro):
+    """joshu.mcp.loop.run, imported only when an MCP command runs (startup stays fast)."""
+    from joshu.mcp.loop import run
+
+    return run(coro)
+
 
 logger = logging.getLogger(__name__)
 console = Console()

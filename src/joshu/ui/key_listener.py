@@ -23,6 +23,7 @@ from typing import Callable, Dict, Iterator, List, Optional
 
 ESC = "\x1b"
 CTRL_O = "\x0f"
+CTRL_B = "\x02"
 POLL_SECONDS = 0.05
 
 _active: Optional["KeyListener"] = None

@@ -27,7 +27,14 @@ from .cli_handlers.mcp_handler import (
 )
 from .cli_handlers.search_handler import handle_search_command
 from .display import print_banner
-from .interactive import start_interactive_mode
+
+
+def start_interactive_mode(*args: Any, **kwargs: Any) -> Any:
+    """Imported only when interactive mode starts (prompt_toolkit is slow to load)."""
+    from .interactive import start_interactive_mode as start
+
+    return start(*args, **kwargs)
+
 
 # Initialize app and console
 app = typer.Typer(no_args_is_help=True)
