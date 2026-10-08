@@ -5,6 +5,8 @@ All notable changes to the Joshu project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- `/btw <question>`: a side question answered from the conversation, without tools and without being added to it; it also works while a task runs (type it and press Enter). What you type during a task now shows under the working line.
+- `/subagent <name> <task>` runs a sub-agent yourself (`research`, `editor`, or yours), its answer added to the conversation; `/agents` lists the built-in ones too, and `/agents new <name> <what it does>` creates one.
 - Background jobs ask instead of refusing: a call that needs approval waits for `joshu jobs approve <id>` or `deny <id>` (also `/jobs`), shown as "waiting for you" in `joshu jobs`, and is refused after `job_approval_timeout` (1800 s).
 - Prompt hooks: a hook entry with `prompt` (or a Claude Code hook of type `prompt`) asks a model (`hook_model`, or the configured one) to decide, with the event as JSON in `$ARGUMENTS`; `{"ok": false, "reason": ...}` blocks the event, or sends the agent back to work for `stop` (`joshu.hooks.prompt_hooks`).
 - The OS sandbox hides credential locations from sandboxed commands (`shell_sandbox.hide`): by default `~/.ssh`, `~/.aws`, `~/.gnupg`, cloud CLI configs, `~/.kube`, `~/.docker`, `~/.netrc`, `~/.git-credentials`, `~/.npmrc`, `~/.pypirc` and `~/.joshu/config.yaml` (bubblewrap: an empty tmpfs or /dev/null over each; seatbelt: a read denial). Before, they could read the whole disk.
@@ -44,6 +46,7 @@ All notable changes to the Joshu project will be documented in this file.
 - `Ctrl+G` writes the prompt in your editor (`$VISUAL`, `$EDITOR`, Notepad on Windows).
 
 ### Changed
+- No more terminal bell by default: `notifications: auto` only sends desktop notifications where the terminal supports them; `bell` turns the beep back on.
 - A plugin installed with `/plugin` during a session starts its MCP servers and offers their tools at once; before, they waited for the next start (`load_new_mcp_servers`).
 - Sub-agents that edit see the project as it is: their worktree gets the working tree's uncommitted changes and untracked files first, and only their own work is applied back, on top of those changes (before, uncommitted work was invisible to them and blocked applying).
 - `replace` and `multi_edit` apply an edit whose `old_string` differs from the file only in trailing spaces or in indentation shifted the same amount on every line, when exactly one block of lines matches; `new_string` is re-indented to fit and the result notes it. Before, the model had to read the file again and retry (about two failed edits per hard benchmark run).

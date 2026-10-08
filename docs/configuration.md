@@ -172,7 +172,7 @@ permissions:                 # added to everyone's rules, which can't drop them
 | `theme` | string | `dark` | Color theme: `dark`, `light`, `colorblind`, `plain` |
 | `output_style` | string | `default` | Reply style: `default`, `concise`, `explanatory`, `learning` or a custom one |
 | `statusline` | string | `""` | Command whose output is shown under the input |
-| `notifications` | string | `auto` | When a request that ran `notify_after_seconds` or longer finishes or waits for approval: `auto` sends a desktop notification where the terminal supports it (iTerm2, WezTerm, Ghostty, kitty) and rings the bell elsewhere; `desktop`, `bell`, or `off` |
+| `notifications` | string | `auto` | When a request that ran `notify_after_seconds` or longer finishes or waits for approval: `auto` (or `desktop`) sends a desktop notification where the terminal supports it (iTerm2, WezTerm, Ghostty, kitty) and nothing elsewhere; `bell` rings the terminal bell; `off` |
 | `notify_after_seconds` | integer | `20` | How long a request runs before it notifies |
 | `semantic_memory_similarity_threshold` | float | `0.3` | Similarity threshold (0.0-1.0) |
 | `semantic_memory_max_results` | integer | `5` | Max search results |

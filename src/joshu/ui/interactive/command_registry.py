@@ -89,7 +89,16 @@ COMMANDS: List[SlashCommand] = [
         aliases=("bg",),
     ),
     SlashCommand("jobs", "Background jobs", "Project", "[show|apply|stop|log] <id>"),
-    SlashCommand("agents", "List sub-agents", "Project"),
+    SlashCommand(
+        "btw",
+        "Ask a side question; not added to the conversation (works while a task runs)",
+        "Conversation",
+        "<question>",
+    ),
+    SlashCommand(
+        "agents", "Sub-agents: list them, or create one", "Project", "[new <name> <what>]"
+    ),
+    SlashCommand("subagent", "Run a sub-agent on a task yourself", "Project", "<name> <task>"),
     SlashCommand("commands", "List custom commands", "Project"),
     SlashCommand("mcp", "MCP servers and their tools", "Project"),
     SlashCommand("search", "Search the web", "Project", "<query>"),

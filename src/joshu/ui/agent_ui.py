@@ -144,6 +144,14 @@ class _Working:
             (f"{self.label}… ", _s("accent")),
             (f"({' · '.join(details)})", "dim"),
         )
+        from joshu.ui.key_listener import typing_now
+
+        typed = typing_now()
+        if typed:
+            hint = (
+                "enter asks it now" if typed.lstrip().startswith("/btw") else "sent when this ends"
+            )
+            yield Text.assemble(("› ", _s("accent")), (typed, ""), (f"  ({hint})", "dim"))
 
 
 class _Trimmed:
@@ -590,6 +598,21 @@ class ConsoleAgentUI(AgentEvents):
                 request.feedback = _ask_feedback()
         return answer
 
+    # --------------------------------------------------------- side questions
+
+    def show_side_answer(self, question: str, answer: str, title: str = "btw") -> None:
+        """A /btw answer (shown, not part of the conversation), or a /agent result."""
+        with self._lock:
+            self._end_line()
+            self.console.print(
+                f"[{_s('accent')}]●[/] [bold]{escape(title)}[/bold] [dim]{escape(question)}[/dim]",
+                highlight=False,
+            )
+            if self.rich_mode:
+                self.console.print(Padding(Markdown(answer or "(no answer)"), (0, 0, 0, 2)))
+            else:
+                self.console.print(answer or "(no answer)")
+
     # ------------------------------------------------------------ questions
 
     # Set by create_console_agent when someone is at the terminal to answer
@@ -704,8 +727,8 @@ class ConsoleAgentUI(AgentEvents):
     def notify(self, message: str = "Joshu finished") -> None:
         """
         Tell the user a request that ran a while finished or needs an answer:
-        a desktop notification where the terminal supports one, else the bell
-        (`notifications`: auto, desktop, bell or off).
+        a desktop notification where the terminal supports one (`notifications`:
+        auto or desktop), the terminal bell (`bell`), or nothing (`off`).
         """
         if self._request_started is None or not self.console.is_terminal or self.quiet:
             return
@@ -719,8 +742,13 @@ class ConsoleAgentUI(AgentEvents):
             return
         from joshu.ui.terminal_features import notification_sequence
 
-        desktop = notification_sequence(message) if mode in ("auto", "desktop") else ""
-        self._write_control(desktop or "\a")
+        # The bell only when asked for: in most terminals it is just a beep
+        if mode == "bell":
+            self._write_control("\a")
+            return
+        desktop = notification_sequence(message)
+        if desktop:
+            self._write_control(desktop)
 
     def _write_control(self, sequence: str) -> None:
         """Write an escape sequence straight to the terminal (not through rich)."""

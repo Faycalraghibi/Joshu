@@ -171,7 +171,9 @@ list. Custom commands (`.joshu/commands/`) and skills appear there too.
 | `/add-dir <path>` | Let the agent read and edit files in another directory this session |
 | `/bashes [list \| kill <id>]` | Commands the agent started in the background and their live output; stop one |
 | `/hooks [add <event> <command> \| remove <event> <n>]` | Show, add or remove hooks |
-| `/skills`, `/agents`, `/commands` | List skills, sub-agents, custom commands |
+| `/skills`, `/agents`, `/commands` | List skills, sub-agents, custom commands (`/agents new <name> <what it does>` creates a sub-agent) |
+| `/subagent <name> <task>` | Run a sub-agent yourself: `research` (read-only), `editor` (edits in its own worktree) or one of yours |
+| `/btw <question>` | A side question, answered from the conversation without tools and not added to it; also while a task runs (type it and press Enter) |
 | `/plugin [install <src> \| marketplace add <src> \| ...]` | Plugins and marketplaces, Joshu or Claude Code format (see [Plugins](plugins.md)); what you install works in the session at once, its MCP servers included |
 | `/mcp` | MCP servers, whether they're connected and how many tools each has |
 | `/search <query>` | Search the web |
@@ -219,6 +221,13 @@ allows several answers shows checkboxes (Space or numbers toggle, Enter
 confirms). "Other" lets you type your own answer, and Esc skips the question
 so the agent chooses and says which. Questions are only asked in interactive
 sessions; `joshu run` and `--quiet` never stop to ask.
+
+### Typing while a task runs
+
+What you type while Joshu works shows under the working line. `/btw
+<question>` and Enter asks a side question right away: it is answered from
+the conversation so far, without tools, and isn't added to it, while the task
+keeps running. Anything else waits and starts your next prompt.
 
 ### Background commands
 

@@ -1,6 +1,7 @@
 """Command handlers for interactive mode slash commands."""
 
 import json
+from pathlib import Path
 from typing import List
 
 from joshu.ui.interactive.commands_extra import ExtraCommands
@@ -489,7 +490,42 @@ class CommandHandler(ExtraCommands, MoreCommands):
             refresh()
 
     def cmd_agents(self, arg: str = "") -> bool:
+        action, _, rest = arg.strip().partition(" ")
+        if action in ("new", "create", "add"):
+            return self.handle_agent_new(rest)
         return self.handle_agents_list()
+
+    def cmd_subagent(self, arg: str = "") -> bool:
+        """/subagent <name> <task>: run a sub-agent yourself."""
+        from joshu.core.agent import BUILTIN_SUBAGENTS
+
+        name, _, task = arg.strip().partition(" ")
+        if not name or not task.strip():
+            self.interactive_mode._show_message(
+                "Usage: /subagent <name> <task>   (/agents lists them: "
+                + ", ".join(BUILTIN_SUBAGENTS)
+                + ", and yours)"
+            )
+            return True
+        mode = self.interactive_mode
+        if not mode._ensure_agent():
+            return True
+        from joshu.ui.key_listener import CTRL_O, KeyListener
+
+        mode.agent_ui.begin_request()
+        try:
+            with KeyListener({CTRL_O: mode.agent_ui.toggle_verbose}):
+                text = mode.agent.run_subagent(name, task.strip())
+        except KeyboardInterrupt:
+            mode._show_message("\nInterrupted.")
+            return True
+        except ValueError as e:
+            mode._show_message(str(e))
+            return True
+        finally:
+            mode.agent_ui.end_request()
+        mode.agent_ui.show_side_answer(task.strip(), text, title=name)
+        return True
 
     def cmd_commands(self, arg: str = "") -> bool:
         return self.handle_commands_list()
@@ -616,19 +652,64 @@ class CommandHandler(ExtraCommands, MoreCommands):
         return True
 
     def handle_agents_list(self) -> bool:
-        """List user-defined sub-agents."""
+        """Built-in and defined sub-agents, and how to use them."""
+        from joshu.core.agent import BUILTIN_SUBAGENTS
         from joshu.core.subagents import agent_dirs, discover_subagents
 
         specs = discover_subagents()
-        if not specs:
-            dirs = " or ".join(str(d) for d in reversed(agent_dirs()))
-            self.interactive_mode._show_message(f"No sub-agents defined. Add .md files to {dirs}.")
-            return True
-        lines = ["Sub-agents (the agent delegates to them with its task tool):"]
+        lines = ["Sub-agents (run one with /subagent <name> <task>, or ask Joshu to delegate):"]
+        for name, description in BUILTIN_SUBAGENTS.items():
+            lines.append(f"  {name:<16} {description}  [built-in]")
         for name, spec in sorted(specs.items()):
             tools = ", ".join(spec.tools) if spec.tools else "read-only"
             lines.append(f"  {name:<16} {spec.description}  [tools: {tools}]")
+        if not specs:
+            dirs = " or ".join(str(d) for d in reversed(agent_dirs()))
+            lines.append(
+                f"Define your own with /agents new <name> <what it does> (files in {dirs})."
+            )
         self.interactive_mode._show_message("\n".join(lines))
+        return True
+
+    def handle_agent_new(self, text: str) -> bool:
+        """/agents new <name> <description>: a sub-agent definition to edit."""
+        import re as _re
+
+        from joshu.core.subagents import AGENTS_SUBDIR
+
+        name, _, description = text.strip().partition(" ")
+        if not _re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]*", name or ""):
+            self.interactive_mode._show_message(
+                "Usage: /agents new <name> <what it does>  (name: letters, digits, - or _)"
+            )
+            return True
+        description = description.strip() or f"The {name} sub-agent"
+        path = Path.cwd() / AGENTS_SUBDIR / f"{name}.md"
+        if path.exists():
+            self.interactive_mode._show_message(f"{path} already exists.")
+            return True
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            "---\n"
+            f"description: {description}\n"
+            "# Without `tools` it is read-only. To let it change files and run commands\n"
+            "# (asking you like Joshu does), list them, e.g.:\n"
+            "# tools: read_file, glob, search_file_content, replace, write_file, run_shell_command\n"
+            "# model: inherit\n"
+            "---\n"
+            f"You are the {name} sub-agent. {description}.\n\n"
+            "Work only on the task you are given, then answer with what you found or did, "
+            "citing files and lines.\n",
+            encoding="utf-8",
+        )
+        agent = getattr(self.interactive_mode, "agent", None)
+        if agent is not None:
+            from joshu.core.subagents import discover_subagents
+
+            agent.subagents = discover_subagents(agent.cwd)
+        self.interactive_mode._show_message(
+            f"Created {path}. Edit its instructions, then run it with /subagent {name} <task>."
+        )
         return True
 
     def handle_commands_list(self) -> bool:

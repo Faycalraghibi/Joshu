@@ -185,6 +185,33 @@ EXPLORE_TOOLS = {
 }
 
 
+# Sub-agents every session has (besides those defined in .joshu/agents/)
+BUILTIN_SUBAGENTS = {
+    "research": "Read-only: searches and reads the project, answers with what it found",
+    "editor": "Makes changes in its own git worktree; they're applied when it finishes",
+}
+
+SIDE_QUESTION_NOTE = (
+    "[Side question from the user while you work. Answer it briefly from what you know "
+    "so far, without tools; it is not a new task and doesn't change your current one.]\n\n"
+)
+
+
+def _answerable(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    The conversation up to its last complete exchange: an assistant turn whose
+    tool calls don't all have results yet (a tool is running) is left out, so
+    the history is valid to send.
+    """
+    answered = {m.get("tool_call_id") for m in messages if m.get("role") == "tool"}
+    for index in range(len(messages) - 1, -1, -1):
+        message = messages[index]
+        calls = message.get("tool_calls") or []
+        if message.get("role") == "assistant" and any(c.get("id") not in answered for c in calls):
+            return messages[:index]
+    return messages
+
+
 def malformed_reply(
     content: str, last_tool_failed: bool, changed_anything: bool = True
 ) -> Optional[str]:
@@ -1338,6 +1365,50 @@ class Agent:
             self.trace.append(entry)
             if len(self.trace) > MAX_TRACE:
                 del self.trace[: len(self.trace) - MAX_TRACE]
+
+    def run_subagent(self, name: str, task: str) -> str:
+        """
+        Run a sub-agent the user picked (/subagent): `research` (read-only),
+        `editor` (edits in its own worktree) or a defined one. Its answer is
+        added to the conversation so the main agent knows what it did.
+        """
+        tool = self._local_tools.get("task")
+        if tool is None:
+            raise ValueError("sub-agents aren't available in this session")
+        label = " ".join(task.split())[:40]
+        if name == "editor":
+            text = tool.function(description=label, prompt=task, edit=True)
+        elif name == "research":
+            text = tool.function(description=label, prompt=task)
+        else:
+            text = tool.function(description=label, prompt=task, agent=name)
+        if not text.startswith("Error:"):
+            self.messages.append(
+                {"role": "user", "content": f"[I ran the {name} sub-agent on: {task}]"}
+            )
+            self.messages.append(
+                {"role": "assistant", "content": f"The {name} sub-agent answered:\n\n{text}"}
+            )
+            if self.persist:
+                self._save()
+        return text
+
+    def side_question(self, question: str) -> str:
+        """
+        Answer a question about the conversation without changing it (/btw):
+        no tools, nothing added to the history, while a request may be running.
+        """
+        snapshot = _answerable(list(self.messages))
+        snapshot.append({"role": "user", "content": SIDE_QUESTION_NOTE + question})
+        turn = self.client.complete(
+            snapshot, None, max_tokens=min(self.max_tokens, 2048), temperature=self.temperature
+        )
+        self._add_usage(turn.usage)
+        with self._usage_lock:
+            self.cost.add(
+                request_cost(turn.usage, getattr(self.client, "model", ""), self._pricing)
+            )
+        return (turn.content or "").strip()
 
     def _think_now(self) -> bool:
         """
