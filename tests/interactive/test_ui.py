@@ -119,10 +119,19 @@ def test_verbose_shows_output_in_full():
     assert "line 9" in text_of(out) and "ctrl+o" not in text_of(out)
 
 
-def test_bell_rings_only_after_a_long_request(monkeypatch):
+def test_bell_only_when_asked_for_and_after_a_long_request(monkeypatch):
+    from joshu.core.config import get_config_manager
+
     # A plain terminal: no desktop notifications or progress indicator
     for name in ("WT_SESSION", "ConEmuPID", "TERM_PROGRAM", "KITTY_WINDOW_ID"):
         monkeypatch.delenv(name, raising=False)
+    ui, out = terminal_ui()
+    ui.begin_request()
+    ui._request_started -= 60
+    ui.notify()
+    assert "\a" not in text_of(out)  # auto (default): no beep, only desktop notifications
+
+    get_config_manager().set("notifications", "bell")
     ui, out = terminal_ui()
     ui.notify()
     assert "\a" not in text_of(out)  # no request started
@@ -132,6 +141,16 @@ def test_bell_rings_only_after_a_long_request(monkeypatch):
     ui._request_started -= 60
     ui.notify()
     assert "\a" in text_of(out)
+
+
+def test_desktop_notification_where_supported(monkeypatch):
+    monkeypatch.setenv("WT_SESSION", "1")
+    monkeypatch.setenv("TERM_PROGRAM", "WezTerm")
+    ui, out = terminal_ui()
+    ui.begin_request()
+    ui._request_started -= 60
+    ui.notify("Done")
+    assert text_of(out).count("\x1b]9;Done") == 1  # an OSC 9 notification
 
 
 def test_working_line_names_the_task_in_progress():

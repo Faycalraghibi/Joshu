@@ -335,7 +335,19 @@ using it.
 
 The `task` tool hands a self-contained job to a sub-agent and returns its final
 answer, keeping the main conversation small. By default it is a read-only
-researcher. Define specialized ones in `.joshu/agents/` (project) or
+researcher. Joshu delegates when it sees fit, or when you ask ("use a
+sub-agent to find every caller of `parse`"), and you can run one yourself:
+
+```
+/agents                               # built-in and your sub-agents
+/subagent research where are sessions saved and when?
+/subagent editor rename `load_cfg` to `load_config` everywhere
+/agents new reviewer Reviews a change for bugs and risky patterns
+/subagent reviewer review the last commit
+```
+
+Its answer is added to the conversation, so Joshu knows what it found or did.
+`research` is read-only; `editor` works in its own git worktree (see below). Define specialized ones in `.joshu/agents/` (project) or
 `~/.joshu/agents/` (user):
 
 ```markdown

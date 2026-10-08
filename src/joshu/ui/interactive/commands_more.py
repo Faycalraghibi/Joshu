@@ -131,6 +131,25 @@ class MoreCommands:
         console.print(f"Added {directory} for this session.", highlight=False)
         return True
 
+    # ------------------------------------------------------------------ btw
+
+    def cmd_btw(self, arg: str = "") -> bool:
+        """/btw <question>: answered from the conversation, not added to it."""
+        question = arg.strip()
+        if not question:
+            _console().print("Usage: /btw <question>  (also while a task runs)")
+            return True
+        mode = self.interactive_mode
+        if not mode._ensure_agent():
+            return True
+        try:
+            answer = mode.agent.side_question(question)
+        except Exception as e:
+            _console().print(f"Couldn't answer: {e}")
+            return True
+        mode.agent_ui.show_side_answer(question, answer)
+        return True
+
     # ----------------------------------------------------------------- jobs
 
     def cmd_background(self, arg: str = "") -> bool:

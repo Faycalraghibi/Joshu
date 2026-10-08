@@ -24,6 +24,15 @@ from .modes import AskModeHandler
 from .prompt import PLACEHOLDER, SHORTCUTS, bottom_toolbar, get_style, prompt_message
 
 
+def side_question_text(line: str) -> Optional[str]:
+    """The question in `/btw <question>`, or None for other input."""
+    text = line.strip()
+    if not text.lower().startswith("/btw"):
+        return None
+    question = text[4:].strip()
+    return question or None
+
+
 class InteractiveMode:
     """Main interactive mode with advanced terminal features."""
 
@@ -287,7 +296,9 @@ class InteractiveMode:
         from joshu.ui.key_listener import CTRL_O, KeyListener
 
         self.agent_ui.begin_request()
-        listener = KeyListener({CTRL_O: self.agent_ui.toggle_verbose})
+        listener = KeyListener(
+            {CTRL_O: self.agent_ui.toggle_verbose}, on_submit=self._submit_while_running
+        )
         try:
             with listener:
                 response = self.agent.run(prompt, images=images)
@@ -311,6 +322,25 @@ class InteractiveMode:
                 response.text,
                 metadata={"mode": self.interaction_mode, "timestamp": time.time()},
             )
+        return True
+
+    def _submit_while_running(self, line: str) -> bool:
+        """Enter during a request: `/btw <question>` is answered now; other text waits."""
+        question = side_question_text(line)
+        if question is None or self.agent is None:
+            return False
+        import threading
+
+        agent, ui = self.agent, self.agent_ui
+
+        def answer() -> None:
+            try:
+                text = agent.side_question(question)
+            except Exception as e:
+                text = f"(couldn't answer: {e})"
+            ui.show_side_answer(question, text)
+
+        threading.Thread(target=answer, daemon=True).start()
         return True
 
     def _show_message(self, message: str):

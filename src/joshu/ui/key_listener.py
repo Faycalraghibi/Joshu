@@ -3,7 +3,9 @@ Keys pressed while the agent is working.
 
 Esc interrupts the running request the same way Ctrl+C does (the agent keeps
 the conversation valid, so you can follow up). Anything else typed meanwhile
-is kept and offered as the start of the next prompt, so you can type ahead.
+is kept and offered as the start of the next prompt, so you can type ahead;
+it shows under the working line. Enter on `/btw <question>` asks a side
+question right away (see `on_submit`) while the request keeps running.
 
 The listener reads the terminal on a background thread and only runs while
 the agent runs. Approval prompts pause it (see `paused`) so they can read
@@ -29,13 +31,20 @@ _active: Optional["KeyListener"] = None
 class KeyListener:
     """Watch for Esc and collect type-ahead while a request runs."""
 
-    def __init__(self, actions: Optional[Dict[str, Callable[[], None]]] = None) -> None:
+    def __init__(
+        self,
+        actions: Optional[Dict[str, Callable[[], None]]] = None,
+        on_submit: Optional[Callable[[str], bool]] = None,
+    ) -> None:
         """
         Args:
             actions: Keys that run a callback instead of being typed ahead,
                 e.g. {CTRL_O: show_more}
+            on_submit: Called with the typed line when Enter is pressed; True
+                means it was handled (e.g. /btw) and the line is cleared
         """
         self.actions = actions or {}
+        self.on_submit = on_submit
         self.interrupted = False
         self._typed: List[str] = []
         self._stop = threading.Event()
@@ -120,6 +129,15 @@ class KeyListener:
             if self._typed:
                 self._typed.pop()
         elif key in ("\r", "\n"):
+            line = "".join(self._typed).strip()
+            if self.on_submit is not None and line:
+                try:
+                    handled = self.on_submit(line)
+                except Exception:  # a side question must never stop the request
+                    handled = False
+                if handled:
+                    self._typed.clear()
+                    return
             self._typed.append(" ")
         elif key.isprintable():
             self._typed.append(key)
@@ -147,6 +165,14 @@ class KeyListener:
 
         termios.tcsetattr(sys.stdin.fileno(), termios.TCSADRAIN, self._term_state)
         self._term_state = None
+
+
+def typing_now() -> str:
+    """What has been typed during the running request so far (for display)."""
+    listener = _active
+    if listener is None:
+        return ""
+    return "".join(listener._typed)
 
 
 @contextlib.contextmanager
