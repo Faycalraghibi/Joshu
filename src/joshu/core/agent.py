@@ -1375,7 +1375,7 @@ class Agent:
         if self._can_edit_in_worktrees():
             description += (
                 " With edit=true the sub-agent may edit files and run commands in its own git "
-                "worktree (a checkout of HEAD, without uncommitted changes); its changes are "
+                "worktree (a copy of the project, uncommitted changes included); its changes are "
                 "applied to the working tree when it finishes. Several independent edit tasks "
                 "can run at once."
             )
