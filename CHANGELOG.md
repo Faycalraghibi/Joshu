@@ -5,6 +5,7 @@ All notable changes to the Joshu project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- The OS sandbox hides credential locations from sandboxed commands (`shell_sandbox.hide`): by default `~/.ssh`, `~/.aws`, `~/.gnupg`, cloud CLI configs, `~/.kube`, `~/.docker`, `~/.netrc`, `~/.git-credentials`, `~/.npmrc`, `~/.pypirc` and `~/.joshu/config.yaml` (bubblewrap: an empty tmpfs or /dev/null over each; seatbelt: a read denial). Before, they could read the whole disk.
 - In a project without tests, an agent that edited code and ran nothing since is asked once to check its change itself (run it or a small script) before finishing, when it can run commands; `verify_command: off` turns this off too.
 - Background jobs: `joshu run --background "<request>"` (or `/background` in a session) runs a request detached, in its own worktree, after the terminal closes, in `accept_edits` mode by default. `joshu jobs` / `/jobs` lists them, `show` gives the answer and log, `apply` puts the work into the working tree, `stop` ends one (`joshu.core.jobs`).
 - A trace of every conversation: each model call (seconds, tokens, tool calls, thinking on or off) and tool run (seconds, success), saved with the session. `joshu trace [session] [--json]` shows the timeline and totals, and benchmark triage reports seconds per model call (`joshu.core.trace`).
