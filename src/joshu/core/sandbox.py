@@ -17,6 +17,8 @@ Configured in config.yaml:
       image: python:3.12-slim   # docker only
       auto_allow: true    # sandboxed commands run without asking
                           # (commands flagged unsafe still ask)
+      hide: [~/.ssh, ...] # paths sandboxed commands can't read (bubblewrap,
+                          # seatbelt); default: common credential locations
 
 `auto` picks the first backend that works on this machine. If the requested
 sandbox isn't available, commands run unsandboxed and still need approval.
@@ -29,7 +31,7 @@ import platform
 import shlex
 import shutil
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -38,6 +40,21 @@ logger = logging.getLogger(__name__)
 MODES = ("off", "auto", "bubblewrap", "seatbelt", "docker")
 DEFAULT_DOCKER_IMAGE = "python:3.12-slim"
 DOCKER_WORKDIR = "/workspace"
+# Credentials sandboxed commands have no reason to read (shell_sandbox.hide)
+DEFAULT_HIDDEN = [
+    "~/.ssh",
+    "~/.aws",
+    "~/.gnupg",
+    "~/.azure",
+    "~/.config/gcloud",
+    "~/.kube",
+    "~/.docker",
+    "~/.netrc",
+    "~/.git-credentials",
+    "~/.npmrc",
+    "~/.pypirc",
+    "~/.joshu/config.yaml",
+]
 
 
 @dataclass
@@ -46,6 +63,7 @@ class SandboxSettings:
     network: bool = False
     image: str = DEFAULT_DOCKER_IMAGE
     auto_allow: bool = True
+    hide: List[str] = field(default_factory=lambda: list(DEFAULT_HIDDEN))
 
     @classmethod
     def from_config(cls, data: Optional[Dict[str, Any]]) -> "SandboxSettings":
@@ -58,6 +76,7 @@ class SandboxSettings:
             network=bool(data.get("network", False)),
             image=str(data.get("image") or DEFAULT_DOCKER_IMAGE),
             auto_allow=bool(data.get("auto_allow", True)),
+            hide=[str(p) for p in data.get("hide", DEFAULT_HIDDEN) or []],
         )
 
 
@@ -66,9 +85,28 @@ class Sandbox:
 
     name = "none"
 
-    def __init__(self, workspace: Path, network: bool = False) -> None:
+    def __init__(
+        self, workspace: Path, network: bool = False, hide: Optional[List[str]] = None
+    ) -> None:
         self.workspace = workspace.resolve()
         self.network = network
+        self.hide = list(DEFAULT_HIDDEN if hide is None else hide)
+
+    def hidden_paths(self) -> List[Path]:
+        """Existing paths to hide, never one that holds the workspace."""
+        paths = []
+        for entry in self.hide:
+            path = Path(entry).expanduser()
+            if not path.exists():
+                continue
+            path = path.resolve()
+            try:
+                self.workspace.relative_to(path)
+                continue  # the project is inside it: hiding it would hide the project
+            except ValueError:
+                pass
+            paths.append(path)
+        return paths
 
     def argv(self, command: str, cwd: Optional[Path] = None) -> List[str]:
         """The program and arguments that run `command` inside the sandbox."""
@@ -81,9 +119,10 @@ class Sandbox:
     def describe(self) -> str:
         """One line for the system prompt."""
         net = "network access allowed" if self.network else "no network access"
+        hidden = " credential files (~/.ssh, ...) can't be read;" if self.hide else ""
         return (
             f"Shell commands run in a {self.name} sandbox: they can write only inside the "
-            f"working directory and temp files; {net}."
+            f"working directory and temp files;{hidden} {net}."
         )
 
     def _cwd(self, cwd: Optional[Path]) -> Path:
@@ -98,6 +137,9 @@ class Sandbox:
 class BubblewrapSandbox(Sandbox):
     name = "bubblewrap"
 
+    def _hide_args(self) -> List[str]:
+        return [arg for path in self.hidden_paths() for arg in _bwrap_hide(path)]
+
     def argv(self, command: str, cwd: Optional[Path] = None) -> List[str]:
         ws = str(self.workspace)
         args = [
@@ -107,6 +149,7 @@ class BubblewrapSandbox(Sandbox):
             "--proc", "/proc",
             "--tmpfs", "/tmp",
             "--bind", ws, ws,
+            *self._hide_args(),
             "--chdir", str(self._cwd(cwd)),
             "--unshare-pid",
             "--die-with-parent",
@@ -114,6 +157,13 @@ class BubblewrapSandbox(Sandbox):
         if not self.network:
             args.append("--unshare-net")
         return args + ["--", "/bin/sh", "-c", command]
+
+
+def _bwrap_hide(path: Path) -> List[str]:
+    """Hide a directory behind an empty tmpfs, a file behind /dev/null."""
+    if path.is_dir():
+        return ["--tmpfs", str(path)]
+    return ["--ro-bind", "/dev/null", str(path)]
 
 
 class SeatbeltSandbox(Sandbox):
@@ -131,6 +181,9 @@ class SeatbeltSandbox(Sandbox):
         ]
         if not self.network:
             rules.append("(deny network*)")
+        for path in self.hidden_paths():
+            kind = "subpath" if path.is_dir() else "literal"
+            rules.append(f'(deny file-read* ({kind} "{path}"))')
         return "\n".join(rules)
 
     def argv(self, command: str, cwd: Optional[Path] = None) -> List[str]:
@@ -182,8 +235,8 @@ def resolve_sandbox(
         return None, None
 
     candidates = {
-        "bubblewrap": lambda: BubblewrapSandbox(workspace, settings.network),
-        "seatbelt": lambda: SeatbeltSandbox(workspace, settings.network),
+        "bubblewrap": lambda: BubblewrapSandbox(workspace, settings.network, settings.hide),
+        "seatbelt": lambda: SeatbeltSandbox(workspace, settings.network, settings.hide),
         "docker": lambda: DockerSandbox(workspace, settings.network, settings.image),
     }
     order = list(candidates) if settings.mode == "auto" else [settings.mode]

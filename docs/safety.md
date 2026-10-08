@@ -94,10 +94,22 @@ for projects and sources you trust, and keep the sandbox's network off.
 bubblewrap on Linux, seatbelt on macOS, Docker anywhere (the only backend on
 Windows). Commands can **write** only inside the working directory (or an
 editing sub-agent's worktree) and temp files, and have no network unless
-`network: true`. With bubblewrap and seatbelt they can still **read** the
-whole disk, including `~/.ssh`; private keys and API keys in tool output are
-masked before the model sees them, and without network nothing can leave the
-machine. Docker mounts only the working directory.
+`network: true`. With bubblewrap and seatbelt they can **read** the rest of
+the disk, except the credential locations in `hide`: by default `~/.ssh`,
+`~/.aws`, `~/.gnupg`, `~/.azure`, `~/.config/gcloud`, `~/.kube`, `~/.docker`,
+`~/.netrc`, `~/.git-credentials`, `~/.npmrc`, `~/.pypirc` and
+`~/.joshu/config.yaml` (an empty folder or file stands in for each; a path that
+holds the project is never hidden). Set your own list, or `hide: []` for none:
+
+```yaml
+shell_sandbox:
+  mode: auto
+  hide: [~/.ssh, ~/.aws, ~/work/secrets]
+```
+
+Keys elsewhere that show up in tool output are still masked before the model
+sees them, and without network nothing can leave the machine. Docker mounts
+only the working directory.
 
 ## Programmatic Usage
 
