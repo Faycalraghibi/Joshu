@@ -115,5 +115,10 @@ def failure_note(command: str, code: object, output: str) -> str:
     return NOTE.format(command=command, code=code, output=text or "(no output)")
 
 
-def runner_missing(output: str) -> bool:
-    return bool(MISSING_RUNNER.search(output or ""))
+# Exit codes of a command the shell couldn't find (POSIX shells, cmd.exe)
+COMMAND_NOT_FOUND = {127, 9009}
+
+
+def runner_missing(output: str, code: object = None) -> bool:
+    """The test command couldn't run at all (not that tests failed)."""
+    return code in COMMAND_NOT_FOUND or bool(MISSING_RUNNER.search(output or ""))

@@ -1200,7 +1200,7 @@ class Agent:
             self.last_verification = "passed"
             return None
         if (
-            runner_missing(output)
+            runner_missing(output, code)
             or code is None
             and "timed out" not in str(result.get("error", ""))
         ):
