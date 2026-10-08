@@ -386,15 +386,19 @@ joshu run --background "migrate the tests to pytest"    # or /background ... in 
 joshu jobs                    # list: running, done, failed, stopped
 joshu jobs show <id>          # its answer, changed files, log while it runs
 joshu jobs apply <id>         # put its work into your working tree (uncommitted)
+joshu jobs approve <id>       # let a waiting job run the command it asks for (or: deny)
 joshu jobs stop <id>          # end a running one
 joshu jobs log <id>           # the job process's output
 ```
 
 A job works in its own git worktree (the project as it is, uncommitted
-changes included, like an editing sub-agent) and nobody is there to approve,
-so it runs in `accept_edits` mode by default: edits run, shell commands are
-refused unless your permission rules allow them. `--permission-mode bypass`
-(or `-y`) lets it run commands too. When it finishes, its work is committed on
+changes included, like an editing sub-agent) in `accept_edits` mode by
+default: edits run, and a call that needs approval (a shell command your
+permission rules don't allow) waits for you. `joshu jobs` shows it as
+"waiting for you" with the command; `joshu jobs approve <id>` lets it run,
+`joshu jobs deny <id>` refuses it (the job carries on without it). Unanswered
+for `job_approval_timeout` seconds (default 1800), it's refused.
+`--permission-mode bypass` (or `-y`) runs commands without asking. When it finishes, its work is committed on
 a branch `joshu/job-<id>` and the worktree is removed; `apply` puts the work
 in your working tree when it still applies (else merge the branch), and the
 session is saved, so `joshu trace <session>` shows its timeline. Records are

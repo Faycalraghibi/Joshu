@@ -131,3 +131,81 @@ def test_cli_and_slash(repo):
     assert (repo / "a.py").read_text(encoding="utf-8") == "A = 2\n"
     assert runner.invoke(app, ["jobs", "stop", job.id]).exit_code == 1  # not running
     assert json.loads((job.directory / "job.json").read_text(encoding="utf-8"))["applied"]
+
+
+# ------------------------------------------------------------------ approvals
+
+
+def answer_when_asked(job_id, allow, seen=None):
+    """Like a user running `joshu jobs approve|deny` once the job asks."""
+    import threading
+
+    def answer():
+        deadline = time.time() + 20
+        while time.time() < deadline:
+            job = jobs.load(job_id)
+            if job.pending:
+                if seen is not None:
+                    seen.append(dict(job.pending))
+                jobs.decide(job_id, allow)
+                return
+            time.sleep(0.1)
+
+    thread = threading.Thread(target=answer, daemon=True)
+    thread.start()
+    return thread
+
+
+def test_waits_for_approval(repo):
+    job = jobs.start("x", repo, spawn=False)
+    seen = []
+    thread = answer_when_asked(job.id, True, seen)
+    assert jobs.wait_for_approval(job, "run_shell_command", {"command": "make"}, poll=0.05)
+    thread.join(5)
+    assert seen[0]["summary"] == "make" and jobs.load(job.id).pending is None
+
+    thread = answer_when_asked(job.id, False)
+    assert not jobs.wait_for_approval(job, "run_shell_command", {"command": "rm x"}, poll=0.05)
+    thread.join(5)
+
+
+def test_unanswered_approval_is_denied(repo):
+    from joshu.core.config import get_config_manager
+
+    get_config_manager().set("job_approval_timeout", 1)
+    job = jobs.start("x", repo, spawn=False)
+    started = time.time()
+    assert not jobs.wait_for_approval(job, "run_shell_command", {"command": "make"}, poll=0.05)
+    assert time.time() - started < 5 and jobs.load(job.id).pending is None
+    with pytest.raises(JobError, match="isn't waiting"):
+        jobs.decide(job.id, True)
+
+
+def test_a_job_runs_an_approved_command(repo):
+    job = jobs.start("print hello", repo, permission_mode="accept_edits", spawn=False)
+    command = f'"{sys.executable}" -c "print(42)"'
+    thread = answer_when_asked(job.id, True)
+    done = jobs.run(
+        job.id,
+        client=FakeClient([call("run_shell_command", command=command), text("It printed 42.")]),
+    )
+    thread.join(5)
+    assert done.status == jobs.DONE and done.result == "It printed 42."
+    session = __import__("joshu.core.sessions", fromlist=["x"]).load_session(done.session_id)
+    outputs = [m["content"] for m in session["messages"] if m.get("role") == "tool"]
+    assert "42" in outputs[0]
+
+
+def test_cli_shows_and_answers_a_waiting_job(repo):
+    from joshu.ui.cli import app
+
+    job = jobs.start("x", repo, spawn=False)
+    job.pending = {"tool": "run_shell_command", "summary": "npm test", "asked_at": "now"}
+    job.save()
+    runner = CliRunner()
+    listed = runner.invoke(app, ["jobs"]).output
+    assert "waiting for you" in listed and "npm test" in listed and "jobs approve" in listed
+    assert runner.invoke(app, ["jobs", "deny", job.id]).exit_code == 0
+    assert json.loads((job.directory / "decision.json").read_text(encoding="utf-8")) == {
+        "allow": False
+    }

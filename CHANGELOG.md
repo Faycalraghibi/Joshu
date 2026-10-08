@@ -5,6 +5,7 @@ All notable changes to the Joshu project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Background jobs ask instead of refusing: a call that needs approval waits for `joshu jobs approve <id>` or `deny <id>` (also `/jobs`), shown as "waiting for you" in `joshu jobs`, and is refused after `job_approval_timeout` (1800 s).
 - Prompt hooks: a hook entry with `prompt` (or a Claude Code hook of type `prompt`) asks a model (`hook_model`, or the configured one) to decide, with the event as JSON in `$ARGUMENTS`; `{"ok": false, "reason": ...}` blocks the event, or sends the agent back to work for `stop` (`joshu.hooks.prompt_hooks`).
 - The OS sandbox hides credential locations from sandboxed commands (`shell_sandbox.hide`): by default `~/.ssh`, `~/.aws`, `~/.gnupg`, cloud CLI configs, `~/.kube`, `~/.docker`, `~/.netrc`, `~/.git-credentials`, `~/.npmrc`, `~/.pypirc` and `~/.joshu/config.yaml` (bubblewrap: an empty tmpfs or /dev/null over each; seatbelt: a read denial). Before, they could read the whole disk.
 - In a project without tests, an agent that edited code and ran nothing since is asked once to check its change itself (run it or a small script) before finishing, when it can run commands; `verify_command: off` turns this off too.

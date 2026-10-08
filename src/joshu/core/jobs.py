@@ -10,7 +10,9 @@ your permission rules (choose bypass for more). When it finishes, its work is
 committed on a branch `joshu/job-<id>`, the worktree is removed, and the
 result is recorded. `joshu jobs` lists them; `show` gives a job's answer, its
 log and changed files; `apply` puts its work into the working tree;
-`stop` ends a running one.
+`stop` ends a running one. When the job needs approval for a call (a shell
+command in accept_edits mode), it waits for `joshu jobs approve <id>` or
+`deny <id>`, up to job_approval_timeout seconds (then it's denied).
 
 Job records live in ~/.joshu/jobs/<id>/ (job.json, output.log).
 """
@@ -58,6 +60,8 @@ class Job:
     files: List[str] = field(default_factory=list)
     stat: str = ""
     applied: bool = False
+    # A tool call waiting for `joshu jobs approve|deny` (see wait_for_approval)
+    pending: Optional[Dict[str, Any]] = None
 
     @property
     def directory(self) -> Path:
@@ -68,10 +72,22 @@ class Job:
         return self.directory / "output.log"
 
     def save(self) -> None:
+        import threading
+        import time
+
         self.directory.mkdir(parents=True, exist_ok=True)
-        tmp = self.directory / "job.json.tmp"
+        # Own temporary file per writer (the job, `joshu jobs` in another terminal)
+        tmp = self.directory / f"job.json.{os.getpid()}.{threading.get_ident()}.tmp"
         tmp.write_text(json.dumps(asdict(self), indent=1), encoding="utf-8")
-        tmp.replace(self.directory / "job.json")
+        for attempt in range(50):
+            try:
+                tmp.replace(self.directory / "job.json")
+                return
+            except PermissionError:
+                # Windows refuses while another process is reading job.json
+                if attempt == 49:
+                    raise
+                time.sleep(0.02)
 
 
 def jobs_dir() -> Path:
@@ -198,6 +214,7 @@ def run(job_id: str, client: Any = None) -> Job:
             provider=job.provider,
             persist=True,
             client=client,
+            can_use_tool=lambda name, arguments: wait_for_approval(job, name, arguments),
         ) as session:
             result = session.send(job.prompt)
         job.session_id, job.result = result.session_id, result.text
@@ -217,6 +234,55 @@ def run(job_id: str, client: Any = None) -> Job:
         # Keep the branch when there is work on it; the worktree directory goes
         remove(worktree, delete_branch=not job.files)
         job.save()
+    return job
+
+
+DECISION_FILE = "decision.json"
+
+
+def wait_for_approval(job: Job, tool: str, arguments: Dict[str, Any], poll: float = 1.0) -> bool:
+    """
+    Ask for approval from outside: record the call as pending and wait for
+    `joshu jobs approve|deny`, until job_approval_timeout (then deny).
+    """
+    import time
+
+    from joshu.core.config import get_config_manager
+
+    timeout = float(get_config_manager().get("job_approval_timeout", 1800) or 0)
+    decision_path = job.directory / DECISION_FILE
+    decision_path.unlink(missing_ok=True)
+    summary = str(arguments.get("command") or arguments.get("path") or arguments)[:300]
+    job.pending = {
+        "tool": tool,
+        "summary": summary,
+        "asked_at": datetime.now().isoformat(timespec="seconds"),
+    }
+    job.save()
+    deadline = time.monotonic() + timeout
+    allowed = False
+    try:
+        while time.monotonic() < deadline:
+            if decision_path.is_file():
+                try:
+                    allowed = bool(json.loads(decision_path.read_text(encoding="utf-8"))["allow"])
+                except (ValueError, KeyError):
+                    allowed = False
+                break
+            time.sleep(poll)
+    finally:
+        decision_path.unlink(missing_ok=True)
+        job.pending = None
+        job.save()
+    return allowed
+
+
+def decide(job_id: str, allow: bool) -> Job:
+    """Answer a job's pending approval."""
+    job = load(job_id)
+    if job.status != RUNNING or not job.pending:
+        raise JobError(f"Job {job.id} isn't waiting for an approval")
+    (job.directory / DECISION_FILE).write_text(json.dumps({"allow": allow}), encoding="utf-8")
     return job
 
 

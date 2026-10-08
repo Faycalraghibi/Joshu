@@ -15,7 +15,10 @@ jobs_app = typer.Typer(
 )
 console = Console()
 
-USAGE = "Usage: /jobs [show <id> | apply <id> | stop <id> | log <id>]   /background <request>"
+USAGE = (
+    "Usage: /jobs [show <id> | apply <id> | approve <id> | deny <id> | stop <id> | log <id>]"
+    "   /background <request>"
+)
 
 
 class JobCommands:
@@ -58,6 +61,8 @@ class JobCommands:
             return
         for job in jobs:
             state = job.status + (", applied" if job.applied else "")
+            if job.pending:
+                state = "waiting for you"
             changed = f"{len(job.files)} files" if job.files else "no changes"
             prompt = " ".join(job.prompt.split())
             prompt = prompt if len(prompt) <= 60 else prompt[:57] + "..."
@@ -65,6 +70,12 @@ class JobCommands:
                 f"[bold]{job.id}[/bold]  {escape(state):18} {job.created_at[5:16].replace('T', ' ')}  "
                 f"{changed:10}  {escape(prompt)}"
             )
+            if job.pending:
+                self.console.print(
+                    f"   [yellow]asks to run {escape(job.pending['tool'])}: "
+                    f"{escape(job.pending['summary'])}[/yellow]  "
+                    f"[dim]joshu jobs approve {job.id} | deny {job.id}[/dim]"
+                )
 
     def show(self, job_id: str) -> bool:
         from joshu.core.jobs import JobError, load, log_tail
@@ -106,6 +117,18 @@ class JobCommands:
         self.console.print(escape(job.stat))
         return True
 
+    def decide(self, job_id: str, allow: bool) -> bool:
+        from joshu.core.jobs import JobError, decide
+
+        try:
+            job = decide(job_id, allow)
+        except JobError as e:
+            self.console.print(f"[red]{escape(str(e))}[/red]")
+            return False
+        verb = "Approved" if allow else "Denied"
+        self.console.print(f"{verb}: {escape(job.pending['summary'] if job.pending else '')}")
+        return True
+
     def stop(self, job_id: str) -> bool:
         from joshu.core.jobs import JobError, stop
 
@@ -138,7 +161,14 @@ class JobCommands:
             self.list()
             return
         action, target = words[0], words[1] if len(words) > 1 else None
-        handlers = {"show": self.show, "apply": self.apply, "stop": self.stop, "log": self.log}
+        handlers = {
+            "show": self.show,
+            "apply": self.apply,
+            "stop": self.stop,
+            "log": self.log,
+            "approve": lambda target: self.decide(target, True),
+            "deny": lambda target: self.decide(target, False),
+        }
         if action in handlers and target:
             handlers[action](target)
         elif action == "list":
@@ -175,6 +205,18 @@ def show(job_id: str = typer.Argument(..., help="Job id (or a prefix)")) -> None
 def apply(job_id: str = typer.Argument(..., help="Job id (or a prefix)")) -> None:
     """Put a finished job's work into the working tree (uncommitted)."""
     _exit(JobCommands(console).apply(job_id))
+
+
+@jobs_app.command("approve")
+def approve(job_id: str = typer.Argument(..., help="Job id (or a prefix)")) -> None:
+    """Let a waiting job run the call it asks for."""
+    _exit(JobCommands(console).decide(job_id, True))
+
+
+@jobs_app.command("deny")
+def deny(job_id: str = typer.Argument(..., help="Job id (or a prefix)")) -> None:
+    """Refuse the call a waiting job asks for (it continues without it)."""
+    _exit(JobCommands(console).decide(job_id, False))
 
 
 @jobs_app.command("stop")

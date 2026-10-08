@@ -78,6 +78,8 @@ DEFAULT_CONFIG = {
     # The project's tests, run before finishing a request that edited code
     # without running them: "" finds the command, "off" turns it off
     "verify_command": "",
+    # Seconds a background job waits for `joshu jobs approve|deny` (then denied)
+    "job_approval_timeout": 1800,
     # Model for prompt hooks ("" = the configured model)
     "hook_model": "",
     "verify_timeout": 300,
@@ -213,6 +215,7 @@ class JoshuConfig:
     max_request_tokens: int = 0
     self_review: bool = True
     verify_command: str = ""
+    job_approval_timeout: int = 1800
     hook_model: str = ""
     verify_timeout: int = 300
     thinking: str = "on"
