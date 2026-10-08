@@ -47,6 +47,13 @@ COMMANDS: List[SlashCommand] = [
     ),
     SlashCommand("undo", "Revert the file edits of the last request", "Conversation"),
     SlashCommand("resume", "List saved conversations, or continue one", "Conversation", "[id]"),
+    SlashCommand("copy", "Copy the last reply to the clipboard", "Conversation"),
+    SlashCommand(
+        "rename", "Give this conversation a title (shown in /resume)", "Conversation", "<title>"
+    ),
+    SlashCommand(
+        "fork", "Continue in a copy of this conversation; the original stays", "Conversation"
+    ),
     SlashCommand("export", "Save the conversation as Markdown", "Conversation", "[file]"),
     SlashCommand(
         "session", "Manage saved sessions (list, switch, delete)", "Conversation", "[...]"
@@ -117,6 +124,20 @@ COMMANDS: List[SlashCommand] = [
     ),
     SlashCommand("hooks", "Show, add or remove hooks", "Project", "[add|remove ...]"),
     # Settings
+    SlashCommand("login", "Save a provider's API key", "Settings", "[provider]"),
+    SlashCommand("logout", "Remove a provider's saved API key", "Settings", "[provider]"),
+    SlashCommand(
+        "install-github-action",
+        "Set up the @joshu GitHub Action in this repository",
+        "Project",
+    ),
+    SlashCommand(
+        "feedback",
+        "Report a problem or idea (opens a GitHub issue)",
+        "Other",
+        "[text]",
+        aliases=("bug",),
+    ),
     SlashCommand("status", "Version, model, mode and loaded configuration", "Settings"),
     SlashCommand("doctor", "Check the setup: API key, model, tools", "Settings"),
     SlashCommand("config", "Show or set a setting", "Settings", "[key [value]]"),

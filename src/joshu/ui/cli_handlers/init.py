@@ -19,6 +19,9 @@ def initialize_context() -> tuple:
         tuple: (config_manager, context_provider, current_model)
     """
     load_dotenv()
+    from joshu.core.credentials import load_saved_keys
+
+    load_saved_keys()  # /login keys, after the environment and the project's .env
 
     config_manager = get_config_manager()
     current_model = config_manager.get("model")

@@ -60,6 +60,8 @@ history_limit: 1000
 
 ## API keys
 
+`/login [provider]` in a session saves a key in `~/.joshu/.env` (readable only by you where the system allows), loaded at startup after your environment and the project's `.env`, which win; `/logout` removes it.
+
 Each provider reads its key from one environment variable, e.g.
 `OPENROUTER_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`. Put them in `.env`
 at the project root:

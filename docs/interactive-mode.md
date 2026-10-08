@@ -173,6 +173,12 @@ list. Custom commands (`.joshu/commands/`) and skills appear there too.
 | `/hooks [add <event> <command> \| remove <event> <n>]` | Show, add or remove hooks |
 | `/skills`, `/agents`, `/commands` | List skills, sub-agents, custom commands (`/agents new <name> <what it does>` creates a sub-agent) |
 | `/subagent <name> <task>` | Run a sub-agent yourself: `research` (read-only), `editor` (edits in its own worktree) or one of yours |
+| `/copy` | Copy the last reply to the clipboard (OS clipboard tool, or the terminal's OSC 52) |
+| `/rename <title>` | Give the conversation a title, shown in `/resume` |
+| `/fork` | Continue in a copy of the conversation; the original stays saved (`/resume <id>` goes back) |
+| `/login [provider]` / `/logout [provider]` | Save or remove a provider's API key (asked without echo, stored in `~/.joshu/.env`, used at once) |
+| `/install-github-action` | Write `.github/workflows/joshu.yml` for the `@joshu` GitHub Action |
+| `/feedback [text]` (`/bug`) | Open a pre-filled GitHub issue (version, Python, OS, model) |
 | `/btw <question>` | A side question, answered from the conversation without tools and not added to it; also while a task runs (type it and press Enter) |
 | `/plugin [install <src> \| marketplace add <src> \| ...]` | Plugins and marketplaces, Joshu or Claude Code format (see [Plugins](plugins.md)); what you install works in the session at once, its MCP servers included |
 | `/mcp` | MCP servers, whether they're connected and how many tools each has |

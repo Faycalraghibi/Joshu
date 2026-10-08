@@ -35,6 +35,34 @@ Summarize them grouped by file, with line numbers, the reviewer and what they as
 CHANGELOG_URL = "https://github.com/Faycalraghibi/Joshu/blob/main/CHANGELOG.md"
 
 
+FEEDBACK_URL = "https://github.com/Faycalraghibi/Joshu/issues/new"
+GITHUB_WORKFLOW = """name: Joshu
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+jobs:
+  joshu:
+    if: >-
+      contains(github.event.comment.body, '@joshu') &&
+      contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Faycalraghibi/Joshu@main
+        env:
+          {secret}: ${{{{ secrets.{secret} }}}}
+        with:
+          provider: {provider}
+"""
+
+
 def _confirm(question: str, default: bool) -> bool:
     """Yes / no with the arrow menu, or typed without a terminal."""
     from joshu.ui.menu import MenuUnavailable, menu
@@ -129,6 +157,193 @@ class MoreCommands:
                 "files there using absolute paths.]"
             )
         console.print(f"Added {directory} for this session.", highlight=False)
+        return True
+
+    # ------------------------------------------------------- conversation
+
+    def cmd_copy(self, arg: str = "") -> bool:
+        """/copy: the last reply to the clipboard."""
+        from joshu.ui.clipboard import copy_text
+
+        agent = self.interactive_mode.agent
+        reply = agent.last_reply() if agent is not None else ""
+        if not reply:
+            _console().print("No reply to copy yet.")
+            return True
+        how = copy_text(reply)
+        where = "through the terminal (OSC 52)" if how == "terminal" else "to the clipboard"
+        _console().print(f"Copied the last reply ({len(reply):,} characters) {where}.")
+        return True
+
+    def cmd_rename(self, arg: str = "") -> bool:
+        """/rename <title>"""
+        title = " ".join(arg.split())
+        agent = self.interactive_mode.agent
+        if not title:
+            _console().print("Usage: /rename <title>")
+            return True
+        if agent is None:
+            _console().print("Nothing to rename yet: send a request first.")
+            return True
+        agent.title = title[:100]
+        if agent.persist and len(agent.messages) > 1:
+            agent._save()
+        _console().print(f"Renamed this conversation to: {agent.title}")
+        return True
+
+    def cmd_fork(self, arg: str = "") -> bool:
+        """/fork: continue in a copy; the original stays saved."""
+        agent = self.interactive_mode.agent
+        if agent is None or len(agent.messages) <= 1:
+            _console().print("Nothing to fork yet: send a request first.")
+            return True
+        original = agent.fork()
+        _console().print(
+            f"Forked: you're now in {agent.session_id}. The original ({original}) is saved; "
+            f"go back with /resume {original}."
+        )
+        return True
+
+    # ------------------------------------------------------------- keys
+
+    def cmd_login(self, arg: str = "") -> bool:
+        """/login [provider]: save its API key in ~/.joshu/.env."""
+        from joshu.core.credentials import save_key
+
+        provider = self._provider(arg)
+        if provider is None:
+            return True
+        if not provider.requires_key:
+            _console().print(f"{provider.name} doesn't need an API key.")
+            return True
+        variable = provider.api_key_env or f"{provider.name.upper().replace('-', '_')}_API_KEY"
+        from joshu.ui.menu import can_show_menu
+
+        if not can_show_menu():
+            _console().print(
+                f"/login needs a terminal to type the key into. Or set {variable} in your "
+                "environment or the project's .env."
+            )
+            return True
+        try:
+            from prompt_toolkit import prompt as ask
+
+            key = ask(f"{provider.name} API key ({variable}): ", is_password=True).strip()
+        except (EOFError, KeyboardInterrupt):
+            key = ""
+        if not key:
+            _console().print("No key entered; nothing changed.")
+            return True
+        if not provider.api_key_env:
+            self._set_key_variable(provider.name, variable)
+        path = save_key(variable, key)
+        self._refresh_client()
+        _console().print(f"Saved {variable} in {path} (shown to no one). {provider.name} is ready.")
+        return True
+
+    def cmd_logout(self, arg: str = "") -> bool:
+        """/logout [provider]"""
+        import os
+
+        from joshu.core.credentials import remove_key
+
+        provider = self._provider(arg)
+        if provider is None:
+            return True
+        variable = provider.api_key_env or f"{provider.name.upper().replace('-', '_')}_API_KEY"
+        if remove_key(variable):
+            _console().print(f"Removed {variable} from Joshu's saved keys.")
+        else:
+            _console().print(f"No saved key for {provider.name} ({variable}).")
+        if os.environ.get(variable):
+            _console().print(
+                f"{variable} is still set in your environment or the project's .env; "
+                "remove it there to log out completely."
+            )
+        return True
+
+    def _provider(self, arg: str):
+        from joshu.core.providers import DEFAULT_PROVIDER, get_providers
+
+        config = self.interactive_mode.config_manager
+        providers = get_providers(config.get("providers") or {})
+        name = arg.strip() or str(config.get("provider") or DEFAULT_PROVIDER)
+        if name not in providers:
+            _console().print(f"Unknown provider '{name}'. Known: {', '.join(sorted(providers))}")
+            return None
+        return providers[name]
+
+    def _set_key_variable(self, name: str, variable: str) -> None:
+        config = self.interactive_mode.config_manager
+        custom = dict(config.get("providers") or {})
+        custom[name] = {**(custom.get(name) or {}), "api_key_env": variable}
+        config.set("providers", custom)
+        config.save_config()
+
+    def _refresh_client(self) -> None:
+        """Let the running conversation use the new key."""
+        agent = self.interactive_mode.agent
+        if agent is None:
+            return
+        from joshu.core.llm_client import LLMError, create_chat_client
+
+        try:
+            agent.client = create_chat_client(getattr(agent.client, "model", None))
+        except LLMError:
+            pass
+
+    # --------------------------------------------------------- project setup
+
+    def cmd_install_github_action(self, arg: str = "") -> bool:
+        """/install-github-action: write .github/workflows/joshu.yml."""
+        from joshu.core.providers import DEFAULT_PROVIDER, get_providers
+
+        path = Path.cwd() / ".github" / "workflows" / "joshu.yml"
+        if path.exists():
+            _console().print(f"{path} already exists; edit it, or delete it to start over.")
+            return True
+        config = self.interactive_mode.config_manager
+        provider_name = str(config.get("provider") or DEFAULT_PROVIDER)
+        provider = get_providers(config.get("providers") or {}).get(provider_name)
+        variable = (provider.api_key_env if provider else None) or "NVIDIA_API_KEY"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            GITHUB_WORKFLOW.format(provider=provider_name, secret=variable), encoding="utf-8"
+        )
+        _console().print(
+            f"Wrote {path}.\nNext: add the repository secret {variable} (Settings > Secrets and "
+            "variables > Actions), commit the file, then comment `@joshu <request>` on an issue "
+            "or pull request."
+        )
+        return True
+
+    def cmd_feedback(self, arg: str = "") -> bool:
+        """/feedback [text]: open a pre-filled GitHub issue."""
+        import platform
+        import sys
+        import urllib.parse
+        import webbrowser
+
+        from joshu import __version__
+
+        body = (
+            f"{arg.strip()}\n\n---\nJoshu {__version__}, Python {sys.version.split()[0]}, "
+            f"{platform.system()} {platform.release()}, model "
+            f"{self.interactive_mode.model_label() or '?'}"
+        )
+        url = (
+            FEEDBACK_URL
+            + "?"
+            + urllib.parse.urlencode({"title": arg.strip()[:80] or "Feedback", "body": body})
+        )
+        opened = False
+        try:
+            opened = webbrowser.open(url)
+        except Exception:
+            opened = False
+        _console().print(
+            "Opened a new issue in your browser." if opened else f"Open this link: {url}"
+        )
         return True
 
     # ------------------------------------------------------------------ btw
