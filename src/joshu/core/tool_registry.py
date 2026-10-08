@@ -34,6 +34,8 @@ class ToolSpec:
     function: Callable
     enabled: bool = True
     requires_approval: bool = False
+    # Returns content from outside (MCP servers): marked as untrusted for the model
+    external: bool = False
 
     def to_openai_format(self) -> Dict[str, Any]:
         """Convert to OpenAI function calling format."""
