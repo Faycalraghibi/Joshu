@@ -71,7 +71,7 @@ from one fetches the marketplace again first. A plugin's
 |---|---|
 | `skills/`, `commands/` | Skills and slash commands (same formats) |
 | `agents/*.md` | Sub-agents; tool names (`Read`, `Bash`, ...) are translated, model aliases (`sonnet`, ...) use the main model |
-| `hooks/hooks.json` | Hooks: `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PreCompact`, `Notification`, `Stop`, `SubagentStop`, `SessionEnd`, with their `matcher` (over Claude Code tool names) |
+| `hooks/hooks.json` | Hooks: `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PreCompact`, `Notification`, `Stop`, `SubagentStop`, `SessionEnd`, with their `matcher` (over Claude Code tool names); `command` and `prompt` hooks |
 | `.mcp.json` | MCP servers |
 | `${CLAUDE_PLUGIN_ROOT}` | The installed plugin's directory |
 
