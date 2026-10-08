@@ -77,6 +77,27 @@ shell from the current directory. Unknown events and malformed entries are
 reported when the agent starts. To act only on some tools, check
 `data.tool_name` in the hook.
 
+### Prompt hooks
+
+Instead of a command, a hook can be a prompt that a model decides:
+
+```yaml
+hooks:
+  before_tool:
+    - prompt: "Refuse commands that delete or overwrite files outside the project: $ARGUMENTS"
+      matcher: Bash
+  stop:
+    - prompt: "If code was changed and no tests were run, say what to check."
+```
+
+The model (`hook_model`, or the configured one) gets the prompt with the
+event as JSON in place of `$ARGUMENTS` (or after the prompt) and answers
+`{"ok": true}` or `{"ok": false, "reason": "..."}`. `ok: false` blocks the
+event like a command exiting with code 2; for `stop` it sends the agent back to
+work with the reason. If the model can't be reached or doesn't answer that way,
+the event goes ahead and the problem is logged. Claude Code hooks of type
+`prompt` (in plugins) work the same.
+
 ## Writing Hooks
 
 ### Python Example
