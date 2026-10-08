@@ -87,6 +87,7 @@ class Signals:
     last_test_passed: Optional[bool] = None
     edited_after_last_test: bool = False
     compacted: bool = False
+    seconds_per_call: Optional[float] = None  # from the session's trace
 
 
 @dataclass
@@ -197,6 +198,11 @@ def triage_file(path: Path) -> List[Triage]:
         if transcript and (path.parent / transcript).is_file():
             session = json.loads((path.parent / transcript).read_text(encoding="utf-8"))
             signals = read_signals(session.get("messages") or [])
+            calls = [e for e in session.get("trace") or [] if e.get("kind") == "model"]
+            if calls:
+                signals.seconds_per_call = round(
+                    sum(float(e.get("seconds") or 0) for e in calls) / len(calls), 1
+                )
         triaged.append(
             Triage(
                 task=result["task"],
@@ -230,6 +236,8 @@ def print_report(triaged: List[Triage], show_all: bool = False) -> None:
             else ("pass" if s.last_test_passed else "fail")
         )
         notes = []
+        if s is not None and s.seconds_per_call is not None:
+            notes.append(f"{s.seconds_per_call}s/call")
         if s is not None and s.compacted:
             notes.append("compacted")
         if t.failing_checks:

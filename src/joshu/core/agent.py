@@ -13,6 +13,7 @@ import json
 import logging
 import re
 import threading
+import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -50,6 +51,7 @@ from joshu.core.tool_registry import ToolSpec, load_builtin_tools
 logger = logging.getLogger(__name__)
 
 SUBAGENT_MAX_TURNS = 25
+MAX_TRACE = 5000  # trace entries kept per conversation
 MAX_VERIFY_ROUNDS = 2  # test failures sent back per request
 EDIT_SUBAGENT_NOTE = (
     "You are a sub-agent of Joshu doing one task in your own git worktree (a separate "
@@ -209,6 +211,7 @@ class _Prepared:
     call: ToolCall
     spec: ToolSpec
     arguments: Dict[str, Any]
+    seconds: float = 0.0  # how long the tool ran (for the trace)
 
 
 @dataclass
@@ -334,6 +337,9 @@ class Agent:
         # once the test runner turns out to be missing
         self._verify_off = False
         self._untested_edits = False
+        # Timing of model calls and tools (saved with the session; `joshu trace`)
+        self.trace: List[Dict[str, Any]] = []
+        self._thinking_now = True
         self.last_verification: Optional[str] = None  # "passed" / "failed" this request
         self.thinking = str(config.get("thinking", "on") or "on").strip().lower()
         self.retry_broken_replies = bool(config.get("retry_broken_replies", True))
@@ -556,6 +562,7 @@ class Agent:
             if key in self.usage:
                 self.usage[key] = value
         self.cost = CostTracker.from_dict(session.get("cost"))
+        self.trace = list(session.get("trace") or [])
         self._request_count = len(self._request_indices())
 
     def _save(self) -> None:
@@ -630,7 +637,18 @@ class Agent:
             self._maybe_compact()
 
             self.events.on_model_start()
+            started = time.monotonic()
             turn, max_tokens = self._complete(max_tokens)
+            self._trace_event(
+                "model",
+                getattr(self.client, "model", "") or "",
+                time.monotonic() - started,
+                prompt_tokens=int(turn.usage.get("prompt_tokens", 0) or 0),
+                completion_tokens=int(turn.usage.get("completion_tokens", 0) or 0),
+                thinking=self._thinking_now,
+                tool_calls=len(turn.tool_calls),
+                finish_reason=turn.finish_reason,
+            )
             self._add_usage(turn.usage)
             self.cost.add(
                 request_cost(turn.usage, getattr(self.client, "model", ""), self._pricing)
@@ -781,13 +799,7 @@ class Agent:
             ) as pool:
                 # Each in a copy of this context (an editing sub-agent's workspace root)
                 futures = {
-                    id(p): pool.submit(
-                        contextvars.copy_context().run,
-                        self._invoke,
-                        p.spec,
-                        p.arguments,
-                        self._formatter,
-                    )
+                    id(p): pool.submit(contextvars.copy_context().run, self._timed_invoke, p)
                     for p in runnable
                 }
                 for call, item in zip(calls, prepared):
@@ -821,7 +833,8 @@ class Agent:
             on_text=self.events.on_text if self.stream else None,
             on_reasoning=self.events.on_reasoning if self.stream else None,
         )
-        if not self._think_now():
+        self._thinking_now = self._think_now()
+        if not self._thinking_now:
             request["thinking"] = False
         try:
             return self.client.complete(self.messages, max_tokens=max_tokens, **request), max_tokens
@@ -873,8 +886,15 @@ class Agent:
         if isinstance(prepared, str):
             return prepared
         self._start(prepared)
-        success, output = self._invoke(prepared.spec, prepared.arguments, self._formatter)
+        success, output = self._timed_invoke(prepared)
         return self._finish(prepared, success, output)
+
+    def _timed_invoke(self, prepared: "_Prepared") -> Tuple[bool, str]:
+        started = time.monotonic()
+        try:
+            return self._invoke(prepared.spec, prepared.arguments, self._formatter)
+        finally:
+            prepared.seconds = time.monotonic() - started
 
     def _prepare(self, call: ToolCall) -> Union[str, "_Prepared"]:
         """
@@ -985,6 +1005,7 @@ class Agent:
 
         dispatch_after_tool(self.session_id, call.name, output, success)
         self.events.on_tool_end(call.name, output, success)
+        self._trace_event("tool", call.name, prepared.seconds, success=success)
         return output
 
     def _diagnose(self, arguments: Dict[str, Any]) -> str:
@@ -1210,6 +1231,23 @@ class Agent:
         self.last_verification = "failed"
         self._untested_edits = True  # still failing: check again before finishing
         return failure_note(command, code, output or str(result.get("error") or ""))
+
+    def _trace_event(self, kind: str, name: str, seconds: float, **details: Any) -> None:
+        """One entry of the trace: what ran, when, for how long (see joshu.core.trace)."""
+        from datetime import datetime
+
+        entry = {
+            "kind": kind,
+            "name": name,
+            "request": self._request_count,
+            "at": datetime.now().isoformat(timespec="milliseconds"),
+            "seconds": round(seconds, 3),
+            **details,
+        }
+        with self._usage_lock:
+            self.trace.append(entry)
+            if len(self.trace) > MAX_TRACE:
+                del self.trace[: len(self.trace) - MAX_TRACE]
 
     def _think_now(self) -> bool:
         """
