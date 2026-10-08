@@ -2,6 +2,7 @@
 
 import json
 import subprocess
+import sys
 import threading
 
 import pytest
@@ -87,13 +88,15 @@ def test_work_is_applied_to_the_working_tree(repo):
     assert (repo / "a.py").read_text(encoding="utf-8") == "A = 1\n"
 
 
-def test_sub_agent_sees_its_worktree_not_the_working_tree(repo):
+def test_sub_agent_sees_uncommitted_work(repo):
     (repo / "a.py").write_text("A = 'uncommitted'\n", encoding="utf-8")
+    (repo / "new.py").write_text("NEW = 1\n", encoding="utf-8")  # untracked
     client = ScriptedByPrompt(
         {
             "MAIN": [edit_task("t1", "SUB", "change b"), text("ok")],
             "SUB": [
                 call("read_file", call_id="r0", path="a.py"),
+                call("read_file", call_id="r1", path="new.py"),
                 replace("b.py", "B = 1", "B = 2"),
                 text("done"),
             ],
@@ -101,15 +104,17 @@ def test_sub_agent_sees_its_worktree_not_the_working_tree(repo):
     )
     agent = make_agent(client, mode=PermissionMode.BYPASS, cwd=repo)
     agent.run("MAIN request")
-    # The worktree is a checkout of HEAD: the uncommitted change isn't in it
-    read = tool_messages(client.seen["SUB"])[0]["content"]
-    assert "A = 1" in read and "uncommitted" not in read
+    reads = [m["content"] for m in tool_messages(client.seen["SUB"])]
+    assert "uncommitted" in reads[0] and "NEW = 1" in reads[1]
+    # Only the sub-agent's own change comes back; the uncommitted work is untouched
     assert (repo / "b.py").read_text(encoding="utf-8") == "B = 2\n"
     assert (repo / "a.py").read_text(encoding="utf-8") == "A = 'uncommitted'\n"
+    assert (repo / "new.py").read_text(encoding="utf-8") == "NEW = 1\n"
+    assert "Applied" in tool_messages(agent.messages)[0]["content"]
 
 
-def test_conflicting_local_changes_keep_the_work_on_a_branch(repo):
-    (repo / "a.py").write_text("A = 'mine'\n", encoding="utf-8")
+def test_applies_over_uncommitted_changes_to_the_same_file(repo):
+    (repo / "a.py").write_text("A = 1\nOTHER = 1\n", encoding="utf-8")
     client = ScriptedByPrompt(
         {
             "MAIN": [edit_task("t1", "SUB"), text("ok")],
@@ -118,10 +123,30 @@ def test_conflicting_local_changes_keep_the_work_on_a_branch(repo):
     )
     agent = make_agent(client, mode=PermissionMode.BYPASS, cwd=repo)
     agent.run("MAIN request")
+    assert (repo / "a.py").read_text(encoding="utf-8") == "A = 2\nOTHER = 1\n"
+    assert "joshu/" not in git(repo, "branch")
+
+
+def test_changes_made_meanwhile_keep_the_work_on_a_branch(repo):
+    main_file = (repo / "a.py").resolve()
+    # While the sub-agent works, the same line changes in the working tree
+    meanwhile = f"\"{sys.executable}\" -c \"open(r'{main_file}', 'w').write('A = 99')\""
+    client = ScriptedByPrompt(
+        {
+            "MAIN": [edit_task("t1", "SUB"), text("ok")],
+            "SUB": [
+                call("run_shell_command", call_id="s0", command=meanwhile),
+                replace("a.py", "A = 1", "A = 2"),
+                text("done"),
+            ],
+        }
+    )
+    agent = make_agent(client, mode=PermissionMode.BYPASS, cwd=repo)
+    agent.run("MAIN request")
     result = tool_messages(agent.messages)[0]["content"]
-    assert "Not applied" in result and "uncommitted changes" in result
+    assert "Not applied" in result
     branch = next(line.strip() for line in git(repo, "branch").splitlines() if "joshu/" in line)
-    assert (repo / "a.py").read_text(encoding="utf-8") == "A = 'mine'\n"
+    assert (repo / "a.py").read_text(encoding="utf-8") == "A = 99"
     assert "A = 2" in git(repo, "show", f"{branch}:a.py")
 
 

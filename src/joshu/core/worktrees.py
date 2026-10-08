@@ -32,7 +32,9 @@ class Worktree:
     repo: Path  # the repository's top level
     path: Path
     branch: str
-    base: str  # the commit it started from
+    base: str  # the commit the sub-agent's work starts from (after the seed)
+    # The working tree's uncommitted changes were copied in (a "seed" commit)
+    seeded: bool = False
 
 
 @dataclass
@@ -95,7 +97,64 @@ def create(cwd: Path, label: str) -> Worktree:
     path.parent.mkdir(parents=True, exist_ok=True)
     base = _git(repo, "rev-parse", "HEAD").strip()
     _git(repo, "worktree", "add", "-q", "-b", branch, str(path), base)
-    return Worktree(repo=repo, path=path.resolve(), branch=branch, base=base)
+    worktree = Worktree(repo=repo, path=path.resolve(), branch=branch, base=base)
+    try:
+        _seed(worktree)
+    except (WorktreeError, OSError, subprocess.SubprocessError) as e:
+        remove(worktree, delete_branch=True)
+        raise WorktreeError(f"couldn't copy the uncommitted changes into the worktree: {e}") from e
+    return worktree
+
+
+MAX_UNTRACKED_BYTES = 5_000_000  # bigger untracked files aren't copied
+
+
+def _seed(worktree: Worktree) -> None:
+    """
+    Copy the working tree's uncommitted changes (tracked and untracked, not
+    ignored) into the worktree and commit them, so the sub-agent sees the
+    project as it is and its own work is the diff from there.
+    """
+    repo, path = worktree.repo, worktree.path
+    # As bytes: a text pipe would turn the patch's \n into \r\n on Windows
+    patch = subprocess.run(
+        ["git", "diff", "--binary", "HEAD"], cwd=repo, capture_output=True, check=True
+    ).stdout
+    if patch.strip():
+        applied = subprocess.run(
+            ["git", "apply", "--whitespace=nowarn"], cwd=path, input=patch, capture_output=True
+        )
+        if applied.returncode != 0:
+            raise WorktreeError(applied.stderr.decode("utf-8", "replace").strip()[:300])
+    untracked = _git(repo, "ls-files", "--others", "--exclude-standard", "-z").split("\0")
+    for name in filter(None, untracked):
+        source = repo / name
+        if source.is_file() and source.stat().st_size <= MAX_UNTRACKED_BYTES:
+            target = path / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, target)
+    if not (patch.strip() or any(untracked)):
+        return
+    _git(path, "add", "-A")
+    if not _git(path, "diff", "--cached", "--name-only").strip():
+        return
+    _git(
+        path,
+        *_identity(path),
+        "commit",
+        "-q",
+        "--no-verify",
+        "-m",
+        "Uncommitted changes (copied for the sub-agent)",
+    )
+    worktree.base = _git(path, "rev-parse", "HEAD").strip()
+    worktree.seeded = True
+
+
+def _identity(cwd: Path) -> List[str]:
+    if _git(cwd, "config", "user.email", check=False).strip():
+        return []
+    return ["-c", "user.name=Joshu", "-c", "user.email=joshu@localhost"]
 
 
 def commit(worktree: Worktree, message: str) -> List[str]:
@@ -104,10 +163,7 @@ def commit(worktree: Worktree, message: str) -> List[str]:
     changed = _git(worktree.path, "diff", "--cached", "--name-only").split()
     if not changed:
         return []
-    identity = []
-    if not _git(worktree.path, "config", "user.email", check=False).strip():
-        identity = ["-c", "user.name=Joshu", "-c", "user.email=joshu@localhost"]
-    _git(worktree.path, *identity, "commit", "-q", "--no-verify", "-m", message)
+    _git(worktree.path, *_identity(worktree.path), "commit", "-q", "--no-verify", "-m", message)
     return changed
 
 
@@ -134,7 +190,13 @@ def finish(
             outcome.message = f"Its changes are on branch {worktree.branch}."
             return outcome
         with _apply_lock:
-            busy = _git(worktree.repo, "status", "--porcelain", "--", *outcome.files).strip()
+            # Seeded: the patch is relative to the uncommitted changes, so it applies
+            # over them (and fails cleanly if they changed meanwhile)
+            busy = (
+                ""
+                if worktree.seeded
+                else _git(worktree.repo, "status", "--porcelain", "--", *outcome.files).strip()
+            )
             if busy:
                 outcome.branch = worktree.branch
                 outcome.message = (
@@ -152,7 +214,9 @@ def finish(
                 check=True,
             ).stdout
             applied = subprocess.run(
-                ["git", "apply", "--3way", "--whitespace=nowarn"],
+                ["git", "apply", "--whitespace=nowarn"]
+                if worktree.seeded
+                else ["git", "apply", "--3way", "--whitespace=nowarn"],
                 cwd=worktree.repo,
                 input=patch,
                 capture_output=True,

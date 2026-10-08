@@ -367,12 +367,15 @@ tasks can run at once without touching each other.
 When it finishes, its changes are committed on the branch and applied to your
 working tree, uncommitted, like any other edit (and recorded in the request's
 checkpoint, so `/rewind` undoes them). Then the worktree and the branch are
-removed. If a changed file has uncommitted changes in your working tree, or
-the patch doesn't apply, nothing is applied: the work stays on the branch and
-the result says how to merge it (`git merge joshu/...`).
+removed. If the patch doesn't apply, nothing is applied: the work stays on the
+branch and the result says how to merge it (`git merge joshu/...`).
 
-The worktree starts from `HEAD`, so a sub-agent doesn't see uncommitted
-changes; commit first if it needs them.
+The worktree starts as the project is: `HEAD` plus your uncommitted changes
+and untracked files (not ignored ones, nor files over 5 MB), committed there
+as a first "seed" commit. Only the sub-agent's own work, the diff from that
+seed, is applied back, on top of your uncommitted changes. If you change the
+same lines while it works, the patch doesn't apply and its work stays on the
+branch.
 
 ## Checks after edits
 
