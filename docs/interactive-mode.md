@@ -230,10 +230,20 @@ sessions; `joshu run` and `--quiet` never stop to ask.
 
 ### Typing while a task runs
 
-What you type while Joshu works shows under the working line. `/btw
-<question>` and Enter asks a side question right away: it is answered from
-the conversation so far, without tools, and isn't added to it, while the task
-keeps running. Anything else waits and starts your next prompt.
+What you type while Joshu works shows under the working line:
+
+- `/btw <question>` and Enter asks a side question right away: answered from
+  the conversation so far, without tools, and not added to it, while the task
+  keeps running.
+- Anything else and Enter is **queued**: it is sent by itself as soon as the
+  task ends (the working line and the bar count what's queued). Text without
+  Enter is kept as the start of your next prompt.
+- **Ctrl+B** while a shell command runs moves it to the background: it keeps
+  running, `/bashes` and ↓ show it, and Joshu reads its output with
+  `bash_output`.
+
+The bar under the input shows how full the context window is once it passes
+50% (`context 72%`), and suggests `/compact` from 80%.
 
 ### Background commands
 

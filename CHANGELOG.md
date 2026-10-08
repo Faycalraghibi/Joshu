@@ -5,6 +5,7 @@ All notable changes to the Joshu project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Messages sent with Enter while a task runs are queued and go by themselves when it ends; Ctrl+B moves a running shell command to the background; the bar under the input shows the context use from 50% (`context 72%`, suggesting `/compact` from 80%).
 - Slash commands from Claude Code that Joshu lacked: `/copy` (last reply to the clipboard), `/rename <title>`, `/fork` (continue in a copy of the conversation), `/login` / `/logout` (a provider's API key, saved in `~/.joshu/.env`), `/install-github-action` (writes the workflow) and `/feedback` / `/bug` (a pre-filled GitHub issue).
 - `/btw <question>`: a side question answered from the conversation, without tools and without being added to it; it also works while a task runs (type it and press Enter). What you type during a task now shows under the working line.
 - `/subagent <name> <task>` runs a sub-agent yourself (`research`, `editor`, or yours), its answer added to the conversation; `/agents` lists the built-in ones too, and `/agents new <name> <what it does>` creates one.
@@ -47,6 +48,7 @@ All notable changes to the Joshu project will be documented in this file.
 - `Ctrl+G` writes the prompt in your editor (`$VISUAL`, `$EDITOR`, Notepad on Windows).
 
 ### Changed
+- Faster start: the CLI no longer loads interactive mode and the MCP client up front (`joshu --version` 1.15 s → 0.46 s here), and interactive mode starts MCP servers in the background instead of waiting for them before the prompt.
 - No more terminal bell by default: `notifications: auto` only sends desktop notifications where the terminal supports them; `bell` turns the beep back on.
 - A plugin installed with `/plugin` during a session starts its MCP servers and offers their tools at once; before, they waited for the next start (`load_new_mcp_servers`).
 - Sub-agents that edit see the project as it is: their worktree gets the working tree's uncommitted changes and untracked files first, and only their own work is applied back, on top of those changes (before, uncommitted work was invisible to them and blocked applying).

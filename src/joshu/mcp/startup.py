@@ -3,13 +3,36 @@
 from __future__ import annotations
 
 import logging
-from typing import Callable, Optional
+import threading
+from typing import Callable, List, Optional
 
 from joshu.mcp.loop import run as run_on_mcp_loop
 
 logger = logging.getLogger(__name__)
 
 _loaded = False
+# Loading started by load_mcp_tools_in_background, and what it reported
+_background: Optional[threading.Thread] = None
+background_report: List[str] = []
+
+
+def load_mcp_tools_in_background() -> None:
+    """
+    Start the MCP servers on a thread, so the prompt doesn't wait for them;
+    load_mcp_tools (when the agent is created) waits for it to finish.
+    """
+    global _background
+    if _loaded or _background is not None:
+        return
+    _background = threading.Thread(
+        target=load_mcp_tools, kwargs={"report": background_report.append}, daemon=True
+    )
+    _background.start()
+
+
+def mcp_loading() -> bool:
+    """MCP servers are still starting in the background."""
+    return _background is not None and _background.is_alive()
 
 
 def load_mcp_tools(report: Optional[Callable[[str], None]] = None) -> int:
@@ -28,6 +51,9 @@ def load_mcp_tools(report: Optional[Callable[[str], None]] = None) -> int:
         Number of tools registered by this call.
     """
     global _loaded
+    if _background is not None and _background is not threading.current_thread():
+        _background.join()  # started at startup: wait for it, don't start again
+        return 0
     if _loaded:
         return 0
     _loaded = True
@@ -89,5 +115,7 @@ def load_new_mcp_servers(report: Optional[Callable[[str], None]] = None) -> int:
 
 def reset() -> None:
     """Allow loading again (tests)."""
-    global _loaded
+    global _loaded, _background
     _loaded = False
+    _background = None
+    background_report.clear()

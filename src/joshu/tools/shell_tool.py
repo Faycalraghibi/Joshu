@@ -15,6 +15,8 @@ import os
 import re
 import subprocess
 import tempfile
+import threading
+import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -301,6 +303,159 @@ def run_shell_command(
         }
 
 
+# Ctrl+B in interactive mode: move the running foreground command to the background
+_detachable = False
+_detach_requested = threading.Event()
+_foreground_running = threading.Event()
+
+
+def set_detachable(enabled: bool) -> None:
+    """Run foreground commands so Ctrl+B can move them to the background (interactive mode)."""
+    global _detachable
+    _detachable = enabled
+
+
+def request_detach() -> bool:
+    """Ctrl+B: move the running foreground command to the background. False if none runs."""
+    if not _foreground_running.is_set():
+        return False
+    _detach_requested.set()
+    return True
+
+
+def foreground_running() -> bool:
+    return _foreground_running.is_set()
+
+
+def run_detachable(
+    command: str, timeout: Optional[int] = None, cwd: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Like run_shell_command, but while it runs Ctrl+B (request_detach) moves the
+    command to the background: what it printed so far and everything after goes
+    to its log, and it is listed in /bashes and readable with bash_output.
+    """
+    config = get_shell_config()
+    timeout = timeout or config.timeout
+    cwd = _default_cwd(cwd) or config.working_directory
+    allowed, reason = is_command_allowed(command)
+    if not allowed:
+        return {"success": False, "error": f"Command not allowed: {reason}", "exit_code": -1}
+
+    lock = threading.Lock()
+    buffers: Dict[str, List[str]] = {"stdout": [], "stderr": []}
+    sink: List[Any] = []  # the log file, once moved to the background
+
+    def drain(stream: Any, name: str) -> None:
+        for chunk in iter(stream.readline, ""):
+            with lock:
+                buffers[name].append(chunk)
+                if sink:
+                    sink[0].write(chunk.encode("utf-8", "replace"))
+                    sink[0].flush()
+        stream.close()
+
+    try:
+        process = subprocess.Popen(
+            _sandboxed(command, cwd),
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            stdin=subprocess.DEVNULL,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            cwd=cwd,
+            env=os.environ.copy(),
+        )
+    except Exception as e:
+        return {"success": False, "error": str(e), "exit_code": -1, "command": command}
+    readers = [
+        threading.Thread(target=drain, args=(process.stdout, "stdout"), daemon=True),
+        threading.Thread(target=drain, args=(process.stderr, "stderr"), daemon=True),
+    ]
+    for reader in readers:
+        reader.start()
+
+    _detach_requested.clear()
+    _foreground_running.set()
+    deadline = time.monotonic() + timeout
+    try:
+        while process.poll() is None:
+            if _detach_requested.is_set():
+                return _detach(process, command, lock, buffers, sink)
+            if time.monotonic() > deadline:
+                _kill_process_tree(process)
+                return {
+                    "success": False,
+                    "error": f"Command timed out after {timeout} seconds",
+                    "exit_code": -1,
+                    "command": command,
+                }
+            time.sleep(0.05)
+    finally:
+        _foreground_running.clear()
+        _detach_requested.clear()
+    for reader in readers:
+        reader.join(timeout=5)
+    stdout, stderr = "".join(buffers["stdout"]), "".join(buffers["stderr"])
+    if config.strip_colors:
+        stdout, stderr = strip_ansi_codes(stdout), strip_ansi_codes(stderr)
+    if len(stdout) > config.max_output:
+        stdout = stdout[: config.max_output] + "\n... (truncated)"
+    if len(stderr) > config.max_output:
+        stderr = stderr[: config.max_output] + "\n... (truncated)"
+    return {
+        "success": process.returncode == 0,
+        "exit_code": process.returncode,
+        "stdout": stdout,
+        "stderr": stderr,
+        "command": command,
+    }
+
+
+def _detach(
+    process: Any, command: str, lock: Any, buffers: Dict[str, List[str]], sink: List[Any]
+) -> Dict[str, Any]:
+    process_id = str(uuid4())[:8]
+    log_path = Path(tempfile.gettempdir()) / f"joshu-bg-{process_id}.log"
+    with lock:
+        so_far = "".join(buffers["stdout"]) + "".join(buffers["stderr"])
+        log = open(log_path, "wb")
+        log.write(so_far.encode("utf-8", "replace"))
+        log.flush()
+        sink.append(log)
+    _background_processes[process_id] = ProcessInfo(
+        process_id=process_id,
+        command=command,
+        pid=process.pid,
+        started_at=datetime.now().isoformat(),
+        process=process,
+        log_path=log_path,
+        read_offset=len(so_far.encode("utf-8", "replace")),
+    )
+    logger.info(f"Moved to the background (Ctrl+B): {process_id} {command}")
+    tail = so_far[-2000:]
+    return {
+        "success": True,
+        "backgrounded": True,
+        "process_id": process_id,
+        "stdout": tail,
+        "command": command,
+        "message": (
+            f"The user moved this command to the background (Ctrl+B) as {process_id}; it "
+            "keeps running. Read its new output with bash_output, stop it with kill_bash."
+        ),
+    }
+
+
+def _kill_process_tree(process: Any) -> None:
+    if os.name == "nt":
+        subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"], capture_output=True)
+    else:
+        process.kill()
+
+
 def start_background_process(
     command: str,
     cwd: Optional[str] = None,
@@ -561,8 +716,9 @@ def run_shell_command_tool(
 
     if background:
         return start_background_process(command, cwd=working_directory)
-    else:
-        return run_shell_command(command, timeout=timeout, cwd=working_directory)
+    if _detachable:
+        return run_detachable(command, timeout=timeout, cwd=working_directory)
+    return run_shell_command(command, timeout=timeout, cwd=working_directory)
 
 
 @register_tool(

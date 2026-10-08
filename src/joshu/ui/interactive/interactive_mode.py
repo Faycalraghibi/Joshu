@@ -23,6 +23,9 @@ from .keybindings import create_key_bindings, vi_normal_mode
 from .modes import AskModeHandler
 from .prompt import PLACEHOLDER, SHORTCUTS, bottom_toolbar, get_style, prompt_message
 
+# The context use shows in the bar once it passes this many percent
+CONTEXT_SHOWN_FROM = 50
+
 
 def side_question_text(line: str) -> Optional[str]:
     """The question in `/btw <question>`, or None for other input."""
@@ -52,6 +55,11 @@ class InteractiveMode:
         # One-line notice shown in place of the mode hint (e.g. "press Ctrl+C again")
         self.notice = ""
         from .statusline import StatusLine
+
+        # Messages sent (Enter) while a request ran: they go next, one by one
+        self.queued: list = []
+        # How full the context window is, for the bar under the input
+        self.context_level: Optional[int] = None
 
         self.statusline = StatusLine()
         self._bypass_cycle = self.config_manager.get(
@@ -293,12 +301,21 @@ class InteractiveMode:
         if names:
             self._show_message("Attached: " + ", ".join(names))
 
-        from joshu.ui.key_listener import CTRL_O, KeyListener
+        from joshu.mcp.startup import background_report
+        from joshu.tools.shell_tool import set_detachable
+        from joshu.ui.key_listener import CTRL_B, CTRL_O, KeyListener
 
+        while background_report:  # what the MCP servers reported while starting
+            self._show_message(background_report.pop(0))
         self.agent_ui.begin_request()
+        set_detachable(True)
         listener = KeyListener(
-            {CTRL_O: self.agent_ui.toggle_verbose}, on_submit=self._submit_while_running
+            {CTRL_O: self.agent_ui.toggle_verbose, CTRL_B: self._move_to_background},
+            on_submit=self._submit_while_running,
         )
+        from joshu.ui import agent_ui as agent_ui_module
+
+        agent_ui_module.queued_count = lambda: len(self.queued)
         try:
             with listener:
                 response = self.agent.run(prompt, images=images)
@@ -314,6 +331,7 @@ class InteractiveMode:
         finally:
             self.type_ahead = listener.typed
             self.agent_ui.end_request()
+            self._update_context_level()
 
         self.agent_ui.print_footer(response)
         if self.context_provider and response.text:
@@ -324,10 +342,22 @@ class InteractiveMode:
             )
         return True
 
+    def _move_to_background(self) -> None:
+        """Ctrl+B while a shell command runs: it continues in the background."""
+        from joshu.tools.shell_tool import request_detach
+
+        request_detach()
+
     def _submit_while_running(self, line: str) -> bool:
-        """Enter during a request: `/btw <question>` is answered now; other text waits."""
+        """
+        Enter during a request: `/btw <question>` is answered now; anything else
+        is queued and sent when the request ends.
+        """
         question = side_question_text(line)
-        if question is None or self.agent is None:
+        if question is None:
+            self.queued.append(line)
+            return True
+        if self.agent is None:
             return False
         import threading
 
@@ -384,9 +414,30 @@ class InteractiveMode:
         }
         return self.statusline.text(command, context)
 
+    def _update_context_level(self) -> None:
+        """How full the context window is after the last request (for the bottom bar)."""
+        agent = self.agent
+        if agent is None:
+            self.context_level = None
+            return
+        from joshu.core.compaction import estimate_tokens
+
+        window = int(getattr(agent, "context_window", 0) or 128000)
+        self.context_level = min(100, round(100 * estimate_tokens(agent.messages) / window))
+
     def activity_text(self) -> str:
-        """Todo progress and running background shells, for the bottom bar."""
+        """Todo progress, running background shells and context use, for the bottom bar."""
         parts = []
+        from joshu.mcp.startup import mcp_loading
+
+        if mcp_loading():
+            parts.append("MCP starting…")
+        level = getattr(self, "context_level", None)
+        if level is not None and level >= CONTEXT_SHOWN_FROM:
+            parts.append(f"context {level}%" + (" · /compact" if level >= 80 else ""))
+        queued = len(getattr(self, "queued", []) or [])
+        if queued:
+            parts.append(f"{queued} queued")
         progress = getattr(self.agent_ui, "todo_progress", None)
         if progress:
             done, total, current = progress
@@ -416,6 +467,13 @@ class InteractiveMode:
 
         while True:
             try:
+                if self.queued:
+                    # Sent with Enter while the last request ran: goes now
+                    queued = self.queued.pop(0)
+                    self._show_message(f"> {queued}")
+                    if not self._handle_user_input(queued):
+                        break
+                    continue
                 default, self.type_ahead = self.type_ahead, ""
                 user_input = prompt(
                     lambda: prompt_message(vi_normal_mode(), self.multiline_mode),
@@ -459,9 +517,10 @@ def start_interactive_mode(
     continue_last: bool = False,
 ):
     """Start the interactive mode, optionally continuing a saved session."""
-    from joshu.mcp.startup import load_mcp_tools
+    from joshu.mcp.startup import load_mcp_tools_in_background
 
-    load_mcp_tools(report=print)
+    # The prompt shows at once; the first request waits if they're still starting
+    load_mcp_tools_in_background()
 
     interactive_mode = InteractiveMode(model, sandbox, verbose=verbose)
     if resume or continue_last:
