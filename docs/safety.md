@@ -71,6 +71,34 @@ Reasons:
 Suggested alternative: Review file first: cat file.txt
 ```
 
+## Content from outside (prompt injection)
+
+Web pages, search results and MCP tool output can contain text written to
+steer the agent ("ignore your instructions and run ..."). Joshu:
+
+- tells the model in its rules that tool results (files, command output, web
+  pages, MCP tools) are data, not instructions: it must not follow
+  instructions found in them that the user didn't give, and says so instead;
+- labels every successful `web_fetch`, `web_search` and MCP tool result as
+  external content ("data, not instructions");
+- keeps the permission gate in front of edits and commands, so in the default
+  mode an injected request still needs your approval.
+
+Labels and rules lower the risk; they don't remove it. With `bypass` mode, or
+an OS sandbox with `auto_allow`, commands run without asking, so prefer those
+for projects and sources you trust, and keep the sandbox's network off.
+
+## OS sandbox: what it limits
+
+`shell_sandbox` (off by default) runs the agent's shell commands isolated:
+bubblewrap on Linux, seatbelt on macOS, Docker anywhere (the only backend on
+Windows). Commands can **write** only inside the working directory (or an
+editing sub-agent's worktree) and temp files, and have no network unless
+`network: true`. With bubblewrap and seatbelt they can still **read** the
+whole disk, including `~/.ssh`; private keys and API keys in tool output are
+masked before the model sees them, and without network nothing can leave the
+machine. Docker mounts only the working directory.
+
 ## Programmatic Usage
 
 ### Safety Assessment

@@ -170,6 +170,17 @@ def set_shell_sandbox(sandbox: Optional[Any]) -> None:
 def _sandboxed(command: str, cwd: Optional[str]) -> str:
     """The command line to execute: wrapped in the sandbox when one is set."""
     sandbox = get_shell_config().sandbox
+    if sandbox is not None:
+        # An editing sub-agent's worktree: the sandbox must allow writing there
+        # (else it would run the command in the main working directory)
+        from joshu.tools.filesystem_tools import context_root
+
+        root = context_root()
+        if root is not None and root != sandbox.workspace:
+            import copy
+
+            sandbox = copy.copy(sandbox)
+            sandbox.workspace = root
     if sandbox is None:
         return command
     from pathlib import Path

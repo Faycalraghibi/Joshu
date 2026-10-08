@@ -254,6 +254,7 @@ async def register_mcp_tools_with_joshu(
                 function=mcp_tool,
                 enabled=True,
                 requires_approval=True,  # external tools: ask before running
+                external=True,
             )
 
             if tool_registry.register(spec):
