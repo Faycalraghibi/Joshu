@@ -50,6 +50,7 @@ from joshu.core.tool_registry import ToolSpec, load_builtin_tools
 logger = logging.getLogger(__name__)
 
 SUBAGENT_MAX_TURNS = 25
+MAX_VERIFY_ROUNDS = 2  # test failures sent back per request
 EDIT_SUBAGENT_NOTE = (
     "You are a sub-agent of Joshu doing one task in your own git worktree (a separate "
     "checkout of the project). Make the changes, check them (run the tests if there are "
@@ -329,6 +330,11 @@ class Agent:
             if self.auto_memory:
                 self._local_tools["memory"] = self._make_memory_tool()
         self.self_review = bool(config.get("self_review", True)) and not is_subagent
+        # Tests run before finishing (joshu.core.verify); off for the session
+        # once the test runner turns out to be missing
+        self._verify_off = False
+        self._untested_edits = False
+        self.last_verification: Optional[str] = None  # "passed" / "failed" this request
         self.thinking = str(config.get("thinking", "on") or "on").strip().lower()
         self.retry_broken_replies = bool(config.get("retry_broken_replies", True))
         # Set when a request edits a file or runs a command (see _start)
@@ -600,6 +606,9 @@ class Agent:
         self._usage_at_start = dict(self.usage)
         stop_continues = 0
         self._changed_this_request = False
+        self._untested_edits = False
+        self.last_verification = None
+        verify_rounds = 0
         reviewed = False
         length_continues = 0
         malformed_retries = 0
@@ -661,6 +670,12 @@ class Agent:
                     stop_continues += 1
                     self.messages.append({"role": "user", "content": f"[Stop hook] {reason}"})
                     continue
+                if self._untested_edits and verify_rounds < MAX_VERIFY_ROUNDS:
+                    failure = self._verify()
+                    if failure is not None:
+                        verify_rounds += 1
+                        self.messages.append({"role": "user", "content": failure})
+                        continue
                 if self.self_review and self._changed_this_request and not reviewed:
                     reviewed = True
                     self.messages.append({"role": "user", "content": SELF_REVIEW_NOTE})
@@ -947,6 +962,13 @@ class Agent:
         from joshu.hooks.dispatcher import dispatch_after_tool
 
         call, arguments = prepared.call, prepared.arguments
+        if success and call.name in EDIT_TOOLS:
+            self._untested_edits = True
+        if call.name == "run_shell_command":
+            from joshu.core.verify import runs_tests
+
+            if runs_tests(str(arguments.get("command", ""))):
+                self._untested_edits = False
         if success and call.name in EDIT_TOOLS and self.diagnostics_enabled:
             output += self._diagnose(arguments)
         from joshu.core.secrets import mask_secrets, masking_enabled
@@ -1139,6 +1161,56 @@ class Agent:
             for key in ("prompt_tokens", "completion_tokens", "cached_tokens"):
                 self.usage[key] += usage.get(key, 0)
 
+    def _verify(self) -> Optional[str]:
+        """
+        Run the project's tests after edits the agent didn't test: the note
+        that sends a failure back, or None (passed, no tests, not allowed).
+        """
+        from joshu.core.verify import configured_command, failure_note, runner_missing
+        from joshu.tools.shell_tool import run_shell_command
+
+        self._untested_edits = False
+        if self._verify_off:
+            return None
+        root = self.workspace or self.cwd
+        command = configured_command(root)
+        if not command:
+            return None
+        decision = self.permissions.check(
+            "run_shell_command", {"command": command}, requires_approval=True
+        )
+        if not decision.allowed:
+            return None
+        arguments = {"command": command}
+        self.events.on_tool_start("run_shell_command", arguments)
+        timeout = int(get_config_manager().get("verify_timeout", 300) or 300)
+        result = run_shell_command(command, timeout=timeout, cwd=str(root))
+        output = "\n".join(
+            part
+            for part in (str(result.get("stdout") or ""), str(result.get("stderr") or ""))
+            if part
+        )
+        code = result.get("exit_code")
+        self.events.on_tool_end(
+            "run_shell_command",
+            json.dumps({"exit_code": code, "stdout": output[-4000:], "stderr": ""}),
+            code == 0,
+        )
+        if code == 0:
+            self.last_verification = "passed"
+            return None
+        if (
+            runner_missing(output, code)
+            or code is None
+            and "timed out" not in str(result.get("error", ""))
+        ):
+            logger.info(f"Not verifying this session: `{command}` can't run here")
+            self._verify_off = True
+            return None
+        self.last_verification = "failed"
+        self._untested_edits = True  # still failing: check again before finishing
+        return failure_note(command, code, output or str(result.get("error") or ""))
+
     def _think_now(self) -> bool:
         """
         Whether the next call may think (the `thinking` setting). auto skips
@@ -1207,6 +1279,7 @@ class Agent:
             "cost_usd": round(self.cost.total_usd, 6) if self.cost.known else None,
             "model": getattr(self.client, "model", None),
             "session_id": self.session_id,
+            "verification": self.last_verification,
         }
 
     def _make_task_tool(self) -> ToolSpec:

@@ -67,6 +67,7 @@ def test_signals():
         ({"stopped": "max_turns", "turns": 50}, EDIT, "out of turns"),
         ({"turns": 3}, EDIT + DONE, "untested"),
         ({"turns": 5}, TEST_PASS + EDIT + DONE, "untested"),
+        ({"turns": 3, "task": "ini-parser"}, EDIT + DONE, "unchecked"),  # no tests to run
         ({"turns": 5}, EDIT + TEST_FAIL + DONE, "gave up failing"),
         ({"turns": 5}, EDIT + TEST_PASS + DONE, "missed cases"),
         ({"turns": 5}, None, "no transcript"),
@@ -74,7 +75,8 @@ def test_signals():
 )
 def test_causes(run, messages, cause):
     signals = None if messages is None else triage.read_signals(messages)
-    assert triage.cause_of({"task": "t", "passed": False, "seconds": 1.0, **run}, signals) == cause
+    run = {"task": "timesheet-bugs", **run}  # a task whose project has tests
+    assert triage.cause_of({"passed": False, "seconds": 1.0, **run}, signals) == cause
 
 
 def test_failing_checks():
@@ -110,12 +112,12 @@ def test_triage_a_results_file(tmp_path, capsys):
         encoding="utf-8",
     )
     triaged = triage.triage_file(results)
-    assert [t.cause for t in triaged] == ["untested", "passed", "no transcript"]
+    assert [t.cause for t in triaged] == ["unchecked", "passed", "no transcript"]
     assert triaged[0].failing_checks == ["FAILED t.py::test_a"]
     triage.print_report(triaged)
     shown = capsys.readouterr().out
     assert "ini-parser" in shown and "ttl-lru-cache" not in shown
-    assert "1/3 passed" in shown and "untested" in shown
+    assert "1/3 passed" in shown and "unchecked" in shown
 
 
 def test_keep_transcript_copies_the_latest_session(tmp_path):
