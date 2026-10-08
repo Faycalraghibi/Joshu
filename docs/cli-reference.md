@@ -130,6 +130,7 @@ joshu "list the largest files in this repo"     # same as `joshu run`
 - `--image <path>` - Attach an image (repeatable); `@path.png` in the prompt works too
 - `--max-budget-usd <usd>` - Stop when the session has cost this much
 - `--max-request-tokens <n>` - Stop a request after it has used this many tokens
+- `--background`, `-b` - Run it as a background job in its own worktree and return at once (`joshu jobs`)
 - `-i, --interactive` - Start interactive mode instead
 - `-v, --verbose` - Debug logging
 
