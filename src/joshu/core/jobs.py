@@ -300,9 +300,12 @@ def _kill(pid: int) -> None:
         subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True)
         return
     try:
-        os.killpg(pid, signal.SIGTERM)
+        os.killpg(pid, signal.SIGTERM)  # the job leads its own session: the whole tree
     except (ProcessLookupError, PermissionError):
-        pass
+        try:
+            os.kill(pid, signal.SIGTERM)  # not a group leader: the process itself
+        except (ProcessLookupError, PermissionError):
+            pass
 
 
 if __name__ == "__main__":
