@@ -172,7 +172,7 @@ list. Custom commands (`.joshu/commands/`) and skills appear there too.
 | `/bashes [list \| kill <id>]` | Commands the agent started in the background and their live output; stop one |
 | `/hooks [add <event> <command> \| remove <event> <n>]` | Show, add or remove hooks |
 | `/skills`, `/agents`, `/commands` | List skills, sub-agents, custom commands |
-| `/plugin [install <src> \| marketplace add <src> \| ...]` | Plugins and marketplaces, Joshu or Claude Code format (see [Plugins](plugins.md)); what you install works in the session at once, except MCP servers |
+| `/plugin [install <src> \| marketplace add <src> \| ...]` | Plugins and marketplaces, Joshu or Claude Code format (see [Plugins](plugins.md)); what you install works in the session at once, its MCP servers included |
 | `/mcp` | MCP servers, whether they're connected and how many tools each has |
 | `/search <query>` | Search the web |
 

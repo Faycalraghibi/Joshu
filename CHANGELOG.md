@@ -42,6 +42,7 @@ All notable changes to the Joshu project will be documented in this file.
 - `Ctrl+G` writes the prompt in your editor (`$VISUAL`, `$EDITOR`, Notepad on Windows).
 
 ### Changed
+- A plugin installed with `/plugin` during a session starts its MCP servers and offers their tools at once; before, they waited for the next start (`load_new_mcp_servers`).
 - Sub-agents that edit see the project as it is: their worktree gets the working tree's uncommitted changes and untracked files first, and only their own work is applied back, on top of those changes (before, uncommitted work was invisible to them and blocked applying).
 - `replace` and `multi_edit` apply an edit whose `old_string` differs from the file only in trailing spaces or in indentation shifted the same amount on every line, when exactly one block of lines matches; `new_string` is re-indented to fit and the result notes it. Before, the model had to read the file again and retry (about two failed edits per hard benchmark run).
 - The system prompt names the Python command that works on the machine (`python`, `python3` or `py`; the Windows Store stub is skipped) and asks for paths relative to the working directory. Benchmark transcripts showed `python3` failing on Windows and a long absolute path copied wrong.
