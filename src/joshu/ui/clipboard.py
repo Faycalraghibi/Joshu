@@ -60,6 +60,39 @@ def grab_clipboard_image(directory: Optional[Path] = None) -> Optional[Path]:
     return path
 
 
+def copy_text(text: str) -> str:
+    """
+    Put `text` on the clipboard; returns how ("clip", "pbcopy", ... or "terminal"
+    for the OSC 52 escape sequence, which most terminals accept even over SSH).
+    """
+    import base64
+    import shutil
+    import subprocess
+    import sys
+
+    candidates = []
+    if sys.platform == "win32":
+        candidates.append(["clip"])
+    elif sys.platform == "darwin":
+        candidates.append(["pbcopy"])
+    else:
+        candidates += [["wl-copy"], ["xclip", "-selection", "clipboard"], ["xsel", "-b", "-i"]]
+    for argv in candidates:
+        if shutil.which(argv[0]) is None:
+            continue
+        # clip.exe reads the console code page; UTF-16 with a BOM keeps any text intact
+        data = b"\xff\xfe" + text.encode("utf-16-le") if argv[0] == "clip" else text.encode("utf-8")
+        try:
+            if subprocess.run(argv, input=data, capture_output=True, timeout=10).returncode == 0:
+                return argv[0]
+        except (OSError, subprocess.SubprocessError):
+            continue
+    encoded = base64.b64encode(text.encode("utf-8")).decode("ascii")
+    sys.stdout.write(f"\x1b]52;c;{encoded}\x07")
+    sys.stdout.flush()
+    return "terminal"
+
+
 def image_reference(path: Path) -> str:
     """The text that attaches `path` to a message."""
     text = str(path)

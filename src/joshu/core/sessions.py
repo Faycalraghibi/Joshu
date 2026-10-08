@@ -79,7 +79,8 @@ def save_session(agent: "Agent") -> Path:
     data = {
         "version": SESSION_VERSION,
         "id": agent.session_id,
-        "title": " ".join(title.split())[:100],
+        "title": " ".join((getattr(agent, "title", None) or title).split())[:100],
+        "renamed": bool(getattr(agent, "title", None)),
         "cwd": str(agent.cwd),
         "model": getattr(agent.client, "model", ""),
         "created_at": agent.created_at,

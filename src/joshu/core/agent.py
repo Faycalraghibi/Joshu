@@ -389,6 +389,7 @@ class Agent:
         self.clear_tool_results_at = min(clear_at, self.context_window // 2) if clear_at else 0
         self.cwd = cwd or Path.cwd()
         self.session_id = session_id or uuid.uuid4().hex[:12]
+        self.title: Optional[str] = None  # set by /rename (else the first request)
         self.created_at = datetime.now().isoformat(timespec="seconds")
         self.persist = persist and not is_subagent
         self.is_subagent = is_subagent
@@ -646,6 +647,7 @@ class Agent:
         """
         self.session_id = session["id"]
         self.created_at = session.get("created_at", self.created_at)
+        self.title = session.get("title") if session.get("renamed") else None
         self.messages = [self.messages[0]] + list(session["messages"])
         for key, value in (session.get("usage") or {}).items():
             if key in self.usage:
@@ -1365,6 +1367,31 @@ class Agent:
             self.trace.append(entry)
             if len(self.trace) > MAX_TRACE:
                 del self.trace[: len(self.trace) - MAX_TRACE]
+
+    def fork(self) -> str:
+        """
+        Continue in a copy of this conversation (a new session); the original
+        stays saved as it is. Returns the original's id.
+        """
+        from datetime import datetime
+
+        original = self.session_id
+        if self.persist and len(self.messages) > 1:
+            self._save()
+        self.session_id = uuid.uuid4().hex[:12]
+        self.created_at = datetime.now().isoformat(timespec="seconds")
+        if self.title:
+            self.title = f"{self.title} (fork)"
+        if self.persist and len(self.messages) > 1:
+            self._save()
+        return original
+
+    def last_reply(self) -> str:
+        """The latest reply with text (for /copy)."""
+        for message in reversed(self.messages):
+            if message.get("role") == "assistant" and str(message.get("content") or "").strip():
+                return str(message["content"])
+        return ""
 
     def run_subagent(self, name: str, task: str) -> str:
         """
