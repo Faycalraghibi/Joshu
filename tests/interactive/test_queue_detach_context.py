@@ -159,3 +159,39 @@ def test_mcp_starts_in_the_background_and_the_agent_waits(monkeypatch):
     assert startup.load_mcp_tools() == 0  # waits for the background start
     assert calls == ["loaded"] and not startup.mcp_loading()
     startup.reset()
+
+
+def test_background_work_starts_once_after_the_prompt(mode, monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        "joshu.mcp.startup.load_mcp_tools_in_background", lambda: calls.append("mcp")
+    )
+    monkeypatch.setattr(
+        "joshu.ui.interactive.interactive_mode.warm_up_in_background",
+        lambda: calls.append("warm"),
+    )
+    mode._start_background_work()
+    mode._start_background_work()  # every prompt calls it; only the first starts work
+    assert calls == ["mcp", "warm"]
+
+
+def test_warm_up_imports_in_the_background(monkeypatch):
+    from joshu.ui.interactive import interactive_mode
+
+    monkeypatch.setattr(interactive_mode, "WARM_UP_MODULES", ("json", "no_such_module_xyz"))
+    sys.modules.pop("json", None)
+    interactive_mode.warm_up_in_background()
+    deadline = time.time() + 5
+    while "json" not in sys.modules and time.time() < deadline:
+        time.sleep(0.01)
+    assert "json" in sys.modules  # and the missing one didn't raise
+
+
+def test_interactive_mode_doesnt_load_mcp_or_markdown_up_front():
+    code = (
+        "import sys, joshu.ui.interactive.interactive_mode; "
+        "print([m for m in ('joshu.mcp.loop', 'joshu.mcp.discovery', 'rich.markdown', 'openai') "
+        "if m in sys.modules])"
+    )
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+    assert out.stdout.strip() == "[]", out.stderr

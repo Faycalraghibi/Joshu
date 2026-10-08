@@ -12,7 +12,6 @@ import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from rich.markdown import Markdown
 from rich.table import Table
 from rich.text import Text
 
@@ -650,6 +649,8 @@ class MoreCommands:
     def cmd_terminal_setup(self, arg: str = "") -> bool:
         console = _console()
         terminal = detect_terminal()
+        from rich.markdown import Markdown
+
         console.print(Markdown(terminal_instructions(terminal)))
         return True
 
@@ -663,6 +664,8 @@ class MoreCommands:
         if notes is None:
             console.print(f"Release notes: {CHANGELOG_URL}", highlight=False)
             return True
+        from rich.markdown import Markdown
+
         console.print(Markdown(notes))
         return True
 

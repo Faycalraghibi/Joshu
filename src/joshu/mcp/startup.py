@@ -6,7 +6,13 @@ import logging
 import threading
 from typing import Callable, List, Optional
 
-from joshu.mcp.loop import run as run_on_mcp_loop
+
+def run_on_mcp_loop(coro):
+    """joshu.mcp.loop.run, imported when MCP work starts (not at Joshu's startup)."""
+    from joshu.mcp.loop import run
+
+    return run(coro)
+
 
 logger = logging.getLogger(__name__)
 

@@ -27,6 +27,32 @@ from .prompt import PLACEHOLDER, SHORTCUTS, bottom_toolbar, get_style, prompt_me
 CONTEXT_SHOWN_FROM = 50
 
 
+# Loaded on a thread while the prompt waits for you: the first request
+# needs them, and the OpenAI SDK alone takes about two seconds to import
+WARM_UP_MODULES = (
+    "openai",
+    "joshu.core.agent",
+    "joshu.ui.agent_ui",
+    "rich.markdown",
+    "joshu.core.repo_map",
+)
+
+
+def warm_up_in_background() -> None:
+    """Import what the first request needs while the user types it."""
+    import importlib
+    import threading
+
+    def warm_up() -> None:
+        for name in WARM_UP_MODULES:
+            try:
+                importlib.import_module(name)
+            except Exception:  # only a head start: the request imports it anyway
+                pass
+
+    threading.Thread(target=warm_up, name="joshu-warm-up", daemon=True).start()
+
+
 def side_question_text(line: str) -> Optional[str]:
     """The question in `/btw <question>`, or None for other input."""
     text = line.strip()
@@ -58,6 +84,7 @@ class InteractiveMode:
 
         # Messages sent (Enter) while a request ran: they go next, one by one
         self.queued: list = []
+        self._background_started = False
         # How full the context window is, for the bar under the input
         self.context_level: Optional[int] = None
 
@@ -342,6 +369,20 @@ class InteractiveMode:
             )
         return True
 
+    def _start_background_work(self) -> None:
+        """
+        Once the prompt is on screen: start the MCP servers and load what the
+        first request needs, so neither delays the prompt (the first request
+        waits for the MCP servers only if they're still starting).
+        """
+        if self._background_started:
+            return
+        self._background_started = True
+        from joshu.mcp.startup import load_mcp_tools_in_background
+
+        load_mcp_tools_in_background()
+        warm_up_in_background()
+
     def _move_to_background(self) -> None:
         """Ctrl+B while a shell command runs: it continues in the background."""
         from joshu.tools.shell_tool import request_detach
@@ -493,6 +534,7 @@ class InteractiveMode:
                     multiline=self.multiline_mode,
                     complete_while_typing=True,
                     vi_mode=self.vim_enabled,
+                    pre_run=self._start_background_work,
                 )
 
                 if not self._handle_user_input(user_input):
@@ -517,10 +559,6 @@ def start_interactive_mode(
     continue_last: bool = False,
 ):
     """Start the interactive mode, optionally continuing a saved session."""
-    from joshu.mcp.startup import load_mcp_tools_in_background
-
-    # The prompt shows at once; the first request waits if they're still starting
-    load_mcp_tools_in_background()
 
     interactive_mode = InteractiveMode(model, sandbox, verbose=verbose)
     if resume or continue_last:
