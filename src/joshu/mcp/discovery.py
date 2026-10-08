@@ -151,6 +151,7 @@ class DiscoveredMCPTool:
 async def discover_mcp_tools(
     registry: Optional[MCPServerRegistry] = None,
     connect_if_needed: bool = True,
+    servers: Optional[List[str]] = None,
 ) -> List[DiscoveredMCPTool]:
     """
     Discover tools from all configured MCP servers.
@@ -158,6 +159,7 @@ async def discover_mcp_tools(
     Args:
         registry: MCP server registry (uses global if None).
         connect_if_needed: Connect to servers if not already connected.
+        servers: Only these servers (default: all)
 
     Returns:
         List of discovered tools.
@@ -168,6 +170,8 @@ async def discover_mcp_tools(
     tools: List[DiscoveredMCPTool] = []
 
     for server_config in registry.list_servers():
+        if servers is not None and server_config.name not in servers:
+            continue
         if not server_config.enabled:
             logger.debug(f"Skipping disabled server: {server_config.name}")
             continue
@@ -217,6 +221,7 @@ async def discover_mcp_tools(
 async def register_mcp_tools_with_joshu(
     tools: Optional[List[DiscoveredMCPTool]] = None,
     registry: Optional[MCPServerRegistry] = None,
+    servers: Optional[List[str]] = None,
 ) -> int:
     """
     Register discovered MCP tools with Joshu's ToolRegistry.
@@ -231,7 +236,7 @@ async def register_mcp_tools_with_joshu(
     from joshu.core.tool_registry import ToolRegistry, ToolSpec
 
     if tools is None:
-        tools = await discover_mcp_tools(registry)
+        tools = await discover_mcp_tools(registry, servers=servers)
 
     tool_registry = ToolRegistry()
     existing_names: Set[str] = set(tool_registry.list_tools())

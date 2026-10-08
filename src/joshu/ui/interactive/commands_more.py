@@ -162,7 +162,7 @@ class MoreCommands:
         commands = PluginCommands(
             _console(),
             _confirm,
-            applies="Its skills, commands and hooks work now; MCP servers after a restart.",
+            applies="It works in this session now.",
         )
         commands.run(arg)
         words = arg.split()
@@ -185,6 +185,9 @@ class MoreCommands:
         from joshu.hooks import configure_hooks_from_settings
 
         configure_hooks_from_settings(self.interactive_mode.config_manager.get("hooks") or {})
+        from joshu.mcp.startup import load_new_mcp_servers
+
+        load_new_mcp_servers(report=lambda line: _console().print(f"[dim]{line}[/dim]"))
         agent = self.interactive_mode.agent
         if agent is not None:
             from joshu.core.subagents import discover_subagents

@@ -55,6 +55,38 @@ def load_mcp_tools(report: Optional[Callable[[str], None]] = None) -> int:
     return count
 
 
+def load_new_mcp_servers(report: Optional[Callable[[str], None]] = None) -> int:
+    """
+    Start the MCP servers configured since startup (a plugin installed in the
+    session) and register their tools; the running ones are left alone.
+
+    Returns:
+        Number of tools registered.
+    """
+    from joshu.core.config import get_config_manager
+
+    if not get_config_manager().get("mcp_enabled", True):
+        return 0
+    try:
+        from joshu.mcp.discovery import register_mcp_tools_with_joshu
+        from joshu.mcp.registry import get_mcp_registry
+        from joshu.ui.cli_handlers.mcp_handler import load_mcp_servers_from_config
+
+        registry = get_mcp_registry()
+        before = {server.name for server in registry.list_servers()}
+        load_mcp_servers_from_config()
+        new = [s.name for s in registry.list_servers() if s.name not in before]
+        if not new:
+            return 0
+        count = run_on_mcp_loop(register_mcp_tools_with_joshu(servers=new))
+    except Exception as e:
+        logger.warning(f"Starting new MCP servers failed: {e}")
+        return 0
+    if report is not None:
+        report(f"[MCP] Started {', '.join(new)}: {count} tools")
+    return count
+
+
 def reset() -> None:
     """Allow loading again (tests)."""
     global _loaded
