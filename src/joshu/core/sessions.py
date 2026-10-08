@@ -87,6 +87,7 @@ def save_session(agent: "Agent") -> Path:
         "usage": dict(agent.usage),
         "cost": agent.cost.as_dict(),
         "messages": messages,
+        "trace": list(getattr(agent, "trace", []) or []),
     }
 
     directory = sessions_dir()

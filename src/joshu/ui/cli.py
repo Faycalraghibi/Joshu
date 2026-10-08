@@ -310,6 +310,43 @@ def _restore_session(agent, resume: Optional[str], continue_last: bool) -> bool:
 
 
 @app.command()
+def trace(
+    session: Optional[str] = typer.Argument(
+        None, help="Session id (or a unique prefix); default: the latest one here"
+    ),
+    as_json: bool = typer.Option(False, "--json", help="One JSON object per line"),
+    limit: int = typer.Option(200, "--limit", "-n", help="Entries to show (newest)"),
+) -> None:
+    """Timeline of a session: each model call and tool run, how long it took."""
+    import json as json_module
+    from pathlib import Path
+
+    from joshu.core.sessions import SessionError, latest_session, load_session
+    from joshu.core.trace import render
+
+    if session is None:
+        latest = latest_session(Path.cwd())
+        if latest is None:
+            console.print("[yellow]No saved sessions in this directory.[/yellow]")
+            raise typer.Exit(code=1)
+        session = latest.id
+    try:
+        data = load_session(session)
+    except SessionError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(code=1)
+    entries = data.get("trace") or []
+    if as_json:
+        for entry in entries:
+            print(json_module.dumps(entry))
+        return
+    if not entries:
+        console.print("This session has no trace (saved before tracing existed).")
+        return
+    print(render(entries, limit))
+
+
+@app.command()
 def sessions(
     all_dirs: bool = typer.Option(
         False, "--all", "-a", help="Show sessions from every directory, not just this one."

@@ -215,6 +215,20 @@ See [Web Search](web-search.md).
 
 ---
 
+### trace
+
+The timeline of a saved session: every model call (seconds, tokens in and
+out, tool calls, whether it thought first) and tool run (seconds, failed),
+then totals (time per call with and without thinking, slowest tools).
+
+```bash
+joshu trace              # the latest session in this directory
+joshu trace 3f9a1c       # a session by id or prefix
+joshu trace --json       # one JSON object per line
+```
+
+---
+
 ### sessions
 
 List saved agent sessions (resume with `--resume <id>` or `--continue`):
