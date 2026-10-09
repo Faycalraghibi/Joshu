@@ -350,10 +350,12 @@ INFRA_ERRORS = (
 
 
 def is_infra_error(result: Result) -> bool:
+    # The error comes from the terminal output, wrapped at its width
+    error = " ".join(result.error.split())
     return (
         not result.passed
         and result.turns is None
-        and any(marker in result.error for marker in INFRA_ERRORS)
+        and any(marker in error for marker in INFRA_ERRORS)
     )
 
 

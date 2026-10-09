@@ -23,6 +23,7 @@ TASKS = bench.load_tasks(None)
         ("x request failed: Request timed out.", True),
         ("Model error: x request failed: HTTP 500: Internal server error", True),
         ("x request failed: HTTP 429 rate limited: slow down", True),
+        ("x at http://h/v1 request \nfailed: HTTP 429 rate limited: cooling \ndown", True),
         ("x request failed: HTTP 401 unauthorized (check the API key)", False),
         ("", False),
     ],

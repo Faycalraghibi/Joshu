@@ -66,6 +66,7 @@ All notable changes to the Joshu project will be documented in this file.
 - Vim mode uses prompt_toolkit's vi editing (full motions, operators, undo) instead of a handful of custom keys.
 
 ### Fixed
+- Benchmarks: a provider error broken over two lines in the saved output ("request" / "failed: HTTP 429...") counted as a failure of the model instead of "not counted", and didn't stop the run after several in a row; a rate-limited run scored 0/16. `compare.py` and `triage.py` now read such saved results right too.
 - An edit that leaves a Python file unparsable now says where the trouble likely starts (a string whose closing quotes are missing, found from the tokens before the error), and when edits keep leaving the same file broken, the note shows the numbered lines and asks for a `replace` of those lines instead of another full rewrite. In the hard benchmark two runs spent all 50 turns rewriting files that kept losing a closing `"""`.
 - Empty replies, and replies that only announce a step ("Let me read the files...") before anything was done, go back to the model instead of ending the request (two benchmark runs ended that way).
 - Shell commands ran in the process's directory, not the agent's workspace, so an SDK session with another `cwd` ran its commands in the wrong place.
