@@ -4,7 +4,8 @@ Keys pressed while the agent is working.
 Esc interrupts the running request the same way Ctrl+C does (the agent keeps
 the conversation valid, so you can follow up). Anything else typed meanwhile
 is kept and offered as the start of the next prompt, so you can type ahead;
-it shows under the working line. Enter on `/btw <question>` asks a side
+it shows in the input box under the working line, where ←/→, Home/End
+(Ctrl+A/Ctrl+E), Delete and Ctrl+U (clear) edit it. Enter on `/btw <question>` asks a side
 question right away (see `on_submit`) while the request keeps running.
 
 The listener reads the terminal on a background thread and only runs while
@@ -25,6 +26,22 @@ ESC = "\x1b"
 CTRL_O = "\x0f"
 CTRL_B = "\x02"
 POLL_SECONDS = 0.05
+
+# Editing keys, as _read_key reports them
+LEFT, RIGHT, HOME, END, DELETE = "<left>", "<right>", "<home>", "<end>", "<delete>"
+CTRL_A, CTRL_E, CTRL_U = "\x01", "\x05", "\x15"
+_WINDOWS_KEYS = {"K": LEFT, "M": RIGHT, "G": HOME, "O": END, "S": DELETE}
+_ESCAPE_KEYS = {
+    "[D": LEFT,
+    "[C": RIGHT,
+    "[H": HOME,
+    "OH": HOME,
+    "[1~": HOME,
+    "[F": END,
+    "OF": END,
+    "[4~": END,
+    "[3~": DELETE,
+}
 
 _active: Optional["KeyListener"] = None
 
@@ -48,6 +65,7 @@ class KeyListener:
         self.on_submit = on_submit
         self.interrupted = False
         self._typed: List[str] = []
+        self._cursor = 0  # where the next key goes in _typed
         self._stop = threading.Event()
         self._running = threading.Event()  # set while reading keys (not paused)
         self._thread: Optional[threading.Thread] = None
@@ -126,22 +144,41 @@ class KeyListener:
                 self._add(key)
 
     def _add(self, key: str) -> None:
+        typed = self._typed
         if key in ("\x08", "\x7f"):
-            if self._typed:
-                self._typed.pop()
+            if self._cursor > 0:
+                self._cursor -= 1
+                typed.pop(self._cursor)
+        elif key == DELETE:
+            if self._cursor < len(typed):
+                typed.pop(self._cursor)
+        elif key == LEFT:
+            self._cursor = max(0, self._cursor - 1)
+        elif key == RIGHT:
+            self._cursor = min(len(typed), self._cursor + 1)
+        elif key in (HOME, CTRL_A):
+            self._cursor = 0
+        elif key in (END, CTRL_E):
+            self._cursor = len(typed)
+        elif key == CTRL_U:
+            typed.clear()
+            self._cursor = 0
         elif key in ("\r", "\n"):
-            line = "".join(self._typed).strip()
+            line = "".join(typed).strip()
             if self.on_submit is not None and line:
                 try:
                     handled = self.on_submit(line)
                 except Exception:  # a side question must never stop the request
                     handled = False
                 if handled:
-                    self._typed.clear()
+                    typed.clear()
+                    self._cursor = 0
                     return
-            self._typed.append(" ")
-        elif key.isprintable():
-            self._typed.append(key)
+            typed.append(" ")
+            self._cursor = len(typed)
+        elif len(key) == 1 and key.isprintable():
+            typed.insert(self._cursor, key)
+            self._cursor += 1
 
     # --------------------------------------------------------------- terminal
 
@@ -182,6 +219,12 @@ def typing_now() -> str:
     return "".join(listener._typed)
 
 
+def typing_cursor() -> int:
+    """Where the cursor is in typing_now() (for display)."""
+    listener = _active
+    return listener._cursor if listener is not None else 0
+
+
 @contextlib.contextmanager
 def paused() -> Iterator[None]:
     """Pause the active listener, if any (for prompts that read stdin)."""
@@ -217,8 +260,8 @@ def _read_key_windows(timeout: float) -> Optional[str]:
         if msvcrt.kbhit():
             key = msvcrt.getwch()
             if key in ("\x00", "\xe0"):
-                msvcrt.getwch()  # second half of an arrow / function key
-                return None
+                # An arrow or function key comes in two halves
+                return _WINDOWS_KEYS.get(msvcrt.getwch())
             return key
         time.sleep(0.01)
     return None
@@ -233,9 +276,9 @@ def _read_key_posix(timeout: float) -> Optional[str]:
         return None
     key = os.read(fd, 1).decode("utf-8", errors="ignore")
     if key == ESC:
-        # A lone Esc, or the start of a sequence like ESC [ A
+        # A lone Esc, or the start of a sequence like ESC [ D (left arrow)
         more, _, _ = select.select([fd], [], [], 0.03)
         if more:
-            os.read(fd, 16)
-            return None
+            sequence = os.read(fd, 16).decode("utf-8", errors="ignore")
+            return _ESCAPE_KEYS.get(sequence)
     return key

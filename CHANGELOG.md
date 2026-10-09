@@ -5,6 +5,7 @@ All notable changes to the Joshu project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- The input box shown while a task runs can be edited: ←/→, Home/End (Ctrl+A/Ctrl+E), Delete and Ctrl+U (clear the line), with the cursor drawn where it is. The bar under the prompt redraws every second, so running shells and background agents update without a key press.
 - Flags for scripted runs (`joshu run`, `-p`), with Claude Code's `claude -p` spellings: `--allowed-tools` / `--disallowed-tools` (permission rules; `Bash(git log:*)`, `Edit` and other Claude Code names work), `--system-prompt`, `--append-system-prompt`, `--max-turns`, `--add-dir`, `--mcp-config` (a `.mcp.json`-style file), `--settings` (JSON or a file, this run only), `--session-id` and `--fork-session`. A tool denied by a rule without a pattern is no longer offered to the model.
 - Background sub-agents: `task` with `background: true` starts a read-only sub-agent and the agent goes on meanwhile. Its answer comes back by itself (between turns, or with your next message), or with the new `task_output` tool (`wait: true` to wait for it). An agent about to finish while some still run is told once. The bar under the input shows `N agents working`.
 - Sub-agents can start sub-agents of their own (read-only), down to the `subagent_depth` setting: `2` (default) lets a sub-agent delegate once more, `1` keeps the old behaviour.
