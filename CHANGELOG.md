@@ -53,6 +53,7 @@ All notable changes to the Joshu project will be documented in this file.
 - `Ctrl+G` writes the prompt in your editor (`$VISUAL`, `$EDITOR`, Notepad on Windows).
 
 ### Changed
+- On Windows, multi-line commands (`python -c` with several lines, heredocs) run through Git Bash when it's installed (found next to `git`, in the usual install folders, or at `JOSHU_GIT_BASH_PATH`) instead of being refused: cmd.exe runs only their first line. On the hard benchmark 74 commands in 68 runs were refused this way, each costing a turn. Without Git Bash they are still refused with advice.
 - Interactive mode shows its prompt about 6x sooner (9.1 s to 1.55 s here, with the repository's two MCP servers): MCP servers and the modules the first request needs (the OpenAI SDK alone takes about 2 s to import) now load on threads started once the prompt is on screen, so the first request's setup drops from about 2.4 s to 1 s; `rich.markdown` and the MCP loop are no longer imported at startup.
 - Faster start: the CLI no longer loads interactive mode and the MCP client up front (`joshu --version` 1.15 s → 0.46 s here), and interactive mode starts MCP servers in the background instead of waiting for them before the prompt.
 - No more terminal bell by default: `notifications: auto` only sends desktop notifications where the terminal supports them; `bell` turns the beep back on.
