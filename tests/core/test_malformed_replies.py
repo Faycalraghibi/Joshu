@@ -85,3 +85,35 @@ def test_a_failure_reported_as_json_counts(tmp_path):
     assert _tool_failed("Error: invalid arguments")
     assert not _tool_failed(json.dumps({"success": True}))
     assert not _tool_failed("plain output")
+
+
+@pytest.mark.parametrize(
+    "reply, cut",
+    [
+        # booking-overlap, Oct 9: the stream ended here with finish_reason "stop"
+        ("With `a.start < b.end and b.start < a.end`:\n- A.start (9:00) < B.end (1.1", True),
+        ("Here is the fix:\n```python\ndef overlaps(a, b):\n    return a.start < b.end", True),
+        ("I changed three files, then", False),
+        ("The fix changes three things,", True),
+        ("Next, the report:", True),
+        ("Fixed all three bugs (see booking.py and report.py).", False),
+        ("Done.\n\n```python\nx = 1\n```", False),
+        ("Summary of changes:\n- booking.py: strict comparison\n- report.py:", False),
+        ("| file | change |\n|---|---|", False),
+    ],
+)
+def test_cut_off_replies(reply, cut):
+    from joshu.core.agent import CUT_OFF_NOTE, looks_cut_off
+
+    assert looks_cut_off(reply) is cut
+    if cut:
+        assert malformed_reply(reply, False) == CUT_OFF_NOTE
+
+
+def test_a_cut_off_reply_is_sent_back(tmp_path):
+    from joshu.core.agent import CUT_OFF_NOTE
+
+    client = FakeClient([text("The overlap check should be (a.start < b."), text("Fixed it.")])
+    response = make_agent(client, cwd=tmp_path).run("fix the overlap bug")
+    assert response.text == "Fixed it."
+    assert client.requests[1][-1] == {"role": "user", "content": CUT_OFF_NOTE}
