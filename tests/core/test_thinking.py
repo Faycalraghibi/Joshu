@@ -45,9 +45,13 @@ def test_client_sends_the_switch_only_when_asked():
 
     def create(**request):
         sent.append(request)
-        message = SimpleNamespace(content="ok", tool_calls=None, reasoning_content=None)
-        return SimpleNamespace(
-            choices=[SimpleNamespace(message=message, finish_reason="stop")], usage=None
+        delta = SimpleNamespace(content="ok", tool_calls=None, reasoning_content=None)
+        return iter(
+            [
+                SimpleNamespace(
+                    choices=[SimpleNamespace(delta=delta, finish_reason="stop")], usage=None
+                )
+            ]
         )
 
     client._client = SimpleNamespace(

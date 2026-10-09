@@ -57,9 +57,13 @@ def test_client_sends_marked_messages():
 
     def create(**request):
         sent.update(request)
-        message = SimpleNamespace(content="ok", tool_calls=None)
-        return SimpleNamespace(
-            choices=[SimpleNamespace(message=message, finish_reason="stop")], usage=None
+        delta = SimpleNamespace(content="ok", tool_calls=None)
+        return iter(
+            [
+                SimpleNamespace(
+                    choices=[SimpleNamespace(delta=delta, finish_reason="stop")], usage=None
+                )
+            ]
         )
 
     client = OpenAIChatClient.__new__(OpenAIChatClient)
