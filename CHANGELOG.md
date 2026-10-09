@@ -5,6 +5,7 @@ All notable changes to the Joshu project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- "think hard", "think harder" or "ultrathink" in a request make it think on every call (whatever the `thinking` setting), with high reasoning effort where the provider has the setting (the new provider field `high_effort_options`; set for OpenRouter).
 - `bash_output` can wait for a background command instead of the agent polling it: `until` (a regex) waits for matching output, such as a server's "Listening on", and `timeout` alone waits for the command to finish (up to 600 s).
 - Plan approval: in plan mode the agent shows its finished plan (`exit_plan_mode`) and asks whether to carry it out. Approving switches to accept-edits or default mode and the agent implements the plan in the same request; otherwise it keeps planning with your feedback. Before, you had to switch modes yourself and ask again.
 - The input box shown while a task runs can be edited: ←/→, Home/End (Ctrl+A/Ctrl+E), Delete and Ctrl+U (clear the line), with the cursor drawn where it is. The bar under the prompt redraws every second, so running shells and background agents update without a key press.
@@ -74,6 +75,7 @@ All notable changes to the Joshu project will be documented in this file.
 - Vim mode uses prompt_toolkit's vi editing (full motions, operators, undo) instead of a handful of custom keys.
 
 ### Fixed
+- With `fallback_providers` configured, a call with thinking off (the `thinking: auto` setting after reads) failed: the fallback client didn't accept the `thinking` argument.
 - A reply that stops mid-way (an open code block, an unclosed bracket on its last line, or ending in `:` / `,`) is sent back to the model to continue instead of ending the request. On the hard benchmark a stream ended at "... B.end (1.1" with finish_reason "stop", and booking-overlap ended after 3 calls with nothing fixed.
 - Read-only sub-agents were offered every tool, including the shell and edit tools that plan mode denies; calling them three times ended the sub-agent with no answer. They are now offered only the tools they may use.
 - The agent no longer spends its last turns saving a memory that summarizes the task it just did (the memory guidance says not to). Benchmark triage counts a check script the agent wrote and ran (`python verify.py`) as its own check, so such runs show as "missed cases" instead of "unchecked".

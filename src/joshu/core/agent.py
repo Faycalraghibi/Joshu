@@ -168,6 +168,9 @@ CUT_OFF_NOTE = (
     "an answer. Continue: carry on with the task (call tools for any changes), then reply.]"
 )
 STILL_BROKEN_AFTER = 2  # edits in a row leaving the same file broken
+# "think hard", "think harder", "ultrathink" in a request: it always thinks, with
+# high reasoning effort where the provider has the setting
+THINK_HARD = re.compile(r"\b(ultrathink|megathink|think\s+(?:really\s+)?hard(?:er)?)\b", re.I)
 
 
 def looks_cut_off(text: str) -> bool:
@@ -540,6 +543,7 @@ class Agent:
         self.checkpoints = CheckpointStore()
         # Notes for the model about things that happened outside the loop (e.g. undo)
         self._pending_notes: List[str] = []
+        self._think_hard = False  # the request asked for more thinking (THINK_HARD)
         # Sub-agents started with task(background=true), by id
         self.background_tasks: Dict[str, BackgroundTask] = {}
         # Identical consecutive tool calls with identical results (loop detection)
@@ -785,6 +789,7 @@ class Agent:
             contexts.append(hook.context)
 
         self._request_count += 1
+        self._think_hard = bool(THINK_HARD.search(prompt))
         self.checkpoints.begin(prompt, self._request_count)
         content = prompt
         notes = list(self._pending_notes)
@@ -1037,6 +1042,8 @@ class Agent:
         self._thinking_now = self._think_now()
         if not self._thinking_now:
             request["thinking"] = False
+        elif self._think_hard:
+            request["effort"] = "high"
         try:
             return self.client.complete(self.messages, max_tokens=max_tokens, **request), max_tokens
         except LLMError as e:
@@ -1559,6 +1566,8 @@ class Agent:
         exploring, where thinking is most of the call's time. The first call
         of a request, notes, failures, edits and shell output all think.
         """
+        if self._think_hard:  # asked for in the request: overrides the setting
+            return True
         if self.thinking == "off":
             return False
         if self.thinking != "auto":
