@@ -35,7 +35,7 @@ import sys
 from collections import Counter
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 ROOT = Path(__file__).resolve().parent
 RESULTS = ROOT / "results"
@@ -114,8 +114,20 @@ def _ok(output: str) -> bool:
     return True
 
 
+def _runs_written_script(command: str, written: Set[str]) -> bool:
+    """`python verify.py` after writing verify.py: a check of its own, like a test run."""
+    if not re.search(r"\bpython[\d.]*(\.exe)?\s", command):
+        return False
+    return any(
+        re.search(rf"(^|[\s/\\]){re.escape(name)}\b", command)
+        for name in written
+        if name.endswith(".py")
+    )
+
+
 def read_signals(messages: List[Dict[str, Any]]) -> Signals:
     signals = Signals()
+    written: Set[str] = set()  # files created with write_file
     outputs = {
         m.get("tool_call_id"): str(m.get("content") or "")
         for m in messages
@@ -132,19 +144,24 @@ def read_signals(messages: List[Dict[str, Any]]) -> Signals:
             function = call.get("function") or {}
             name = str(function.get("name") or "")
             output = outputs.get(call.get("id"), "")
+            try:
+                arguments = json.loads(function.get("arguments") or "{}")
+            except ValueError:
+                arguments = {}
+            if not isinstance(arguments, dict):
+                arguments = {}
             if name in EDIT_TOOLS:
                 if _ok(output):
                     signals.edits += 1
                     if signals.test_runs:
                         signals.edited_after_last_test = True
+                    if name == "write_file":
+                        written.add(Path(str(arguments.get("path", ""))).name)
                 else:
                     signals.failed_edits += 1
             elif name in SHELL_TOOLS:
-                try:
-                    command = str(json.loads(function.get("arguments") or "{}").get("command", ""))
-                except (ValueError, AttributeError):
-                    command = ""
-                if TEST_COMMAND.search(command):
+                command = str(arguments.get("command", ""))
+                if TEST_COMMAND.search(command) or _runs_written_script(command, written):
                     signals.test_runs += 1
                     signals.last_test_passed = _ok(output)
                     signals.edited_after_last_test = False
