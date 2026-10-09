@@ -51,6 +51,31 @@ from joshu.core.tool_registry import ToolSpec, load_builtin_tools
 logger = logging.getLogger(__name__)
 
 SUBAGENT_MAX_TURNS = 25
+# Longest task_output(wait=true) waits for a background task
+BACKGROUND_WAIT_SECONDS = 600
+
+
+@dataclass
+class BackgroundTask:
+    """A sub-agent started with task(background=true)."""
+
+    id: str
+    description: str
+    started: float = field(default_factory=time.monotonic)
+    done: threading.Event = field(default_factory=threading.Event)
+    result: Optional[str] = None
+    delivered: bool = False  # its answer reached the model
+
+
+def still_running_note(running: List["BackgroundTask"]) -> str:
+    listing = ", ".join(f"{t.id} ({t.description})" for t in running)
+    return (
+        f"[Background tasks still running: {listing}] If your answer needs them, wait with "
+        "task_output(task_id, wait=true); otherwise finish, and their answers come with the "
+        "next message."
+    )
+
+
 MAX_TRACE = 5000  # trace entries kept per conversation
 MAX_VERIFY_ROUNDS = 2  # test failures sent back per request
 SELF_CHECK_NOTE = (
@@ -465,6 +490,8 @@ class Agent:
         self.checkpoints = CheckpointStore()
         # Notes for the model about things that happened outside the loop (e.g. undo)
         self._pending_notes: List[str] = []
+        # Sub-agents started with task(background=true), by id
+        self.background_tasks: Dict[str, BackgroundTask] = {}
         # Identical consecutive tool calls with identical results (loop detection)
         self._last_call: Optional[tuple] = None
         self._repeats = 0
@@ -702,6 +729,7 @@ class Agent:
         content = prompt
         notes = list(self._pending_notes)
         self._pending_notes = []
+        notes += self._finished_background_tasks()
         if contexts:
             notes.append("[Context from hooks]\n" + "\n\n".join(contexts))
         if notes:
@@ -721,6 +749,7 @@ class Agent:
         reviewed = False
         length_continues = 0
         malformed_retries = 0
+        told_still_running = False
         max_tokens = self.max_tokens
 
         for turn_number in range(1, self.max_turns + 1):
@@ -737,6 +766,9 @@ class Agent:
                     },
                 )
             self._maybe_compact()
+            finished = self._finished_background_tasks()
+            if finished:
+                self.messages.append({"role": "user", "content": "\n\n".join(finished)})
 
             self.events.on_model_start()
             started = time.monotonic()
@@ -798,6 +830,11 @@ class Agent:
                         verify_rounds += 1
                         self.messages.append({"role": "user", "content": failure})
                         continue
+                running = self.background_running()
+                if running and not told_still_running:
+                    told_still_running = True
+                    self.messages.append({"role": "user", "content": still_running_note(running)})
+                    continue
                 if self.self_review and self._changed_this_request and not reviewed:
                     reviewed = True
                     self.messages.append({"role": "user", "content": SELF_REVIEW_NOTE})
@@ -1520,8 +1557,18 @@ class Agent:
 
     def _make_task_tool(self) -> ToolSpec:
         def task(
-            description: str, prompt: str, agent: Optional[str] = None, edit: bool = False
+            description: str,
+            prompt: str,
+            agent: Optional[str] = None,
+            edit: bool = False,
+            background: bool = False,
         ) -> str:
+            if background:
+                if self.is_subagent:
+                    return "Error: only the main agent can start background tasks"
+                if edit:
+                    return "Error: background tasks are read-only (no edit=true)"
+                return self._start_background_task(description, prompt, agent)
             if edit and self.is_subagent:
                 return "Error: a sub-agent can only start read-only sub-agents (no edit=true)"
             if edit:
@@ -1573,6 +1620,15 @@ class Agent:
                 "type": "boolean",
                 "description": "Let the sub-agent change code, in its own worktree",
             }
+        if not self.is_subagent:
+            description += (
+                " With background=true a read-only sub-agent works while you go on; its "
+                "answer reaches you in a later message (or read it with task_output)."
+            )
+            properties["background"] = {
+                "type": "boolean",
+                "description": "Run it in the background and continue (read-only)",
+            }
         if self.subagents:
             listing = "\n".join(
                 f"- {spec.name}: {spec.description}" for spec in self.subagents.values()
@@ -1593,6 +1649,100 @@ class Agent:
                 "required": ["description", "prompt"],
             },
             function=task,
+            requires_approval=False,
+        )
+
+    def _start_background_task(self, description: str, prompt: str, agent: Optional[str]) -> str:
+        """Run a read-only sub-agent on a thread; its answer is delivered later."""
+        if agent:
+            spec = self.subagents.get(agent)
+            if spec is None:
+                known = ", ".join(sorted(self.subagents)) or "none defined"
+                return f"Error: unknown agent '{agent}' (available: {known})"
+            if spec.tools is not None:
+                return (
+                    f"Error: '{agent}' has its own tools and may ask for approval: "
+                    "run it without background"
+                )
+            sub_agent = self._make_defined_subagent(spec, description, quiet=True)
+        else:
+            sub_agent = self._make_subagent(
+                PermissionManager(PermissionMode.PLAN, approver=None),
+                description,
+                max_turns=SUBAGENT_MAX_TURNS,
+                quiet=True,
+            )
+        record = BackgroundTask(id=uuid.uuid4().hex[:6], description=description)
+        self.background_tasks[record.id] = record
+
+        def work() -> None:
+            try:
+                text = sub_agent.run(prompt).text or "(the sub-agent returned no answer)"
+            except Exception as e:  # reported as its answer: nothing waits on the thread
+                text = f"(the background task failed: {e})"
+            self._add_usage(sub_agent.usage)
+            with self._usage_lock:
+                self.cost.merge(sub_agent.cost)
+            record.result = text
+            record.done.set()
+
+        context = contextvars.copy_context()  # the workspace root follows the thread
+        threading.Thread(
+            target=context.run, args=(work,), name=f"joshu-task-{record.id}", daemon=True
+        ).start()
+        self._local_tools["task_output"] = self._make_task_output_tool()
+        self._loaded_tools.add("task_output")
+        return (
+            f"Started background task {record.id} ({description}). Go on with other work: "
+            "its answer reaches you in a later message, or read it with "
+            f'task_output(task_id="{record.id}", wait=true) when you need it.'
+        )
+
+    def background_running(self) -> List[BackgroundTask]:
+        """Background tasks still working."""
+        return [t for t in self.background_tasks.values() if not t.done.is_set()]
+
+    def _finished_background_tasks(self) -> List[str]:
+        """Answers of background tasks that finished since last time, as notes for the model."""
+        notes = []
+        for record in self.background_tasks.values():
+            if record.done.is_set() and not record.delivered:
+                record.delivered = True
+                notes.append(
+                    f"[Background task {record.id} ({record.description}) finished]\n"
+                    f"{record.result}"
+                )
+        return notes
+
+    def _make_task_output_tool(self) -> ToolSpec:
+        def task_output(task_id: str, wait: bool = False) -> str:
+            record = self.background_tasks.get(str(task_id))
+            if record is None:
+                known = ", ".join(self.background_tasks) or "none"
+                return f"Error: no background task '{task_id}' (started: {known})"
+            if wait:
+                record.done.wait(BACKGROUND_WAIT_SECONDS)
+            if not record.done.is_set():
+                seconds = int(time.monotonic() - record.started)
+                return f"Task {record.id} ({record.description}) is still running ({seconds}s)."
+            record.delivered = True
+            return f"Task {record.id} ({record.description}) finished:\n{record.result}"
+
+        return ToolSpec(
+            name="task_output",
+            description=(
+                "The answer of a background task (task with background=true), or that it is "
+                f"still running. wait=true waits for it (up to {BACKGROUND_WAIT_SECONDS}s)."
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "task_id": {"type": "string", "description": "Id task returned"},
+                    "wait": {"type": "boolean", "description": "Wait until it finishes"},
+                },
+                "required": ["task_id"],
+            },
+            function=task_output,
             requires_approval=False,
         )
 
@@ -1848,11 +1998,13 @@ class Agent:
         tool_names: Optional[Sequence[str]] = None,
         system_prompt: Optional[str] = None,
         workspace: Optional[Path] = None,
+        quiet: bool = False,
     ) -> "Agent":
         return Agent(
             client=client or self.client,
             permissions=permissions,
-            events=_SubagentEvents(self.events, label),
+            # A background task shows nothing: the prompt may be on screen meanwhile
+            events=AgentEvents() if quiet else _SubagentEvents(self.events, label),
             max_turns=min(self.max_turns, max_turns),
             max_tokens=self.max_tokens,
             temperature=self.temperature,
@@ -1868,7 +2020,9 @@ class Agent:
             depth=self.depth + 1,
         )
 
-    def _make_defined_subagent(self, spec: SubagentSpec, label: str) -> "Agent":
+    def _make_defined_subagent(
+        self, spec: SubagentSpec, label: str, quiet: bool = False
+    ) -> "Agent":
         """
         Sub-agent from a user definition.
 
@@ -1894,6 +2048,7 @@ class Agent:
             client=client,
             tool_names=tool_names,
             system_prompt=build_subagent_prompt(spec.system_prompt, self.cwd),
+            quiet=quiet,
         )
 
 

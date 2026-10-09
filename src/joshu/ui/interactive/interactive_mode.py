@@ -500,6 +500,10 @@ class InteractiveMode:
             running = 0
         if running:
             parts.append(f"{running} shell{'s' if running != 1 else ''} · ↓ to view")
+        agent = getattr(self, "agent", None)
+        agents = len(agent.background_running()) if agent is not None else 0
+        if agents:
+            parts.append(f"{agents} agent{'s' if agents != 1 else ''} working")
         return "  ·  ".join(parts)
 
     def model_label(self) -> str:
