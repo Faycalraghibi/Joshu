@@ -64,3 +64,12 @@ def test_a_sub_agent_cant_start_an_editing_one(workspace):
     assert any("only start read-only sub-agents" in str(m.get("content")) for m in level_one)
     task = next(t for t in client.tools_offered[1] if t["function"]["name"] == "task")
     assert "edit" not in task["function"]["parameters"]["properties"]
+
+
+def test_read_only_sub_agents_get_only_what_they_may_use(workspace):
+    client = FakeClient([call("task", description="look", prompt="look"), text("x"), text("Done.")])
+    make_agent(client).run("look around")
+    sub = offered(client.tools_offered[1])
+    assert {"read_file", "glob", "search_file_content", "task"} <= sub
+    # denied in plan mode: offered, they were called and the denials ended the sub-agent
+    assert not sub & {"run_shell_command", "write_file", "replace", "delete_file", "web_fetch"}

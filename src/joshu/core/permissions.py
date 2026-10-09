@@ -41,6 +41,13 @@ EDIT_TOOLS: Set[str] = {"replace", "write_file", "multi_edit", "notebook_edit", 
 SHELL_TOOL = "run_shell_command"
 
 
+def allowed_in_plan_mode(tool_name: str, requires_approval: bool) -> bool:
+    """Whether plan mode (read-only) lets this tool run."""
+    return tool_name in READ_ONLY_TOOLS or (
+        not requires_approval and tool_name not in EDIT_TOOLS and tool_name != SHELL_TOOL
+    )
+
+
 class PermissionMode(str, Enum):
     """How much the agent may do without asking."""
 
@@ -239,9 +246,7 @@ class PermissionManager:
                 warning = "; ".join(report.reasons) or f"flagged as {report.danger_level}"
 
         if self.mode == PermissionMode.PLAN:
-            if tool_name in READ_ONLY_TOOLS or (
-                not requires_approval and tool_name not in EDIT_TOOLS and tool_name != SHELL_TOOL
-            ):
+            if allowed_in_plan_mode(tool_name, requires_approval):
                 return PermissionDecision(True)
             return PermissionDecision(
                 False,

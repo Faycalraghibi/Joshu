@@ -69,6 +69,7 @@ All notable changes to the Joshu project will be documented in this file.
 - Vim mode uses prompt_toolkit's vi editing (full motions, operators, undo) instead of a handful of custom keys.
 
 ### Fixed
+- Read-only sub-agents were offered every tool, including the shell and edit tools that plan mode denies; calling them three times ended the sub-agent with no answer. They are now offered only the tools they may use.
 - The agent no longer spends its last turns saving a memory that summarizes the task it just did (the memory guidance says not to). Benchmark triage counts a check script the agent wrote and ran (`python verify.py`) as its own check, so such runs show as "missed cases" instead of "unchecked".
 - `joshu run`, `-p` and the SDK waited for a model's whole answer in one request, cut off after `request_timeout` (120 s) and retried from scratch: a reasoning model that thought for two minutes failed, and retries wasted up to 6 minutes per call (4 hard benchmark tasks ran out of time this way, 1 never got past its second call). Requests are now always streamed, so the timeout applies to each chunk.
 - Benchmarks: a provider error broken over two lines in the saved output ("request" / "failed: HTTP 429...") counted as a failure of the model instead of "not counted", and didn't stop the run after several in a row; a rate-limited run scored 0/16. `compare.py` and `triage.py` now read such saved results right too.
