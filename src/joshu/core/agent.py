@@ -34,7 +34,12 @@ from joshu.core.llm_client import (
     ToolCall,
     create_chat_client,
 )
-from joshu.core.permissions import EDIT_TOOLS, PermissionManager, PermissionMode
+from joshu.core.permissions import (
+    EDIT_TOOLS,
+    PermissionManager,
+    PermissionMode,
+    allowed_in_plan_mode,
+)
 from joshu.core.skills import (
     SKILL_TOOL_DESCRIPTION,
     Skill,
@@ -649,6 +654,10 @@ class Agent:
             for spec in self._local_tools.values()
             if self._tool_names is None or spec.name in self._tool_names
         )
+        if self.is_subagent and self.permissions.mode == PermissionMode.PLAN:
+            # A read-only sub-agent isn't offered what it would be denied: it
+            # tried them, and three denials ended it with no answer
+            specs = [s for s in specs if allowed_in_plan_mode(s.name, s.requires_approval)]
         return specs
 
     def run(self, prompt: str, images: Sequence[Path] = ()) -> AgentResponse:
