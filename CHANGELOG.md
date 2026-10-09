@@ -5,6 +5,7 @@ All notable changes to the Joshu project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- The input box stays at the bottom while a task runs, as in Claude Code: under the working line, with what you type, the messages queued for when the task ends listed above it, and what Enter will do (queue it, or ask a `/btw` question now) and the mode below it.
 - Messages sent with Enter while a task runs are queued and go by themselves when it ends; Ctrl+B moves a running shell command to the background; the bar under the input shows the context use from 50% (`context 72%`, suggesting `/compact` from 80%).
 - Slash commands from Claude Code that Joshu lacked: `/copy` (last reply to the clipboard), `/rename <title>`, `/fork` (continue in a copy of the conversation), `/login` / `/logout` (a provider's API key, saved in `~/.joshu/.env`), `/install-github-action` (writes the workflow) and `/feedback` / `/bug` (a pre-filled GitHub issue).
 - `/btw <question>`: a side question answered from the conversation, without tools and without being added to it; it also works while a task runs (type it and press Enter). What you type during a task now shows under the working line.
