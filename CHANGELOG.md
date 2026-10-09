@@ -5,6 +5,7 @@ All notable changes to the Joshu project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Background sub-agents can edit: `task` with `background: true` and `edit: true` works in its own worktree while the agent goes on, and its changes are applied to the working tree when it finishes (or kept on its branch). It can't ask for approval from the background, so what would ask is refused (auto mode still reviews).
 - `/loop [interval] <prompt>`: runs the prompt now, then again an interval after each run ends (30 s to 24 h, default 10 min), for this session. The waiting prompt is interrupted when a run is due, keeping what you typed; the bar under the input shows when the next run is; `/loop stop` ends it.
 - Auto permission mode (`--permission-mode auto`, Shift+Tab, `/permissions auto`): file edits run without asking, and any other action that would ask (shell commands, web fetch, MCP tools) is reviewed by a model against your request. Allowed actions run, blocked ones ask you with the reason (refused in headless runs). Commands flagged unsafe and protected files still always ask. `auto_mode_model` picks the reviewing model (`joshu.core.auto_mode`).
 - "think hard", "think harder" or "ultrathink" in a request make it think on every call (whatever the `thinking` setting), with high reasoning effort where the provider has the setting (the new provider field `high_effort_options`; set for OpenRouter).

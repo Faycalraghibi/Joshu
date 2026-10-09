@@ -416,6 +416,12 @@ Before finishing a reply while some are still running, the agent is told once,
 so it can wait for an answer it needs. The bar under the input shows
 `N agents working`. A background sub-agent shows no tool calls of its own.
 
+With `edit: true` too, it works in its own git worktree like an editing
+sub-agent (below), and its changes are applied to your working tree when it
+finishes (or kept on its branch if they don't apply); the report says which.
+It can't ask for approval from the background, so what would ask is refused:
+use it in accept-edits, auto or bypass mode.
+
 ### Sub-agents that edit
 
 In a git repository (and outside plan mode), `task` with `edit: true` gives

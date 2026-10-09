@@ -18,7 +18,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Set, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple, Union
 
 from joshu.core.auto_memory import TYPES as MEMORY_TYPES
 from joshu.core.auto_memory import memory_prompt, run_memory_tool
@@ -1648,9 +1648,9 @@ class Agent:
             if background:
                 if self.is_subagent:
                     return "Error: only the main agent can start background tasks"
-                if edit:
-                    return "Error: background tasks are read-only (no edit=true)"
-                return self._start_background_task(description, prompt, agent)
+                if edit and not self._can_edit_in_worktrees():
+                    return "Error: editing sub-agents need a git repository, outside plan mode"
+                return self._start_background_task(description, prompt, agent, edit=edit)
             if edit and self.is_subagent:
                 return "Error: a sub-agent can only start read-only sub-agents (no edit=true)"
             if edit:
@@ -1704,12 +1704,13 @@ class Agent:
             }
         if not self.is_subagent:
             description += (
-                " With background=true a read-only sub-agent works while you go on; its "
-                "answer reaches you in a later message (or read it with task_output)."
+                " With background=true the sub-agent works while you go on; its answer "
+                "reaches you in a later message (or read it with task_output). With edit=true "
+                "too, it can't ask for approval: what would ask is refused."
             )
             properties["background"] = {
                 "type": "boolean",
-                "description": "Run it in the background and continue (read-only)",
+                "description": "Run it in the background and continue",
             }
         if self.subagents:
             listing = "\n".join(
@@ -1734,8 +1735,20 @@ class Agent:
             requires_approval=False,
         )
 
-    def _start_background_task(self, description: str, prompt: str, agent: Optional[str]) -> str:
-        """Run a read-only sub-agent on a thread; its answer is delivered later."""
+    def _start_background_task(
+        self, description: str, prompt: str, agent: Optional[str], edit: bool = False
+    ) -> str:
+        """
+        Run a sub-agent on a thread; its answer is delivered later. A read-only
+        one, or (edit) one that edits in its own worktree, applied when it ends.
+        """
+        record = BackgroundTask(id=uuid.uuid4().hex[:6], description=description)
+        if edit:
+
+            def edit_in_worktree() -> str:
+                return self._run_editing_task(description, prompt, background=True)
+
+            return self._run_in_background(record, edit_in_worktree)
         if agent:
             spec = self.subagents.get(agent)
             if spec is None:
@@ -1754,17 +1767,26 @@ class Agent:
                 max_turns=SUBAGENT_MAX_TURNS,
                 quiet=True,
             )
-        record = BackgroundTask(id=uuid.uuid4().hex[:6], description=description)
+
+        def run() -> str:
+            try:
+                return sub_agent.run(prompt).text or "(the sub-agent returned no answer)"
+            finally:
+                self._add_usage(sub_agent.usage)
+                with self._usage_lock:
+                    self.cost.merge(sub_agent.cost)
+
+        return self._run_in_background(record, run)
+
+    def _run_in_background(self, record: BackgroundTask, run: Callable[[], str]) -> str:
+        """Start `run` on a thread as background task `record`."""
         self.background_tasks[record.id] = record
 
         def work() -> None:
             try:
-                text = sub_agent.run(prompt).text or "(the sub-agent returned no answer)"
+                text = run()
             except Exception as e:  # reported as its answer: nothing waits on the thread
                 text = f"(the background task failed: {e})"
-            self._add_usage(sub_agent.usage)
-            with self._usage_lock:
-                self.cost.merge(sub_agent.cost)
             record.result = text
             record.done.set()
 
@@ -1775,7 +1797,7 @@ class Agent:
         self._local_tools["task_output"] = self._make_task_output_tool()
         self._loaded_tools.add("task_output")
         return (
-            f"Started background task {record.id} ({description}). Go on with other work: "
+            f"Started background task {record.id} ({record.description}). Go on with other work: "
             "its answer reaches you in a later message, or read it with "
             f'task_output(task_id="{record.id}", wait=true) when you need it.'
         )
@@ -1835,8 +1857,12 @@ class Agent:
 
         return repo_root(self.cwd) is not None
 
-    def _run_editing_task(self, description: str, prompt: str) -> str:
-        """A sub-agent that edits in its own worktree; its work is applied when it finishes."""
+    def _run_editing_task(self, description: str, prompt: str, background: bool = False) -> str:
+        """
+        A sub-agent that edits in its own worktree; its work is applied when it
+        finishes. In the background it can't ask (nothing may prompt from its
+        thread): what would need approval is refused, as in a headless run.
+        """
         if self.permissions.mode == PermissionMode.PLAN:
             return "Error: plan mode is read-only, so sub-agents can't edit"
         from joshu.core.worktrees import WorktreeError, create, finish
@@ -1846,8 +1872,22 @@ class Agent:
             worktree = create(self.cwd, description)
         except WorktreeError as e:
             return f"Error: {e}"
+        permissions = self.permissions
+        if background:
+            permissions = PermissionManager(
+                self.permissions.mode,
+                approver=None,
+                sandbox=self.permissions.sandbox,
+                sandboxed_shell=self.permissions.sandboxed_shell,
+                rules=self.permissions.rules,
+            )
+            permissions.reviewer = self.permissions.reviewer  # auto mode still reviews
         sub_agent = self._make_subagent(
-            self.permissions, description, max_turns=self.max_turns, workspace=worktree.path
+            permissions,
+            description,
+            max_turns=self.max_turns,
+            workspace=worktree.path,
+            quiet=background,
         )
         try:
             response = sub_agent.run(prompt)
@@ -1870,7 +1910,7 @@ class Agent:
             outcome = finish(worktree, description, before_apply=snapshot)
         except WorktreeError as e:
             return f"{response.text}\n\n[Worktree] Error: {e}"
-        if outcome.applied:
+        if outcome.applied and not background:
             self._changed_this_request = True
         parts = [
             response.text or "(the sub-agent returned no answer)",
