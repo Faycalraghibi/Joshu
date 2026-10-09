@@ -23,6 +23,28 @@ JSON object: `result`, `turns`, `tool_calls`, `usage`, `model`, `session_id`.
 Headless runs can't ask for approval, so tools that need it are denied unless
 the permission mode allows them.
 
+Flags for scripts and CI (Claude Code's `claude -p` spellings work too):
+
+| Flag | What it does |
+|---|---|
+| `--allowed-tools` / `--allowedTools` | Tools that run without asking, as permission rules: `read_file`, `run_shell_command(git log*)`, or Claude Code's `Read`, `Bash(git log:*)`. Repeatable or comma-separated |
+| `--disallowed-tools` / `--disallowedTools` | Tools that are refused; a bare name isn't offered to the model at all |
+| `--system-prompt` | Replace the system prompt |
+| `--append-system-prompt` | Add instructions at the end of the system prompt |
+| `--max-turns N` | Stop the request after N model turns |
+| `--add-dir PATH` | Let the file tools work in another directory too (repeatable) |
+| `--mcp-config FILE` | MCP servers from a JSON file (`{"mcpServers": {...}}`, as in `.mcp.json`) |
+| `--settings JSON\|FILE` | Settings for this run only (a JSON object, or a JSON / YAML file) |
+| `--session-id ID` | Save the new conversation under this id (`--resume ID` continues it) |
+| `--fork-session` | With `--resume` / `--continue`: continue in a copy, the saved conversation stays as it was |
+
+None of them change your saved configuration.
+
+```bash
+joshu run -p --allowedTools "Bash(npm test:*),Edit" --max-turns 30 \
+  --append-system-prompt "Don't touch the migrations." "fix the failing test"
+```
+
 ## Images
 
 Attach screenshots, diagrams or mockups by referencing them as `@path` in a

@@ -365,6 +365,7 @@ class Agent:
         stream: bool = True,
         persist: bool = False,
         depth: int = 0,
+        append_system_prompt: Optional[str] = None,
     ) -> None:
         """
         Args:
@@ -391,6 +392,8 @@ class Agent:
             persist: Save the conversation after every request (see
                 joshu.core.sessions) so it can be resumed
             depth: How many sub-agent levels below the main agent this one is
+            append_system_prompt: Added at the end of the system prompt
+                (--append-system-prompt)
         """
         config = get_config_manager()
 
@@ -476,6 +479,7 @@ class Agent:
         self._changed_this_request = False
 
         self._system_prompt_override = system_prompt
+        self._append_system_prompt = (append_system_prompt or "").strip()
         self.messages: List[Dict[str, Any]] = [
             {"role": "system", "content": self._build_system_prompt()}
         ]
@@ -654,6 +658,10 @@ class Agent:
             for spec in self._local_tools.values()
             if self._tool_names is None or spec.name in self._tool_names
         )
+        # A tool denied outright (a deny rule without a pattern) isn't offered at all
+        denied = {rule.tool for rule in self.permissions.rules.deny if rule.pattern is None}
+        if denied:
+            specs = [s for s in specs if s.name not in denied]
         if self.is_subagent and self.permissions.mode == PermissionMode.PLAN:
             # A read-only sub-agent isn't offered what it would be denied: it
             # tried them, and three denials ended it with no answer
@@ -1275,6 +1283,12 @@ class Agent:
         return self._repo_map_text
 
     def _build_system_prompt(self) -> str:
+        prompt = self._generated_system_prompt()
+        if self._append_system_prompt:
+            prompt = f"{prompt}\n\n{self._append_system_prompt}"
+        return prompt
+
+    def _generated_system_prompt(self) -> str:
         if self._system_prompt_override is not None:
             return self._system_prompt_override
         sections = []

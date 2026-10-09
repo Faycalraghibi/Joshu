@@ -103,6 +103,9 @@ def run_stream_json(
     resume: Optional[str],
     continue_last: bool,
     images: Sequence[str] = (),
+    agent_options: Optional[Dict[str, Any]] = None,
+    session_id: Optional[str] = None,
+    fork_session: bool = False,
 ) -> int:
     """
     Run requests and print events as JSON lines (see joshu.sdk for the event types).
@@ -141,10 +144,15 @@ def run_stream_json(
             load_mcp=True,
             persist=config.get("save_sessions", True),
             resume=resume or ("last" if continue_last else None),
+            **(agent_options or {}),
         )
     except (LLMError, SessionError, ValueError) as e:
         emit({"type": "error", "message": str(e)})
         return 1
+    if fork_session and (resume or continue_last):
+        session.agent.fork()
+    if session_id:
+        session.agent.session_id = session_id
 
     emit(
         {
@@ -207,6 +215,9 @@ def execute_agent_prompt(
     resume: Optional[str] = None,
     continue_last: bool = False,
     images: Sequence[str] = (),
+    agent_options: Optional[Dict[str, Any]] = None,
+    session_id: Optional[str] = None,
+    fork_session: bool = False,
 ) -> int:
     """
     Run a prompt through the tool-using agent.
@@ -239,9 +250,14 @@ def execute_agent_prompt(
             sandbox=sandbox,
             interactive=can_ask,
             quiet=headless,
+            agent_options=agent_options,
         )
         if not _restore_session(agent, resume, continue_last):
             return 1
+        if fork_session and (resume or continue_last):
+            agent.fork()  # a copy of the conversation: the saved one stays as it was
+        if session_id:
+            agent.session_id = session_id
         if prompt.startswith("/"):
             from joshu.core.custom_commands import expand_slash_command
 
@@ -575,8 +591,73 @@ def run(
         "-b",
         help="Run it as a background job in its own worktree; returns at once (see `joshu jobs`).",
     ),
+    system_prompt: Optional[str] = typer.Option(
+        None, "--system-prompt", help="Replace the system prompt for this run."
+    ),
+    append_system_prompt: Optional[str] = typer.Option(
+        None, "--append-system-prompt", help="Add instructions at the end of the system prompt."
+    ),
+    allowed_tools: Optional[List[str]] = typer.Option(
+        None,
+        "--allowed-tools",
+        "--allowedTools",
+        help="Tools that run without asking, as permission rules (repeatable, or comma-separated): "
+        "read_file, run_shell_command(git log*); Claude Code's names work too: Bash(git log:*).",
+    ),
+    disallowed_tools: Optional[List[str]] = typer.Option(
+        None,
+        "--disallowed-tools",
+        "--disallowedTools",
+        help="Tools that are refused (same form); a bare name isn't offered at all.",
+    ),
+    add_dir: Optional[List[str]] = typer.Option(
+        None, "--add-dir", help="Let the file tools work in this directory too (repeatable)."
+    ),
+    max_turns: Optional[int] = typer.Option(
+        None, "--max-turns", help="Stop the request after this many model turns."
+    ),
+    mcp_config: Optional[List[str]] = typer.Option(
+        None,
+        "--mcp-config",
+        help='MCP servers from a JSON file ({"mcpServers": {...}}, as in .mcp.json); repeatable.',
+    ),
+    settings: Optional[str] = typer.Option(
+        None,
+        "--settings",
+        help="Settings for this run only: a JSON object, or a JSON / YAML file.",
+    ),
+    session_id: Optional[str] = typer.Option(
+        None, "--session-id", help="Id for the new conversation (saved under it)."
+    ),
+    fork_session: bool = typer.Option(
+        False,
+        "--fork-session",
+        help="With --resume / --continue: continue in a copy; the saved conversation stays as it was.",
+    ),
 ) -> None:
     """Run a task with the agent, or start interactive mode."""
+    from .run_options import RunOptionError, apply_run_options, check_session_id
+
+    try:
+        apply_run_options(
+            allowed_tools or [], disallowed_tools or [], add_dir or [], mcp_config or [], settings
+        )
+        if session_id:
+            check_session_id(session_id, bool(resume or continue_last), fork_session)
+        if max_turns is not None and max_turns < 1:
+            raise RunOptionError("--max-turns must be at least 1")
+    except RunOptionError as e:
+        Console(stderr=True).print(f"[red]{e}[/red]")
+        raise typer.Exit(code=2)
+    agent_options: Dict[str, Any] = {
+        key: value
+        for key, value in (
+            ("system_prompt", system_prompt),
+            ("append_system_prompt", append_system_prompt),
+            ("max_turns", max_turns),
+        )
+        if value is not None
+    }
     if background:
         from pathlib import Path as _Path
 
@@ -619,6 +700,9 @@ def run(
                 resume=resume,
                 continue_last=continue_last,
                 images=image or [],
+                agent_options=agent_options,
+                session_id=session_id,
+                fork_session=fork_session,
             )
         )
 
@@ -651,6 +735,9 @@ def run(
         resume=resume,
         continue_last=continue_last,
         images=image or [],
+        agent_options=agent_options,
+        session_id=session_id,
+        fork_session=fork_session,
     )
     raise typer.Exit(code=exit_code)
 

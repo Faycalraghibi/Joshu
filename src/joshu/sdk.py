@@ -135,6 +135,7 @@ class Session:
         can_use_tool: Optional[ToolFilter] = None,
         ask_user: Optional[Callable[[List[Any]], Optional[List[Any]]]] = None,
         system_prompt: Optional[str] = None,
+        append_system_prompt: Optional[str] = None,
         on_event: Optional[EventHandler] = None,
         stream_text: bool = False,
         load_mcp: bool = False,
@@ -157,6 +158,7 @@ class Session:
                 of chosen labels, or typed text; None to skip), or None. Without
                 it the agent isn't offered the ask_user tool
             system_prompt: Replace the generated system prompt
+            append_system_prompt: Add this at the end of the system prompt
             on_event: Receives every event as it happens
             stream_text: Also emit {"type": "text"} deltas while the model writes
             load_mcp: Start the configured MCP servers and offer their tools
@@ -212,6 +214,7 @@ class Session:
             cwd=self.cwd,
             tool_names=list(tools) if tools is not None else None,
             system_prompt=system_prompt,
+            append_system_prompt=append_system_prompt,
             stream=stream_text,
             persist=persist,
             max_turns=max_turns,
