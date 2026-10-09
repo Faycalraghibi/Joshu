@@ -117,6 +117,7 @@ class OpenAIChatClient:
         cache_breakpoints: bool = False,
         timeout: float = DEFAULT_REQUEST_TIMEOUT,
         max_retries: int = DEFAULT_REQUEST_RETRIES,
+        high_effort_options: Optional[Dict[str, Any]] = None,
     ) -> None:
         from openai import OpenAI
 
@@ -127,6 +128,8 @@ class OpenAIChatClient:
         self.extra_body = dict(extra_body or {})
         # Fields that turn thinking off for a request (complete(thinking=False))
         self.no_thinking_options = dict(no_thinking_options or {})
+        # Fields that ask for more reasoning (complete(effort="high"))
+        self.high_effort_options = dict(high_effort_options or {})
         # Mark the cacheable prompt prefix (see joshu.core.prompt_cache)
         self.cache_breakpoints = cache_breakpoints
         # Context size of the model, when known (named models can set it)
@@ -154,11 +157,14 @@ class OpenAIChatClient:
         on_text: Optional[Callable[[str], None]] = None,
         on_reasoning: Optional[Callable[[str], None]] = None,
         thinking: Optional[bool] = None,
+        effort: Optional[str] = None,
     ) -> AssistantTurn:
         """
         Run one completion (always streamed), passing text to `on_text` when given.
         `thinking=False` asks a reasoning model not to think first, where the
-        provider has a switch for it (no_thinking_options).
+        provider has a switch for it (no_thinking_options). `effort="high"` asks
+        for more reasoning where the provider has a setting for it
+        (high_effort_options).
         """
         if self.cache_breakpoints:
             from joshu.core.prompt_cache import add_cache_breakpoints
@@ -177,6 +183,8 @@ class OpenAIChatClient:
         extra_body = dict(self.extra_body)
         if thinking is False and self.no_thinking_options:
             extra_body = _merged(extra_body, self.no_thinking_options)
+        elif effort == "high" and self.high_effort_options:
+            extra_body = _merged(extra_body, self.high_effort_options)
         if extra_body:
             request["extra_body"] = extra_body
 
@@ -370,8 +378,16 @@ class FallbackChatClient:
         temperature: float = 0.1,
         on_text: Optional[Callable[[str], None]] = None,
         on_reasoning: Optional[Callable[[str], None]] = None,
+        thinking: Optional[bool] = None,
+        effort: Optional[str] = None,
     ) -> AssistantTurn:
         failures = []
+        # Passed on only when set: a client may not know them
+        options = {
+            key: value
+            for key, value in (("thinking", thinking), ("effort", effort))
+            if value is not None
+        }
         for index, client in enumerate(self.clients):
             try:
                 turn = client.complete(
@@ -381,6 +397,7 @@ class FallbackChatClient:
                     temperature=temperature,
                     on_text=on_text,
                     on_reasoning=on_reasoning,
+                    **options,
                 )
             except LLMError as e:
                 if not e.unavailable:
@@ -500,6 +517,7 @@ def _client_for_provider(
         extra_headers=dict(provider.headers),
         extra_body=dict(provider.request_options),
         no_thinking_options=dict(provider.no_thinking_options),
+        high_effort_options=dict(provider.high_effort_options),
         cache_breakpoints=model_wants_breakpoints(model, provider.cache_control_models),
         timeout=timeout or DEFAULT_REQUEST_TIMEOUT,
         max_retries=retries,

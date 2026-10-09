@@ -5,6 +5,7 @@ All notable changes to the Joshu project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- "think hard", "think harder" or "ultrathink" in a request make it think on every call (whatever the `thinking` setting), with high reasoning effort where the provider has the setting (the new provider field `high_effort_options`; set for OpenRouter).
 - The input box shown while a task runs can be edited: ←/→, Home/End (Ctrl+A/Ctrl+E), Delete and Ctrl+U (clear the line), with the cursor drawn where it is. The bar under the prompt redraws every second, so running shells and background agents update without a key press.
 - Flags for scripted runs (`joshu run`, `-p`), with Claude Code's `claude -p` spellings: `--allowed-tools` / `--disallowed-tools` (permission rules; `Bash(git log:*)`, `Edit` and other Claude Code names work), `--system-prompt`, `--append-system-prompt`, `--max-turns`, `--add-dir`, `--mcp-config` (a `.mcp.json`-style file), `--settings` (JSON or a file, this run only), `--session-id` and `--fork-session`. A tool denied by a rule without a pattern is no longer offered to the model.
 - Background sub-agents: `task` with `background: true` starts a read-only sub-agent and the agent goes on meanwhile. Its answer comes back by itself (between turns, or with your next message), or with the new `task_output` tool (`wait: true` to wait for it). An agent about to finish while some still run is told once. The bar under the input shows `N agents working`.
@@ -72,6 +73,7 @@ All notable changes to the Joshu project will be documented in this file.
 - Vim mode uses prompt_toolkit's vi editing (full motions, operators, undo) instead of a handful of custom keys.
 
 ### Fixed
+- With `fallback_providers` configured, a call with thinking off (the `thinking: auto` setting after reads) failed: the fallback client didn't accept the `thinking` argument.
 - A reply that stops mid-way (an open code block, an unclosed bracket on its last line, or ending in `:` / `,`) is sent back to the model to continue instead of ending the request. On the hard benchmark a stream ended at "... B.end (1.1" with finish_reason "stop", and booking-overlap ended after 3 calls with nothing fixed.
 - Read-only sub-agents were offered every tool, including the shell and edit tools that plan mode denies; calling them three times ended the sub-agent with no answer. They are now offered only the tools they may use.
 - The agent no longer spends its last turns saving a memory that summarizes the task it just did (the memory guidance says not to). Benchmark triage counts a check script the agent wrote and ran (`python verify.py`) as its own check, so such runs show as "missed cases" instead of "unchecked".

@@ -44,6 +44,9 @@ class Provider:
     # Extra fields that turn a reasoning model's thinking off for one request
     # (the `thinking` setting); empty when the provider has no such switch
     no_thinking_options: Dict[str, Any] = field(default_factory=dict)
+    # Extra fields that ask for more reasoning for one request ("think hard",
+    # "ultrathink" in the prompt); empty: the request just thinks
+    high_effort_options: Dict[str, Any] = field(default_factory=dict)
 
     def resolve_api_key(self) -> Optional[str]:
         """The API key, from the config value or the environment."""
@@ -69,6 +72,7 @@ BUILTIN_PROVIDERS: Dict[str, Provider] = {
             request_options={"usage": {"include": True}},  # cost in every response
             cache_control_models=["anthropic/"],  # Anthropic needs explicit breakpoints
             no_thinking_options={"reasoning": {"enabled": False}},
+            high_effort_options={"reasoning": {"effort": "high"}},
             default_model="poolside/laguna-s-2.1:free",
             description="Hundreds of models from many vendors behind one key",
         ),
@@ -171,6 +175,7 @@ _PROVIDER_FIELDS = {
     "request_options",
     "cache_control_models",
     "no_thinking_options",
+    "high_effort_options",
 }
 
 

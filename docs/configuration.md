@@ -143,7 +143,7 @@ permissions:                 # added to everyone's rules, which can't drop them
 | `self_review` | boolean | `true` | Before finishing a request that edited files or ran commands, the agent checks its work against the request once (one extra model call) |
 | `verify_command` | string | `""` | Before finishing a request that edited code without running the tests, Joshu runs them (asking first in default mode) and sends failures back, twice at most. Empty: find the command (pytest, `npm test`, `go test`, `cargo test`); `off`: never |
 | `verify_timeout` | integer | `300` | Seconds the tests may take |
-| `thinking` | string | `on` | Reasoning models' thinking: `on` (the model's default), `off`, or `auto` (skip it on the call right after successful reads and searches). Uses the provider's `no_thinking_options` (set for NVIDIA, vLLM and OpenRouter); other providers ignore it |
+| `thinking` | string | `on` | Reasoning models' thinking: `on` (the model's default), `off`, or `auto` (skip it on the call right after successful reads and searches). Uses the provider's `no_thinking_options` (set for NVIDIA, vLLM and OpenRouter); other providers ignore it. A request saying "think hard", "think harder" or "ultrathink" always thinks, with the provider's `high_effort_options` (OpenRouter: `reasoning.effort: high`; set e.g. `{"reasoning_effort": "high"}` for an OpenAI reasoning model) |
 | `allow_bypass` | boolean | `true` | `false` forbids bypass mode everywhere; meant for managed settings |
 | `retry_broken_replies` | boolean | `true` | Send a broken final reply back to the model (a tool call written as text, or a few words right after a failed tool call), up to twice per request |
 | `context_window` | integer | `128000` | Model context size in tokens |
