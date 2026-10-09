@@ -10,9 +10,11 @@ Provides controlled shell command execution with:
 
 from __future__ import annotations
 
+import functools
 import logging
 import os
 import re
+import shutil
 import subprocess
 import tempfile
 import threading
@@ -20,7 +22,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 from uuid import uuid4
 
 from joshu.core.tool_registry import register_tool
@@ -190,6 +192,49 @@ def _sandboxed(command: str, cwd: Optional[str]) -> str:
     return sandbox.wrap(command, Path(cwd) if cwd else None)
 
 
+@functools.lru_cache(maxsize=1)
+def git_bash() -> Optional[str]:
+    """
+    Git for Windows' bash.exe, or None (and None off Windows). Not WSL's
+    System32\\bash.exe, which sees the Windows drives under other paths.
+    JOSHU_GIT_BASH_PATH names it when it's somewhere else.
+    """
+    if os.name != "nt":
+        return None
+    configured = os.environ.get("JOSHU_GIT_BASH_PATH")
+    candidates = [Path(configured)] if configured else []
+    git = shutil.which("git")
+    if git:
+        # .../Git/cmd/git.exe or .../Git/mingw64/bin/git.exe
+        for parent in Path(git).resolve().parents[:3]:
+            candidates.append(parent / "bin" / "bash.exe")
+    for variable, folder in (
+        ("ProgramFiles", "Git"),
+        ("ProgramW6432", "Git"),
+        ("ProgramFiles(x86)", "Git"),
+        ("LOCALAPPDATA", "Programs/Git"),
+    ):
+        base = os.environ.get(variable)
+        if base:
+            candidates.append(Path(base) / folder / "bin" / "bash.exe")
+    for candidate in candidates:
+        if candidate.is_file():
+            return str(candidate)
+    return None
+
+
+def _command_line(command: str, cwd: Optional[str]) -> Tuple[Union[str, List[str]], bool]:
+    """
+    What to start for `command`, and whether through the shell. On Windows a
+    multi-line command (python -c with several lines, a heredoc) goes to Git
+    Bash: cmd.exe would run only its first line.
+    """
+    bash = git_bash() if "\n" in command.strip() else None
+    if bash is not None and get_shell_config().sandbox is None:
+        return [bash, "-c", command], False
+    return _sandboxed(command, cwd), True
+
+
 def strip_ansi_codes(text: str) -> str:
     """Remove ANSI escape codes from text."""
     import re
@@ -252,9 +297,10 @@ def run_shell_command(
         if env:
             process_env.update(env)
 
+        args, use_shell = _command_line(command, cwd)
         result = subprocess.run(
-            _sandboxed(command, cwd),
-            shell=True,
+            args,
+            shell=use_shell,
             capture_output=True,
             text=True,
             timeout=timeout,
@@ -355,10 +401,11 @@ def run_detachable(
                     sink[0].flush()
         stream.close()
 
+    args, use_shell = _command_line(command, cwd)
     try:
         process = subprocess.Popen(
-            _sandboxed(command, cwd),
-            shell=True,
+            args,
+            shell=use_shell,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             stdin=subprocess.DEVNULL,
@@ -490,10 +537,11 @@ def start_background_process(
 
         process_id = str(uuid4())[:8]
         log_path = Path(tempfile.gettempdir()) / f"joshu-bg-{process_id}.log"
+        args, use_shell = _command_line(command, cwd)
         with open(log_path, "wb") as log:
             process = subprocess.Popen(
-                _sandboxed(command, cwd),
-                shell=True,
+                args,
+                shell=use_shell,
                 stdout=log,
                 stderr=subprocess.STDOUT,
                 stdin=subprocess.DEVNULL,
@@ -653,7 +701,7 @@ MULTILINE_ON_WINDOWS = (
 
 def multiline_error(command: str) -> Optional[str]:
     """Why a command can't run as given on this platform, or None."""
-    if os.name == "nt" and "\n" in command.strip():
+    if os.name == "nt" and "\n" in command.strip() and git_bash() is None:
         return MULTILINE_ON_WINDOWS
     return None
 
