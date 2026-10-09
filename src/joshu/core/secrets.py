@@ -60,7 +60,7 @@ ENV_DUMP_COMMANDS = {
     "dir env:",
 }
 
-FILE_TOOLS = {"read_file", "write_file", "replace", "multi_edit", "notebook_edit"}
+FILE_TOOLS = {"read_file", "write_file", "replace", "multi_edit", "notebook_edit", "delete_file"}
 SHELL_TOOL = "run_shell_command"
 
 

@@ -496,6 +496,53 @@ def write_file_tool(
 
 
 # =============================================================================
+# DELETE FILE TOOL
+# =============================================================================
+
+
+@register_tool(
+    name="delete_file",
+    description="Delete a file in the workspace (not a directory), e.g. one a task says to remove. Undoable with /rewind. The user may be asked to approve.",
+    parameters={
+        "type": "object",
+        "properties": {
+            "path": {
+                "type": "string",
+                "description": "File path to delete (relative to workspace root)",
+            },
+        },
+        "required": ["path"],
+    },
+    enabled=True,
+    requires_approval=True,
+)
+def delete_file_tool(path: str) -> Dict[str, Any]:
+    """
+    Delete one file inside the workspace. Directories are refused: removing a
+    whole tree is left to a shell command the user approves.
+    """
+    try:
+        resolved = resolve_path(path)
+        if resolved == get_workspace_root().resolve():
+            return {"success": False, "error": "Refusing to delete the workspace root"}
+        if resolved.is_dir():
+            return {
+                "success": False,
+                "error": f"{path} is a directory; delete_file removes single files",
+            }
+        if not resolved.exists():
+            return {"success": False, "error": f"File not found: {path}"}
+        resolved.unlink()
+        logger.info(f"Deleted file: {resolved}")
+        return {"success": True, "path": path, "message": f"Deleted file: {path}"}
+    except ValueError as e:
+        return {"success": False, "error": str(e)}
+    except Exception as e:
+        logger.error(f"Error deleting file: {e}")
+        return {"success": False, "error": f"Failed to delete file: {str(e)}"}
+
+
+# =============================================================================
 # GLOB (FIND FILES) TOOL
 # =============================================================================
 

@@ -36,7 +36,7 @@ READ_ONLY_TOOLS: Set[str] = {
     "ask_user",
 }
 
-EDIT_TOOLS: Set[str] = {"replace", "write_file", "multi_edit", "notebook_edit"}
+EDIT_TOOLS: Set[str] = {"replace", "write_file", "multi_edit", "notebook_edit", "delete_file"}
 
 SHELL_TOOL = "run_shell_command"
 
@@ -96,6 +96,7 @@ _RULE_SUBJECT = {
     "read_file": "path",
     "write_file": "path",
     "replace": "path",
+    "delete_file": "path",
     "list_directory": "path",
     "web_fetch": "url",
 }
@@ -124,7 +125,7 @@ class PermissionRule:
             return True
         key = _RULE_SUBJECT.get(tool_name)
         subject = str(arguments.get(key, "")) if key else json.dumps(arguments, sort_keys=True)
-        if tool_name in ("read_file", "write_file", "replace", "list_directory"):
+        if tool_name in ("read_file", "write_file", "replace", "delete_file", "list_directory"):
             subject = subject.replace("\\", "/")
         return fnmatch.fnmatchcase(subject, self.pattern)
 
@@ -436,6 +437,8 @@ def build_preview(tool_name: str, arguments: Dict[str, Any]) -> str:
             return _notebook_preview(arguments)
         if tool_name == "write_file":
             return _write_preview(arguments)
+        if tool_name == "delete_file":
+            return f"Delete {arguments.get('path', '')}"
         if tool_name == SHELL_TOOL:
             preview = f"$ {arguments.get('command', '')}"
             if arguments.get("working_directory"):

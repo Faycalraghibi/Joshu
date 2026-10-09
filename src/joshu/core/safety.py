@@ -164,7 +164,10 @@ def assess_command_safety(command: str, sandbox_mode: bool = False) -> SafetyRep
     # Check for sandbox mode - block all destructive commands
     if sandbox_mode:
         if any(t in token_set for t in destructive_tokens):
-            reasons.append("Sandbox mode: All destructive commands are blocked.")
+            reasons.append(
+                "Sandbox mode: All destructive commands are blocked. To delete a file in "
+                "the project, use the delete_file tool."
+            )
             danger_level = "CRITICAL"
             safe = False
         else:
