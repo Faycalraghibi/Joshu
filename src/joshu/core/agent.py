@@ -334,6 +334,7 @@ class Agent:
         workspace: Optional[Path] = None,
         stream: bool = True,
         persist: bool = False,
+        depth: int = 0,
     ) -> None:
         """
         Args:
@@ -351,12 +352,15 @@ class Agent:
                 (0: no limit; default: the max_request_tokens setting)
             tool_names: Restrict the agent to these tools (default: all enabled)
             system_prompt: Override the generated system prompt
-            is_subagent: Sub-agents get the sub-agent prompt and no `task` tool
+            is_subagent: Sub-agents get the sub-agent prompt; they get the `task`
+                tool (read-only sub-agents only) while `depth` is below the
+                subagent_depth setting
             workspace: An editing sub-agent's worktree: its file tools and
                 commands work there (and it gets the full agent prompt)
             stream: Stream text to events.on_text
             persist: Save the conversation after every request (see
                 joshu.core.sessions) so it can be resumed
+            depth: How many sub-agent levels below the main agent this one is
         """
         config = get_config_manager()
 
@@ -393,6 +397,7 @@ class Agent:
         self.created_at = datetime.now().isoformat(timespec="seconds")
         self.persist = persist and not is_subagent
         self.is_subagent = is_subagent
+        self.depth = depth
         self.workspace = Path(workspace).resolve() if workspace else None
         self.stream = stream
 
@@ -406,6 +411,10 @@ class Agent:
         self.subagents: Dict[str, SubagentSpec] = {}
         self.skills: Dict[str, Skill] = {}
         self.auto_memory = False
+        if is_subagent and depth < _max_subagent_depth(config):
+            # A sub-agent may delegate in turn (to read-only sub-agents only)
+            self.subagents = discover_subagents(self.cwd)
+            self._local_tools["task"] = self._make_task_tool()
         if not is_subagent:
             self.subagents = discover_subagents(self.cwd)
             self._local_tools["task"] = self._make_task_tool()
@@ -1513,6 +1522,8 @@ class Agent:
         def task(
             description: str, prompt: str, agent: Optional[str] = None, edit: bool = False
         ) -> str:
+            if edit and self.is_subagent:
+                return "Error: a sub-agent can only start read-only sub-agents (no edit=true)"
             if edit:
                 return self._run_editing_task(description, prompt)
             if agent:
@@ -1551,7 +1562,7 @@ class Agent:
                 "description": "Complete instructions for the sub-agent",
             },
         }
-        if self._can_edit_in_worktrees():
+        if not self.is_subagent and self._can_edit_in_worktrees():
             description += (
                 " With edit=true the sub-agent may edit files and run commands in its own git "
                 "worktree (a copy of the project, uncommitted changes included); its changes are "
@@ -1854,6 +1865,7 @@ class Agent:
             is_subagent=True,
             workspace=workspace,
             stream=False,
+            depth=self.depth + 1,
         )
 
     def _make_defined_subagent(self, spec: SubagentSpec, label: str) -> "Agent":
@@ -1883,6 +1895,14 @@ class Agent:
             tool_names=tool_names,
             system_prompt=build_subagent_prompt(spec.system_prompt, self.cwd),
         )
+
+
+def _max_subagent_depth(config: Any) -> int:
+    """The subagent_depth setting (at least 1: the main agent can always delegate)."""
+    try:
+        return max(1, int(config.get("subagent_depth", 2)))
+    except (TypeError, ValueError):
+        return 2
 
 
 class _SubagentEvents(AgentEvents):

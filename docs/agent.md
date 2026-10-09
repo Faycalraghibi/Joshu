@@ -125,6 +125,7 @@ to your user config.
 | `read_file`, `list_directory`, `glob`, `search_file_content` | Explore the workspace | no |
 | `replace` | Exact-string edit | yes |
 | `write_file` | Create or overwrite a file | yes |
+| `delete_file` | Delete one file in the workspace (not a folder); undone by `/rewind` | yes |
 | `multi_edit` | Several exact-text edits to one file, all or nothing (loaded on demand) | yes |
 | `notebook_edit` | Replace, insert or delete a Jupyter notebook cell (loaded on demand) | yes |
 | `code_nav` | Definition, references or hover from the language server (loaded on demand) | no |
@@ -366,6 +367,14 @@ agent's permission gate, so its edits and commands still ask you. Without a
 `tools` list it is read-only. `/agents` lists the defined sub-agents. YAML/JSON
 definitions in the `joshu.agents` format also work (use `model_name: inherit`
 for the main model).
+
+### Sub-agents that delegate
+
+A sub-agent can hand part of its own task to a sub-agent in turn, for example a
+researcher that splits a large survey in parts. These nested sub-agents are
+read-only. How deep it goes is the `subagent_depth` setting: `2` (default) lets
+sub-agents start their own, which can't go further; `1` keeps sub-agents from
+delegating at all.
 
 ### Sub-agents that edit
 

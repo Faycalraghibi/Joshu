@@ -78,6 +78,9 @@ DEFAULT_CONFIG = {
     # The project's tests, run before finishing a request that edited code
     # without running them: "" finds the command, "off" turns it off
     "verify_command": "",
+    # Levels of sub-agents below the main agent: 1 = sub-agents can't start
+    # their own, 2 = they can start read-only ones (which can't), ...
+    "subagent_depth": 2,
     # Seconds a background job waits for `joshu jobs approve|deny` (then denied)
     "job_approval_timeout": 1800,
     # Model for prompt hooks ("" = the configured model)
@@ -215,6 +218,7 @@ class JoshuConfig:
     max_request_tokens: int = 0
     self_review: bool = True
     verify_command: str = ""
+    subagent_depth: int = 2
     job_approval_timeout: int = 1800
     hook_model: str = ""
     verify_timeout: int = 300

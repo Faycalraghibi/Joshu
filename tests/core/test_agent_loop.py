@@ -283,9 +283,11 @@ def test_task_tool_runs_read_only_subagent(workspace):
     assert response.text == "Found it in deep.txt."
     assert "The needle is in deep.txt" in tool_messages(agent.messages)[0]["content"]
     assert "find needle › read_file" in events.started
-    # The sub-agent is not offered the task tool
+    # The sub-agent may delegate in turn (subagent_depth), but gets none of the
+    # main agent's own tools
     sub_tools = {tool["function"]["name"] for tool in client.tools_offered[1]}
-    assert "task" not in sub_tools
+    assert "task" in sub_tools
+    assert not sub_tools & {"install_skill", "memory", "skill", "ask_user"}
 
 
 def test_streamed_text_reaches_events(workspace):
