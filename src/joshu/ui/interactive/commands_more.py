@@ -347,6 +347,26 @@ class MoreCommands:
 
     # ------------------------------------------------------------------ btw
 
+    def cmd_team(self, arg: str = "") -> bool:
+        """/team [<name> <message>]: the team (joshu.core.team), or a message to a teammate."""
+        agent = self.interactive_mode.agent
+        team = getattr(agent, "team", None)
+        if team is None:
+            _console().print(
+                'No team yet. Ask for one ("split this between a few teammates"): the agent '
+                "starts teammates with spawn_teammate."
+            )
+            return True
+        name, _, message = arg.strip().partition(" ")
+        if not name:
+            _console().print(team.describe(), markup=False, highlight=False)
+            return True
+        if not message.strip():
+            _console().print("Usage: /team <name> <message>")
+            return True
+        _console().print(team.send("user", name.lower(), message.strip()))
+        return True
+
     def cmd_loop(self, arg: str = "") -> bool:
         """/loop [interval] <prompt> | stop: repeat a prompt (joshu.ui.interactive.loop)."""
         from .loop import (

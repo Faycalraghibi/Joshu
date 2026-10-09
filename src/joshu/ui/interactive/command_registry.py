@@ -97,6 +97,12 @@ COMMANDS: List[SlashCommand] = [
     ),
     SlashCommand("jobs", "Background jobs", "Project", "[show|apply|stop|log] <id>"),
     SlashCommand(
+        "team",
+        "The agent team: members and shared tasks, or message a teammate",
+        "Project",
+        "[<name> <message>]",
+    ),
+    SlashCommand(
         "loop",
         "Run a prompt again every interval, this session (/loop stop ends it)",
         "Conversation",
