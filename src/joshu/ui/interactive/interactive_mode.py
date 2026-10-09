@@ -21,7 +21,14 @@ from .completers import get_command_completer, get_path_completer
 from .history import JsonHistory
 from .keybindings import create_key_bindings, vi_normal_mode
 from .modes import AskModeHandler
-from .prompt import PLACEHOLDER, SHORTCUTS, bottom_toolbar, get_style, prompt_message
+from .prompt import (
+    MODE_HINTS,
+    PLACEHOLDER,
+    SHORTCUTS,
+    bottom_toolbar,
+    get_style,
+    prompt_message,
+)
 
 # The context use shows in the bar once it passes this many percent
 CONTEXT_SHOWN_FROM = 50
@@ -342,7 +349,8 @@ class InteractiveMode:
         )
         from joshu.ui import agent_ui as agent_ui_module
 
-        agent_ui_module.queued_count = lambda: len(self.queued)
+        agent_ui_module.queued_messages = lambda: list(self.queued)
+        agent_ui_module.input_hint = self._mode_hint
         try:
             with listener:
                 response = self.agent.run(prompt, images=images)
@@ -497,6 +505,11 @@ class InteractiveMode:
     def model_label(self) -> str:
         agent_model = getattr(getattr(self.agent, "client", None), "model", None)
         return str(agent_model or self.model or self.config_manager.get("model") or "")
+
+    def _mode_hint(self) -> str:
+        """The mode shown under the input box while a request runs ("" in default mode)."""
+        mode = self.current_mode()
+        return "" if mode == "default" else MODE_HINTS.get(mode, ("", ""))[0]
 
     def show_shortcuts(self) -> None:
         self._show_message(SHORTCUTS)

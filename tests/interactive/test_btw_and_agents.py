@@ -44,10 +44,45 @@ def test_typed_text_shows_under_the_working_line():
     listener = key_listener.KeyListener()
     for key in "/btw why":
         listener._add(key)
+    listener._thread = MagicMock()  # reading keys
     with patch.object(key_listener, "_active", listener):
         console.print(_Working("Thinking"))
     shown = console.file.getvalue()
-    assert "› /btw why" in shown and "enter asks it now" in shown
+    assert "> /btw why▌" in shown and "enter asks it now" in shown
+
+
+def test_input_box_stays_under_the_working_line():
+    from joshu.ui import agent_ui
+
+    def draw():
+        console = Console(file=io.StringIO(), width=80, color_system=None)
+        console.print(_Working("Thinking"))
+        return console.file.getvalue()
+
+    assert "─" not in draw()  # no box when keys aren't read (not interactive)
+    listener = key_listener.KeyListener()
+    listener._thread = MagicMock()
+    queued = ["first follow-up", "second", "third", "fourth"]
+    with (
+        patch.object(key_listener, "_active", listener),
+        patch.object(agent_ui, "queued_messages", lambda: queued),
+        patch.object(agent_ui, "input_hint", lambda: "plan mode on"),
+    ):
+        empty = draw()
+        for key in "add tests":
+            listener._add(key)
+        typed = draw()
+    lines = empty.splitlines()
+    assert "Thinking…" in lines[0] and "4 queued" in lines[0]
+    assert "↳ first follow-up" in empty and "+1 more queued" in empty and "fourth" not in empty
+    box = [line for line in lines if line.startswith("─")]
+    assert len(box) == 2  # rules above and below the input line
+    assert "> ▌Type to queue a message" in empty and "plan mode on" in lines[-1]
+    assert "> add tests▌" in typed and "enter queues it for when this ends" in typed
+    narrow = Console(file=io.StringIO(), width=30, color_system=None)
+    with patch.object(key_listener, "_active", listener):
+        narrow.print(_Working("Thinking"))
+    assert narrow.file.getvalue().splitlines()[-1].endswith("…")  # the hint never wraps
 
 
 def test_side_question_leaves_the_conversation_alone(tmp_path):

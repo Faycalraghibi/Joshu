@@ -121,9 +121,55 @@ def activity_label(tool: str, arguments: Dict[str, Any]) -> str:
     return verb
 
 
-def queued_count() -> int:
+def queued_messages() -> List[str]:
     """Messages queued while the request runs (set by interactive mode)."""
-    return 0
+    return []
+
+
+def input_hint() -> str:
+    """The mode hint (plan, accept edits...) under the input box (set by interactive mode)."""
+    return ""
+
+
+# Queued messages listed above the input box; the rest are counted
+QUEUED_SHOWN = 3
+
+
+def _one_line(text: str, width: int) -> str:
+    text = " ".join(text.split())
+    return text if len(text) <= width else text[: max(1, width - 1)] + "…"
+
+
+def input_box(width: int, typed: str, queued: List[str]) -> List[Text]:
+    """
+    The input box drawn under the working line while a request runs, so the
+    place to type stays at the bottom like the prompt: what was typed so far,
+    with the messages queued for when the request ends listed above it.
+    """
+    rule = Text("─" * max(10, width - 1), style=_s("rule"))
+    rows = [Text()]
+    for message in queued[:QUEUED_SHOWN]:
+        rows.append(Text.assemble(("  ↳ ", "dim"), (_one_line(message, width - 6), "dim italic")))
+    if len(queued) > QUEUED_SHOWN:
+        rows.append(Text(f"    +{len(queued) - QUEUED_SHOWN} more queued", style="dim"))
+    rows.append(rule)
+    prompt = ("> ", _s("accent", "bold"))
+    cursor = ("▌", _s("accent"))
+    if typed:
+        rows.append(Text.assemble(prompt, (typed, ""), cursor))
+    else:
+        rows.append(Text.assemble(prompt, cursor, ("Type to queue a message", "dim italic")))
+    rows.append(rule)
+    if typed.lstrip().startswith("/btw"):
+        hint = "enter asks it now, without stopping the request"
+    elif typed.strip():
+        hint = "enter queues it for when this ends"
+    else:
+        hint = "enter queues a message · /btw <question> asks now"
+    mode = input_hint()
+    line = "  " + hint + (f"  ·  {mode}" if mode else "")
+    rows.append(Text(line, style="dim", no_wrap=True, overflow="ellipsis"))
+    return rows
 
 
 class _Working:
@@ -143,7 +189,7 @@ class _Working:
         shells = _running_shells()
         if shells:
             details.append(f"{shells} shell{'s' if shells != 1 else ''} running")
-        queued = queued_count()
+        queued = len(queued_messages())
         if queued:
             details.append(f"{queued} queued")
         from joshu.tools.shell_tool import foreground_running
@@ -156,16 +202,10 @@ class _Working:
             (f"{self.label}… ", _s("accent")),
             (f"({' · '.join(details)})", "dim"),
         )
-        from joshu.ui.key_listener import typing_now
+        from joshu.ui.key_listener import listening, typing_now
 
-        typed = typing_now()
-        if typed:
-            hint = (
-                "enter asks it now"
-                if typed.lstrip().startswith("/btw")
-                else "enter queues it for when this ends"
-            )
-            yield Text.assemble(("› ", _s("accent")), (typed, ""), (f"  ({hint})", "dim"))
+        if listening():  # interactive mode: keys typed now are read
+            yield from input_box(options.max_width, typing_now(), queued_messages())
 
 
 class _Trimmed:

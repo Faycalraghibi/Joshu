@@ -168,6 +168,12 @@ class KeyListener:
         self._term_state = None
 
 
+def listening() -> bool:
+    """Whether keys typed now are read (a request runs in interactive mode)."""
+    listener = _active
+    return listener is not None and listener._thread is not None
+
+
 def typing_now() -> str:
     """What has been typed during the running request so far (for display)."""
     listener = _active
