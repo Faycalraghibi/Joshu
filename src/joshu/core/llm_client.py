@@ -156,7 +156,7 @@ class OpenAIChatClient:
         thinking: Optional[bool] = None,
     ) -> AssistantTurn:
         """
-        Run one completion, streaming text to `on_text` when given.
+        Run one completion (always streamed), passing text to `on_text` when given.
         `thinking=False` asks a reasoning model not to think first, where the
         provider has a switch for it (no_thinking_options).
         """
@@ -181,9 +181,10 @@ class OpenAIChatClient:
             request["extra_body"] = extra_body
 
         try:
-            if on_text is None:
-                return self._complete_blocking(request)
-            return self._complete_streaming(request, on_text, on_reasoning)
+            # Streamed even when nothing is shown (joshu run, -p, the SDK): the
+            # timeout then applies to each chunk rather than the whole answer,
+            # so a model that thinks for minutes before answering isn't cut off
+            return self._complete_streaming(request, on_text or _ignore, on_reasoning)
         except LLMError:
             raise
         except Exception as e:
@@ -197,24 +198,6 @@ class OpenAIChatClient:
                 unreachable=unreachable,
                 unavailable=unavailable,
             ) from e
-
-    def _complete_blocking(self, request: Dict[str, Any]) -> AssistantTurn:
-        completion = self._client.chat.completions.create(**request)
-        if not completion.choices:
-            raise LLMError(f"{self.model} returned no choices")
-
-        choice = completion.choices[0]
-        message = choice.message
-        tool_calls = [
-            ToolCall(id=tc.id, name=tc.function.name, arguments=tc.function.arguments or "{}")
-            for tc in (message.tool_calls or [])
-        ]
-        return AssistantTurn(
-            content=message.content or "",
-            tool_calls=tool_calls,
-            finish_reason=choice.finish_reason,
-            usage=_usage_dict(getattr(completion, "usage", None)),
-        )
 
     def _complete_streaming(
         self,
@@ -280,6 +263,10 @@ class OpenAIChatClient:
             finish_reason=finish_reason,
             usage=usage,
         )
+
+
+def _ignore(_text: str) -> None:
+    pass
 
 
 def _merged(base: Dict[str, Any], extra: Dict[str, Any]) -> Dict[str, Any]:

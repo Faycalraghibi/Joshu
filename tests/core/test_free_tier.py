@@ -157,3 +157,24 @@ def test_non_conversation_commands_print_no_banner():
     with patch("joshu.ui.cli.print_banner") as banner:
         run(["providers"])
     assert not banner.called
+
+
+def test_a_request_is_streamed_even_when_nothing_is_shown():
+    """A blocking call must deliver the whole answer within the timeout, so a
+    model that thinks for minutes failed in joshu run and -p; streamed, the
+    timeout applies to each chunk."""
+    from types import SimpleNamespace as NS
+
+    def chunk(content=None, tool=None, finish=None, usage=None):
+        delta = NS(content=content, tool_calls=[tool] if tool else None, reasoning_content=None)
+        return NS(choices=[NS(delta=delta, finish_reason=finish)], usage=usage)
+
+    call = NS(index=0, id="c1", function=NS(name="read_file", arguments='{"path": "a"}'))
+    chunks = [chunk("Reading it."), chunk(tool=call), chunk(finish="tool_calls")]
+    client = OpenAIChatClient("https://example.test/v1", "k", "m", max_retries=0)
+    client._client = MagicMock()
+    client._client.chat.completions.create.return_value = iter(chunks)
+    turn = client.complete([{"role": "user", "content": "hi"}])  # no on_text
+    assert client._client.chat.completions.create.call_args.kwargs["stream"] is True
+    assert turn.content == "Reading it." and turn.finish_reason == "tool_calls"
+    assert [(c.name, c.arguments) for c in turn.tool_calls] == [("read_file", '{"path": "a"}')]
