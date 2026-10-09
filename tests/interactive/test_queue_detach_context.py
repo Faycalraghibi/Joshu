@@ -198,3 +198,16 @@ def test_interactive_mode_doesnt_load_mcp_or_markdown_up_front():
     )
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
     assert out.stdout.strip() == "[]", out.stderr
+
+
+def test_an_approved_plan_leaves_plan_mode(mode):
+    from joshu.core.permissions import PermissionMode
+
+    mode.interaction_mode = "plan"
+    mode.agent = MagicMock()
+    mode.agent.permissions.mode = PermissionMode.PLAN
+    mode._follow_plan_approval()
+    assert mode.current_mode() == "plan"  # not approved: still planning
+    mode.agent.permissions.mode = PermissionMode.ACCEPT_EDITS
+    mode._follow_plan_approval()
+    assert mode.current_mode() == "accept_edits" and mode.interaction_mode == "agent"

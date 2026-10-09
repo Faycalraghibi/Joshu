@@ -91,6 +91,12 @@ Set the mode with `--permission-mode`, `-y` (bypass), the `permission_mode`
 config value, or `/permissions <mode>` in interactive mode. `/plan` switches to
 plan mode.
 
+In plan mode (interactive), the agent investigates, then shows its plan with
+`exit_plan_mode` and asks whether to carry it out: **Yes, accept edits**
+switches to accept-edits mode, **Yes, ask before edits** to default mode, and
+the agent starts on the plan in the same request; **No, keep planning** (or
+typing what to change) keeps it in plan mode with your feedback.
+
 ### Secrets
 
 Files that usually hold credentials are protected: `.env` and `.env.*`,
@@ -152,7 +158,7 @@ to your user config.
 | `notebook_edit` | Replace, insert or delete a Jupyter notebook cell (loaded on demand) | yes |
 | `code_nav` | Definition, references or hover from the language server (loaded on demand) | no |
 | `run_shell_command` | Run a command (fresh shell each call; `background: true` for long-running ones) | yes |
-| `bash_output`, `kill_bash` | Read the output of / stop a background command (loaded when one starts) | no |
+| `bash_output`, `kill_bash` | Read the output of / stop a background command (loaded when one starts); `bash_output` can wait, `until` its output matches a regex (a server's "Listening on") or, with `timeout` alone, until it ends | no |
 | `web_search` / `web_fetch` | Search the web / fetch a URL | no / yes |
 | `write_todos` | Track steps | no |
 | `memory` | Save, read or delete notes kept across sessions | no |

@@ -366,6 +366,7 @@ class InteractiveMode:
         finally:
             self.type_ahead = listener.typed
             self.agent_ui.end_request()
+            self._follow_plan_approval()
             self._update_context_level()
 
         self.agent_ui.print_footer(response)
@@ -376,6 +377,18 @@ class InteractiveMode:
                 metadata={"mode": self.interaction_mode, "timestamp": time.time()},
             )
         return True
+
+    def _follow_plan_approval(self) -> None:
+        """
+        The user approved a plan (exit_plan_mode switched the agent out of plan
+        mode): leave plan mode here too, so the next request isn't planned again.
+        """
+        from joshu.core.permissions import PermissionMode
+
+        mode = self.agent.permissions.mode if self.agent is not None else None
+        if self.interaction_mode == "plan" and mode not in (None, PermissionMode.PLAN):
+            self.interaction_mode = "agent"
+            self.config_manager.set("permission_mode", mode.value)
 
     def _start_background_work(self) -> None:
         """
