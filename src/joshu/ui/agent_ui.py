@@ -680,6 +680,21 @@ class ConsoleAgentUI(AgentEvents):
     # Set by create_console_agent when someone is at the terminal to answer
     can_ask_user = False
 
+    def show_plan(self, plan: str) -> None:
+        """The plan exit_plan_mode asks to carry out, before the approval question."""
+        with self._lock:
+            self._stop_spinner()
+            self._end_line()
+            self.console.print()
+            self.console.print(
+                Panel(
+                    Markdown(terminal_safe(plan).strip() or "(empty plan)"),
+                    title="Plan",
+                    title_align="left",
+                    border_style=_s("plan"),
+                )
+            )
+
     def ask_user(self, questions: List[Any]) -> Optional[List[Any]]:
         """Put the agent's questions to the user (see joshu.core.ask)."""
         with self._lock:

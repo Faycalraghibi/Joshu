@@ -91,6 +91,12 @@ Set the mode with `--permission-mode`, `-y` (bypass), the `permission_mode`
 config value, or `/permissions <mode>` in interactive mode. `/plan` switches to
 plan mode.
 
+In plan mode (interactive), the agent investigates, then shows its plan with
+`exit_plan_mode` and asks whether to carry it out: **Yes, accept edits**
+switches to accept-edits mode, **Yes, ask before edits** to default mode, and
+the agent starts on the plan in the same request; **No, keep planning** (or
+typing what to change) keeps it in plan mode with your feedback.
+
 ### Secrets
 
 Files that usually hold credentials are protected: `.env` and `.env.*`,

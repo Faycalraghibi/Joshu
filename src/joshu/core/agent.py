@@ -341,6 +341,23 @@ class AgentEvents:
         """
         return None
 
+    def show_plan(self, plan: str) -> None:
+        """Show the plan the agent asks to carry out (exit_plan_mode), before the question."""
+
+
+# exit_plan_mode: the user's choices, and the mode each one switches to
+PLAN_ACCEPT_EDITS = "Yes, accept edits"
+PLAN_ASK_EDITS = "Yes, ask before edits"
+PLAN_KEEP = "No, keep planning"
+PLAN_CHOICES = {
+    PLAN_ACCEPT_EDITS: PermissionMode.ACCEPT_EDITS,
+    PLAN_ASK_EDITS: PermissionMode.DEFAULT,
+}
+EXIT_PLAN_PROMPT = (
+    "When your plan is ready, call exit_plan_mode with it: the user approves it (and you "
+    "carry it out in the same request) or tells you what to change."
+)
+
 
 @dataclass
 class _Prepared:
@@ -480,6 +497,7 @@ class Agent:
             self._local_tools["install_skill"] = self._make_install_skill_tool()
             if getattr(self.events, "can_ask_user", False):
                 self._local_tools["ask_user"] = self._make_ask_user_tool()
+                self._local_tools["exit_plan_mode"] = self._make_exit_plan_tool()
             self.auto_memory = bool(config.get("auto_memory", True))
             if self.auto_memory:
                 self._local_tools["memory"] = self._make_memory_tool()
@@ -681,6 +699,8 @@ class Agent:
             for spec in self._local_tools.values()
             if self._tool_names is None or spec.name in self._tool_names
         )
+        if self.permissions.mode != PermissionMode.PLAN:
+            specs = [s for s in specs if s.name != "exit_plan_mode"]
         # A tool denied outright (a deny rule without a pattern) isn't offered at all
         denied = {rule.tool for rule in self.permissions.rules.deny if rule.pattern is None}
         if denied:
@@ -1328,6 +1348,8 @@ class Agent:
             from joshu.core.ask import ASK_PROMPT_RULE
 
             sections.append(ASK_PROMPT_RULE)
+        if "exit_plan_mode" in self._local_tools and self.permissions.mode == PermissionMode.PLAN:
+            sections.append(EXIT_PLAN_PROMPT)
         repo_map = self._repo_map()
         if repo_map:
             sections.append(repo_map)
@@ -1910,6 +1932,58 @@ class Agent:
             description=ASK_TOOL_DESCRIPTION,
             parameters=PARAMETERS,
             function=ask_user,
+            requires_approval=False,
+        )
+
+    def _make_exit_plan_tool(self) -> ToolSpec:
+        def exit_plan_mode(plan: str) -> str:
+            from joshu.core.ask import Question
+
+            if self.permissions.mode != PermissionMode.PLAN:
+                return "Not in plan mode: go ahead with the task."
+            self.events.show_plan(str(plan))
+            question = Question(
+                "Carry out this plan?",
+                options=[
+                    (PLAN_ACCEPT_EDITS, "edits run without asking"),
+                    (PLAN_ASK_EDITS, "you approve each edit and command"),
+                    (PLAN_KEEP, "or type what to change"),
+                ],
+                header="Plan",
+            )
+            answers = self.events.ask_user([question])
+            answer = answers[0] if answers else None
+            choice = answer[0] if isinstance(answer, list) and answer else None
+            mode = PLAN_CHOICES.get(str(choice)) if choice else None
+            if mode is None:
+                feedback = answer if isinstance(answer, str) and answer.strip() else ""
+                return "The user didn't approve the plan yet; stay in plan mode. " + (
+                    f"Their feedback: {feedback}" if feedback else "Ask what to change."
+                )
+            self.set_mode(mode)
+            label = "accept edits" if mode == PermissionMode.ACCEPT_EDITS else "default"
+            return (
+                f"The user approved the plan. Plan mode is over (mode: {label}): you can edit "
+                "files and run commands now. Carry out the plan."
+            )
+
+        return ToolSpec(
+            name="exit_plan_mode",
+            description=(
+                "In plan mode, present your finished plan to the user for approval. If they "
+                "approve, plan mode ends and you carry the plan out right away."
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "plan": {
+                        "type": "string",
+                        "description": "The plan, in Markdown: the files to change and how",
+                    }
+                },
+                "required": ["plan"],
+            },
+            function=exit_plan_mode,
             requires_approval=False,
         )
 
