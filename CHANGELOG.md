@@ -5,6 +5,7 @@ All notable changes to the Joshu project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- `delete_file` tool: deletes one file in the project (not a folder), with the same approval as edits (asked in default mode, automatic in accept-edits and bypass, refused in plan mode; `.env` and keys always ask) and undoable with `/rewind`. Before, an agent asked to remove a file had only `rm` / `del`, which the safety check blocks; in a run with no one to approve (`joshu run`, `-p`) the file could never be deleted. A blocked shell delete now points to the tool.
 - The input box stays at the bottom while a task runs, as in Claude Code: under the working line, with what you type, the messages queued for when the task ends listed above it, and what Enter will do (queue it, or ask a `/btw` question now) and the mode below it.
 - Messages sent with Enter while a task runs are queued and go by themselves when it ends; Ctrl+B moves a running shell command to the background; the bar under the input shows the context use from 50% (`context 72%`, suggesting `/compact` from 80%).
 - Slash commands from Claude Code that Joshu lacked: `/copy` (last reply to the clipboard), `/rename <title>`, `/fork` (continue in a copy of the conversation), `/login` / `/logout` (a provider's API key, saved in `~/.joshu/.env`), `/install-github-action` (writes the workflow) and `/feedback` / `/bug` (a pre-filled GitHub issue).

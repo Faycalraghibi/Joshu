@@ -38,6 +38,7 @@ _SUMMARY_KEYS: Dict[str, Optional[str]] = {
     "replace": "path",
     "multi_edit": "path",
     "notebook_edit": "path",
+    "delete_file": "path",
     "code_nav": "symbol",
     "list_directory": "path",
     "glob": "pattern",
@@ -59,6 +60,7 @@ TOOL_LABELS = {
     "replace": "Update",
     "multi_edit": "Update",
     "notebook_edit": "Edit Notebook",
+    "delete_file": "Delete",
     "code_nav": "Navigate",
     "run_shell_command": "Bash",
     "search_file_content": "Search",
@@ -89,6 +91,7 @@ def _s(role: str, *extra: str) -> str:
 _ACTIVITY = {
     "read_file": ("Reading", "path"),
     "write_file": ("Writing", "path"),
+    "delete_file": ("Deleting", "path"),
     "replace": ("Editing", "path"),
     "run_shell_command": ("Running", "command"),
     "search_file_content": ("Searching for", "pattern"),

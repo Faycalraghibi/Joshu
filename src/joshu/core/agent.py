@@ -1087,7 +1087,8 @@ class Agent:
 
             if runs_tests(str(arguments.get("command", ""))):
                 self._untested_edits = False
-        if success and call.name in EDIT_TOOLS and self.diagnostics_enabled:
+        checkable = call.name in EDIT_TOOLS and call.name != "delete_file"
+        if success and checkable and self.diagnostics_enabled:
             output += self._diagnose(arguments)
         from joshu.core.secrets import mask_secrets, masking_enabled
 
