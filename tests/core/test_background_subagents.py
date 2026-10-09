@@ -119,10 +119,12 @@ def test_still_running_is_told_once_and_delivered_with_the_next_message(workspac
 
 def test_only_the_main_agent_starts_background_tasks(workspace):
     client = Router(main=[text("x")], sub=[])
-    agent = make_agent(client)
+    agent = make_agent(client, cwd=workspace)  # not a git repository
     task = agent._local_tools["task"]
     assert "background" in task.parameters["properties"]
-    assert "Error" in task.function(description="d", prompt="p", background=True, edit=True)
+    assert "git repository" in task.function(
+        description="d", prompt="p", background=True, edit=True
+    )
     sub = agent._make_subagent(agent.permissions, "x", max_turns=1)
     sub_task = sub._local_tools["task"]
     assert "background" not in sub_task.parameters["properties"]

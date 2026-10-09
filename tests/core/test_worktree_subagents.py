@@ -215,3 +215,58 @@ def test_workspace_context(tmp_path):
         assert _default_cwd(None) == str(other.resolve())
         assert _default_cwd("sub") == str(other.resolve() / "sub")
     assert context_root() is None
+
+
+def wait_background(agent):
+    import time
+
+    deadline = time.time() + 20
+    while agent.background_running() and time.time() < deadline:
+        time.sleep(0.05)
+    assert not agent.background_running()
+
+
+def background_edit(call_id, key):
+    return call(
+        "task",
+        call_id=call_id,
+        description="change a",
+        prompt=f"{key}: do it",
+        edit=True,
+        background=True,
+    )
+
+
+def test_a_background_edit_is_applied_when_it_finishes(repo):
+    client = ScriptedByPrompt(
+        {
+            "MAIN": [background_edit("t1", "SUB"), text("Started it."), text("Finished.")],
+            "SUB": [replace("a.py", "A = 1", "A = 2"), text("Set A to 2.")],
+        }
+    )
+    agent = make_agent(client, mode=PermissionMode.ACCEPT_EDITS, cwd=repo)
+    agent.run("MAIN request")
+    wait_background(agent)
+    (record,) = agent.background_tasks.values()
+    assert "Set A to 2." in record.result and "Applied to the working tree" in record.result
+    assert (repo / "a.py").read_text(encoding="utf-8") == "A = 2\n"
+    assert list(worktrees.worktrees_dir().glob("*")) == []
+
+
+def test_a_background_edit_cant_ask_for_approval(repo):
+    from joshu.core.permissions import ApprovalChoice
+
+    asked = []
+    client = ScriptedByPrompt(
+        {
+            "MAIN": [background_edit("t1", "SUB"), text("Started it."), text("Finished.")],
+            "SUB": [replace("a.py", "A = 1", "A = 2"), text("Couldn't edit.")],
+        }
+    )
+    agent = make_agent(
+        client, cwd=repo, approver=lambda request: asked.append(request) or ApprovalChoice.YES
+    )
+    agent.run("MAIN request")  # default mode: the edit would ask
+    wait_background(agent)
+    assert asked == []  # nothing prompted from the background thread
+    assert (repo / "a.py").read_text(encoding="utf-8") == "A = 1\n"
