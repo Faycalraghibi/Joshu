@@ -1225,6 +1225,7 @@ def create_console_agent(
     interactive: bool = True,
     console: Optional[Console] = None,
     quiet: bool = False,
+    agent_options: Optional[Dict[str, Any]] = None,
 ) -> tuple[Agent, ConsoleAgentUI]:
     """
     Build an agent wired to the terminal.
@@ -1233,6 +1234,8 @@ def create_console_agent(
         mode: Permission mode (defaults to the configured one)
         interactive: Ask the user for approvals; False denies anything that
             needs approval (for headless runs)
+        agent_options: More Agent arguments (system_prompt, append_system_prompt,
+            max_turns, session_id)
 
     Raises:
         LLMError: if no model endpoint is configured
@@ -1280,5 +1283,6 @@ def create_console_agent(
         provider=provider,
         stream=not quiet,
         persist=config.get("save_sessions", True),
+        **(agent_options or {}),
     )
     return agent, ui
