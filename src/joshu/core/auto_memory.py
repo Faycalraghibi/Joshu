@@ -192,7 +192,8 @@ def memory_prompt(cwd: Optional[Path] = None) -> str:
 SHORT_MEMORY_GUIDE = (
     "Memory: no notes saved yet. Use the `memory` tool to save what will matter in future "
     "sessions (when asked to remember something, or a lasting preference, decision or fact "
-    "not in the code)."
+    "not in the code). Don't save a summary of the work you just did: the code and your "
+    "reply already have it."
 )
 
 INLINE_BUDGET = 6_000
@@ -205,7 +206,7 @@ Also save a memory when you learn something that will matter in future sessions 
 - type feedback: corrections or confirmed approaches to how you should work, with the reason
 - type project: goals, decisions and constraints of this project, with the reason; write dates as absolute dates
 - type reference: where to find things (URLs, dashboards, tickets)
-Don't save what only matters to the current task. Update an existing memory (save with its name) instead of adding a duplicate, and delete memories that turn out to be wrong. If a memory conflicts with what you find in the files, trust the files and update the memory."""
+Don't save what only matters to the current task, such as a summary of the work you just did. Update an existing memory (save with its name) instead of adding a duplicate, and delete memories that turn out to be wrong. If a memory conflicts with what you find in the files, trust the files and update the memory."""
 
 
 # --------------------------------------------------------------- internal

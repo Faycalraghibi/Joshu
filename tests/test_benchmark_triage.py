@@ -45,6 +45,12 @@ TEST_PASS = [
 TEST_FAIL = [call("t2", "run_shell_command", command="pytest"), result("t2", {"exit_code": 1})]
 LS = [call("l1", "run_shell_command", command="ls"), result("l1", {"exit_code": 0})]
 DONE = [{"role": "assistant", "content": "Done."}]
+OWN_CHECK = [
+    call("w1", "write_file", path="verify.py", content="..."),
+    result("w1", {"success": True}),
+    call("r1", "run_shell_command", command="python verify.py"),
+    result("r1", {"exit_code": 0}),
+]
 
 
 def test_signals():
@@ -68,6 +74,9 @@ def test_signals():
         ({"turns": 3}, EDIT + DONE, "untested"),
         ({"turns": 5}, TEST_PASS + EDIT + DONE, "untested"),
         ({"turns": 3, "task": "ini-parser"}, EDIT + DONE, "unchecked"),  # no tests to run
+        # A script it wrote and ran counts as its own check
+        ({"turns": 5, "task": "ini-parser"}, EDIT + OWN_CHECK + DONE, "missed cases"),
+        ({"turns": 5, "task": "ini-parser"}, EDIT + LS + DONE, "unchecked"),
         ({"turns": 5}, EDIT + TEST_FAIL + DONE, "gave up failing"),
         ({"turns": 5}, EDIT + TEST_PASS + DONE, "missed cases"),
         ({"turns": 5}, None, "no transcript"),
