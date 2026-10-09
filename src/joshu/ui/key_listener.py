@@ -53,6 +53,7 @@ class KeyListener:
         self,
         actions: Optional[Dict[str, Callable[[], None]]] = None,
         on_submit: Optional[Callable[[str], bool]] = None,
+        initial: str = "",
     ) -> None:
         """
         Args:
@@ -60,12 +61,14 @@ class KeyListener:
                 e.g. {CTRL_O: show_more}
             on_submit: Called with the typed line when Enter is pressed; True
                 means it was handled (e.g. /btw) and the line is cleared
+            initial: Text already typed (the prompt's, when a /loop run
+                interrupted it), to go on from
         """
         self.actions = actions or {}
         self.on_submit = on_submit
         self.interrupted = False
-        self._typed: List[str] = []
-        self._cursor = 0  # where the next key goes in _typed
+        self._typed: List[str] = list(initial)
+        self._cursor = len(self._typed)  # where the next key goes in _typed
         self._stop = threading.Event()
         self._running = threading.Event()  # set while reading keys (not paused)
         self._thread: Optional[threading.Thread] = None

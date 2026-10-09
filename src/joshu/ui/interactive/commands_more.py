@@ -347,6 +347,56 @@ class MoreCommands:
 
     # ------------------------------------------------------------------ btw
 
+    def cmd_loop(self, arg: str = "") -> bool:
+        """/loop [interval] <prompt> | stop: repeat a prompt (joshu.ui.interactive.loop)."""
+        from .loop import (
+            MAX_SECONDS,
+            MIN_SECONDS,
+            Loop,
+            describe,
+            parse_loop_args,
+            short_duration,
+        )
+
+        mode = self.interactive_mode
+        arg = arg.strip()
+        if arg.lower() in ("stop", "off", "cancel", "end"):
+            if mode.loop is None:
+                _console().print("No loop is running.")
+            else:
+                _console().print(f"Stopped the loop after {mode.loop.runs} run(s).")
+                mode.loop = None
+            return True
+        if not arg:
+            if mode.loop is not None:
+                _console().print(
+                    f"Looping: {mode.loop.prompt}  ({describe(mode.loop)}, "
+                    f"{mode.loop.runs} run(s); /loop stop ends it)"
+                )
+            else:
+                _console().print(
+                    "Usage: /loop [interval] <prompt>  e.g. /loop 5m check the CI and fix what "
+                    "broke (default every 10m; /loop stop ends it)"
+                )
+            return True
+        seconds, prompt = parse_loop_args(arg)
+        if not prompt:
+            _console().print("Usage: /loop [interval] <prompt>")
+            return True
+        if not MIN_SECONDS <= seconds <= MAX_SECONDS:
+            _console().print(
+                f"The interval must be between {short_duration(MIN_SECONDS)} and "
+                f"{short_duration(MAX_SECONDS)}."
+            )
+            return True
+        replaced = " (replaces the previous loop)" if mode.loop is not None else ""
+        mode.loop = Loop(prompt, seconds)
+        _console().print(
+            f"Looping every {short_duration(seconds)}{replaced}: runs now, then "
+            f"{short_duration(seconds)} after each run ends. /loop stop ends it."
+        )
+        return True
+
     def cmd_btw(self, arg: str = "") -> bool:
         """/btw <question>: answered from the conversation, not added to it."""
         question = arg.strip()

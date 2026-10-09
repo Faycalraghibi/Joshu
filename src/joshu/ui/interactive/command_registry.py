@@ -97,6 +97,12 @@ COMMANDS: List[SlashCommand] = [
     ),
     SlashCommand("jobs", "Background jobs", "Project", "[show|apply|stop|log] <id>"),
     SlashCommand(
+        "loop",
+        "Run a prompt again every interval, this session (/loop stop ends it)",
+        "Conversation",
+        "[interval] <prompt> | stop",
+    ),
+    SlashCommand(
         "btw",
         "Ask a side question; not added to the conversation (works while a task runs)",
         "Conversation",

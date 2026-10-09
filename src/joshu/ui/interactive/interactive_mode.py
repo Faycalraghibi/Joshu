@@ -1,8 +1,9 @@
 """Main interactive mode implementation."""
 
+import threading
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 try:
     from prompt_toolkit.shortcuts import prompt
@@ -29,6 +30,9 @@ from .prompt import (
     get_style,
     prompt_message,
 )
+
+# What the prompt returns when it was interrupted for a /loop run
+LOOP_DUE = object()
 
 # The context use shows in the bar once it passes this many percent
 CONTEXT_SHOWN_FROM = 50
@@ -92,6 +96,9 @@ class InteractiveMode:
         # Messages sent (Enter) while a request ran: they go next, one by one
         self.queued: list = []
         self._background_started = False
+        # /loop: the prompt run every interval (joshu.ui.interactive.loop)
+        self.loop: Optional[Any] = None
+        self._loop_timer: Optional[threading.Timer] = None
         # How full the context window is, for the bar under the input
         self.context_level: Optional[int] = None
 
@@ -346,7 +353,9 @@ class InteractiveMode:
         listener = KeyListener(
             {CTRL_O: self.agent_ui.toggle_verbose, CTRL_B: self._move_to_background},
             on_submit=self._submit_while_running,
+            initial=self.type_ahead,  # typed before a /loop run interrupted the prompt
         )
+        self.type_ahead = ""
         from joshu.ui import agent_ui as agent_ui_module
 
         agent_ui_module.queued_messages = lambda: list(self.queued)
@@ -389,6 +398,50 @@ class InteractiveMode:
         if self.interaction_mode == "plan" and mode not in (None, PermissionMode.PLAN):
             self.interaction_mode = "agent"
             self.config_manager.set("permission_mode", mode.value)
+
+    def _prompt_started(self) -> None:
+        """The prompt is on screen: start what waits for it."""
+        self._start_background_work()
+        self._arm_loop_timer()
+
+    def _run_loop(self) -> bool:
+        """One /loop run; False when the session should end."""
+        loop = self.loop
+        self._show_message(f"⟳ /loop run {loop.runs + 1}: {loop.prompt}")
+        try:
+            return self._handle_user_input(loop.prompt)
+        finally:
+            loop.ran()
+
+    def _arm_loop_timer(self) -> None:
+        """Interrupt the waiting prompt when the next /loop run is due."""
+        if self.loop is None:
+            return
+        from prompt_toolkit.application.current import get_app
+
+        app = get_app()
+        delay = max(0.0, self.loop.next_at - time.time())
+
+        def due() -> None:
+            event_loop = getattr(app, "loop", None)
+            if not app.is_running or event_loop is None:
+                return
+
+            def leave() -> None:
+                if app.is_running:
+                    self.type_ahead = app.current_buffer.text  # kept for the next prompt
+                    app.exit(result=LOOP_DUE)
+
+            event_loop.call_soon_threadsafe(leave)
+
+        self._loop_timer = threading.Timer(delay, due)
+        self._loop_timer.daemon = True
+        self._loop_timer.start()
+
+    def _cancel_loop_timer(self) -> None:
+        if self._loop_timer is not None:
+            self._loop_timer.cancel()
+            self._loop_timer = None
 
     def _start_background_work(self) -> None:
         """
@@ -514,6 +567,11 @@ class InteractiveMode:
             running = 0
         if running:
             parts.append(f"{running} shell{'s' if running != 1 else ''} · ↓ to view")
+        loop = getattr(self, "loop", None)
+        if loop is not None:
+            from .loop import describe
+
+            parts.append(describe(loop))
         agent = getattr(self, "agent", None)
         agents = len(agent.background_running()) if agent is not None else 0
         if agents:
@@ -539,6 +597,10 @@ class InteractiveMode:
 
         while True:
             try:
+                if self.loop is not None and self.loop.due():
+                    if not self._run_loop():
+                        break
+                    continue
                 if self.queued:
                     # Sent with Enter while the last request ran: goes now
                     queued = self.queued.pop(0)
@@ -565,11 +627,14 @@ class InteractiveMode:
                     multiline=self.multiline_mode,
                     complete_while_typing=True,
                     vi_mode=self.vim_enabled,
-                    pre_run=self._start_background_work,
+                    pre_run=self._prompt_started,
                     # Redraws the bar under the input: background shells and
                     # agents finish while the prompt waits
                     refresh_interval=1.0,
                 )
+                self._cancel_loop_timer()
+                if user_input is LOOP_DUE:
+                    continue  # interrupted for a /loop run
 
                 if not self._handle_user_input(user_input):
                     break

@@ -180,6 +180,7 @@ list. Custom commands (`.joshu/commands/`) and skills appear there too.
 | `/install-github-action` | Write `.github/workflows/joshu.yml` for the `@joshu` GitHub Action |
 | `/feedback [text]` (`/bug`) | Open a pre-filled GitHub issue (version, Python, OS, model) |
 | `/btw <question>` | A side question, answered from the conversation without tools and not added to it; also while a task runs (type it and press Enter) |
+| `/loop [interval] <prompt>` | Run the prompt now, then again an interval after each run ends (`30s` to `24h`, default `10m`; e.g. `/loop 5m check the CI and fix what broke`). The waiting prompt is interrupted when a run is due, keeping what you typed; the bar shows when the next run is. `/loop` shows it, `/loop stop` ends it. One loop at a time, this session only |
 | `/plugin [install <src> \| marketplace add <src> \| ...]` | Plugins and marketplaces, Joshu or Claude Code format (see [Plugins](plugins.md)); what you install works in the session at once, its MCP servers included |
 | `/mcp` | MCP servers, whether they're connected and how many tools each has |
 | `/search <query>` | Search the web |
