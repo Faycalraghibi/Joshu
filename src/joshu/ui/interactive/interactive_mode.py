@@ -442,14 +442,15 @@ class InteractiveMode:
     # ------------------------------------------------------------------ modes
 
     def current_mode(self) -> str:
-        """default, accept_edits, bypass, plan or ask."""
+        """default, accept_edits, auto, bypass, plan or ask."""
         if self.interaction_mode in ("plan", "ask"):
             return self.interaction_mode
         return str(self.config_manager.get("permission_mode", "default") or "default")
 
     def cycle_mode(self) -> str:
-        """Shift+Tab: default -> accept edits -> plan (-> bypass if started in it)."""
-        order = ["default", "accept_edits", "plan"] + (["bypass"] if self._bypass_cycle else [])
+        """Shift+Tab: default -> accept edits -> auto -> plan (-> bypass if started in it)."""
+        order = ["default", "accept_edits", "auto", "plan"]
+        order += ["bypass"] if self._bypass_cycle else []
         current = self.current_mode()
         following = (
             order[(order.index(current) + 1) % len(order)] if current in order else "default"

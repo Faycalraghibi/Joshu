@@ -5,6 +5,7 @@ All notable changes to the Joshu project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Auto permission mode (`--permission-mode auto`, Shift+Tab, `/permissions auto`): file edits run without asking, and any other action that would ask (shell commands, web fetch, MCP tools) is reviewed by a model against your request. Allowed actions run, blocked ones ask you with the reason (refused in headless runs). Commands flagged unsafe and protected files still always ask. `auto_mode_model` picks the reviewing model (`joshu.core.auto_mode`).
 - "think hard", "think harder" or "ultrathink" in a request make it think on every call (whatever the `thinking` setting), with high reasoning effort where the provider has the setting (the new provider field `high_effort_options`; set for OpenRouter).
 - `bash_output` can wait for a background command instead of the agent polling it: `until` (a regex) waits for matching output, such as a server's "Listening on", and `timeout` alone waits for the command to finish (up to 600 s).
 - Plan approval: in plan mode the agent shows its finished plan (`exit_plan_mode`) and asks whether to carry it out. Approving switches to accept-edits or default mode and the agent implements the plan in the same request; otherwise it keeps planning with your feedback. Before, you had to switch modes yourself and ask again.

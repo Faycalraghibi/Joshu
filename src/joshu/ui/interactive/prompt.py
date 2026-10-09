@@ -19,6 +19,7 @@ FormattedText = List[Tuple[str, str]]
 MODE_HINTS = {
     "default": ("? for shortcuts", "class:hint"),
     "accept_edits": ("⏵⏵ accept edits on (shift+tab to cycle)", "class:mode-edits"),
+    "auto": ("⏵⏵ auto mode on: risky actions ask (shift+tab to cycle)", "class:mode-edits"),
     "plan": ("⏸ plan mode on (shift+tab to cycle)", "class:mode-plan"),
     "bypass": ("⏵⏵ bypass permissions on (shift+tab to cycle)", "class:mode-bypass"),
     "ask": ("ask mode: answers without tools (shift+tab for agent mode)", "class:mode-plan"),
@@ -27,7 +28,7 @@ MODE_HINTS = {
 SHORTCUTS = """\
   !  run a shell command        /  commands           @  attach a file or image
   alt+enter or \\+enter  new line          alt+v  paste an image
-  esc  interrupt the agent      shift+tab  cycle modes (default, accept edits, plan)
+  esc  interrupt the agent      shift+tab  cycle modes (default, accept edits, auto, plan)
   tab  complete commands        ctrl+r  search history        ctrl+g  edit in $EDITOR
   ctrl+o  full tool output      ctrl+l  clear the screen
   ctrl+c  clear input (twice on an empty prompt to exit)

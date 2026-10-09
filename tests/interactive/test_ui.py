@@ -389,6 +389,7 @@ def test_shift_tab_cycles_modes(mode):
     assert mode.current_mode() == "default"
     assert mode.cycle_mode() == "accept_edits"
     assert mode.config_manager.get("permission_mode") == "accept_edits"
+    assert mode.cycle_mode() == "auto" and mode.config_manager.get("permission_mode") == "auto"
     assert mode.cycle_mode() == "plan" and mode.interaction_mode == "plan"
     assert mode.cycle_mode() == "default" and mode.interaction_mode == "agent"
 
