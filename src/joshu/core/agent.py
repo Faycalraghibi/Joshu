@@ -75,9 +75,10 @@ class BackgroundTask:
 def still_running_note(running: List["BackgroundTask"]) -> str:
     listing = ", ".join(f"{t.id} ({t.description})" for t in running)
     return (
-        f"[Background tasks still running: {listing}] If your answer needs them, wait with "
-        "task_output(task_id, wait=true); otherwise finish, and their answers come with the "
-        "next message."
+        f"[Background tasks or teammates still running: {listing}] If your answer needs them, "
+        "wait with task_output(task_id, wait=true) (a background task) or "
+        "team_tasks(action='wait') (teammates); otherwise finish, and their answers come "
+        "with the next message."
     )
 
 
@@ -498,6 +499,7 @@ class Agent:
             if model_skills(self.skills):
                 self._local_tools["skill"] = self._make_skill_tool()
             self._local_tools["install_skill"] = self._make_install_skill_tool()
+            self._local_tools["spawn_teammate"] = self._make_spawn_teammate_tool()
             if getattr(self.events, "can_ask_user", False):
                 self._local_tools["ask_user"] = self._make_ask_user_tool()
                 self._local_tools["exit_plan_mode"] = self._make_exit_plan_tool()
@@ -550,6 +552,9 @@ class Agent:
             self.permissions.reviewer = self._review_action
         # Sub-agents started with task(background=true), by id
         self.background_tasks: Dict[str, BackgroundTask] = {}
+        # Agent teams (joshu.core.team): the team this agent is in, and its name there
+        self.team: Optional[Any] = None
+        self.team_name = "lead"
         # Identical consecutive tool calls with identical results (loop detection)
         self._last_call: Optional[tuple] = None
         self._repeats = 0
@@ -799,7 +804,7 @@ class Agent:
         content = prompt
         notes = list(self._pending_notes)
         self._pending_notes = []
-        notes += self._finished_background_tasks()
+        notes += self._finished_background_tasks() + self._team_messages()
         if contexts:
             notes.append("[Context from hooks]\n" + "\n\n".join(contexts))
         if notes:
@@ -836,7 +841,7 @@ class Agent:
                     },
                 )
             self._maybe_compact()
-            finished = self._finished_background_tasks()
+            finished = self._finished_background_tasks() + self._team_messages()
             if finished:
                 self.messages.append({"role": "user", "content": "\n\n".join(finished)})
 
@@ -1802,9 +1807,228 @@ class Agent:
             f'task_output(task_id="{record.id}", wait=true) when you need it.'
         )
 
-    def background_running(self) -> List[BackgroundTask]:
-        """Background tasks still working."""
-        return [t for t in self.background_tasks.values() if not t.done.is_set()]
+    def background_running(self) -> List[Any]:
+        """Background tasks (and, for the lead, teammates) still working."""
+        running: List[Any] = [t for t in self.background_tasks.values() if not t.done.is_set()]
+        if self.team is not None and self.team_name == "lead":
+            running += self.team.running()
+        return running
+
+    def _team_messages(self) -> List[str]:
+        """Messages for this agent from its team (joshu.core.team), taken."""
+        return self.team.take(self.team_name) if self.team is not None else []
+
+    # ------------------------------------------------------------------ teams
+
+    def _make_spawn_teammate_tool(self) -> ToolSpec:
+        def spawn_teammate(name: str, role: str, instructions: str, edit: bool = False) -> str:
+            from joshu.core.team import LEAD, MAX_TEAMMATES, Member, Team, member_prompt
+
+            name = str(name).strip().lower()
+            if not re.fullmatch(r"[a-z][a-z0-9_-]{0,19}", name) or name in (LEAD, "all"):
+                return "Error: name must be 1-20 letters, digits, - or _, starting with a letter"
+            if edit and not self._can_edit_in_worktrees():
+                return "Error: editing teammates need a git repository, outside plan mode"
+            if self.team is None:
+                self.team = Team(self._run_member)
+                self._local_tools["send_message"] = self._make_send_message_tool()
+                self._local_tools["team_tasks"] = self._make_team_tasks_tool()
+                self._loaded_tools.update({"send_message", "team_tasks"})
+            team = self.team
+            if name in team.members:
+                return f"Error: there is already a teammate '{name}': send_message to it"
+            if len(team.members) >= MAX_TEAMMATES:
+                return f"Error: a team has at most {MAX_TEAMMATES} teammates"
+            member = Member(name=name, description=str(role).strip(), edit=bool(edit))
+            if not member.edit:
+                member.agent = self._make_member_agent(member)
+            others = [n for n in team.members] + [LEAD]
+            first = member_prompt(name, member.description, others)
+            team.add(member, f"{first}\n\nYour first task:\n{instructions}")
+            return (
+                f"Teammate {name} started ({'edits in its own worktree' if edit else 'read-only'}). "
+                "Its answer comes to you when it finishes a run; talk to it with send_message, "
+                "share work with team_tasks."
+            )
+
+        return ToolSpec(
+            name="spawn_teammate",
+            description=(
+                "Start a teammate: a named sub-agent that works at the same time as you and "
+                "keeps its conversation, for larger work split between several agents that "
+                "need to talk (else use task). Teammates message each other and you "
+                "(send_message) and share a task list (team_tasks). With edit=true it edits in "
+                "its own git worktree, applied when each of its runs ends; it can't ask for "
+                "approval, so what would ask is refused."
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "Short name, e.g. 'tests'"},
+                    "role": {"type": "string", "description": "What it is responsible for"},
+                    "instructions": {
+                        "type": "string",
+                        "description": "Its first task, self-contained",
+                    },
+                    "edit": {"type": "boolean", "description": "Let it change code"},
+                },
+                "required": ["name", "role", "instructions"],
+            },
+            function=spawn_teammate,
+            requires_approval=False,
+        )
+
+    def _make_member_agent(self, member: Any, workspace: Optional[Path] = None) -> "Agent":
+        """The Agent a teammate runs as (in `workspace` for an editing one)."""
+        if member.edit:
+            permissions = PermissionManager(
+                self.permissions.mode,
+                approver=None,
+                sandbox=self.permissions.sandbox,
+                sandboxed_shell=self.permissions.sandboxed_shell,
+                rules=self.permissions.rules,
+            )
+            permissions.reviewer = self.permissions.reviewer
+        else:
+            permissions = PermissionManager(PermissionMode.PLAN, approver=None)
+        agent = self._make_subagent(
+            permissions,
+            member.name,
+            max_turns=self.max_turns if member.edit else SUBAGENT_MAX_TURNS,
+            workspace=workspace,
+            quiet=True,
+        )
+        agent.team, agent.team_name = self.team, member.name
+        agent._local_tools["send_message"] = agent._make_send_message_tool()
+        agent._local_tools["team_tasks"] = agent._make_team_tasks_tool()
+        return agent
+
+    def _run_member(self, member: Any, prompt: str) -> str:
+        """One run of a teammate (on its thread); its answer goes to the lead."""
+        if not member.edit:
+            agent = member.agent
+            before = dict(agent.usage)
+            agent.cost = CostTracker()
+            try:
+                return agent.run(prompt).text or "(no answer)"
+            finally:
+                self._add_usage({k: agent.usage.get(k, 0) - before.get(k, 0) for k in agent.usage})
+                with self._usage_lock:
+                    self.cost.merge(agent.cost)
+        from joshu.core.worktrees import WorktreeError, create, finish, remove
+
+        worktree = create(self.cwd, member.name)
+        agent = self._make_member_agent(member, workspace=worktree.path)
+        agent.messages += member.history  # its conversation goes on
+        try:
+            response = agent.run(prompt)
+        except BaseException:
+            remove(worktree, delete_branch=True)
+            raise
+        finally:
+            member.history = agent.messages[1:]
+            self._add_usage(agent.usage)
+            with self._usage_lock:
+                self.cost.merge(agent.cost)
+
+        def snapshot(paths: List[Path]) -> None:
+            for path in paths:
+                self.checkpoints.snapshot(path)
+
+        try:
+            outcome = finish(worktree, member.name, before_apply=snapshot)
+        except WorktreeError as e:
+            return f"{response.text}\n\n[Worktree] Error: {e}"
+        return "\n\n".join(
+            part for part in (response.text, f"[Worktree] {outcome.message}", outcome.stat) if part
+        )
+
+    def _make_send_message_tool(self) -> ToolSpec:
+        def send_message(to: str, message: str) -> str:
+            if self.team is None:
+                return "Error: there is no team"
+            return self.team.send(self.team_name, str(to).strip().lower(), str(message))
+
+        return ToolSpec(
+            name="send_message",
+            description=(
+                "Send a message to a teammate (by name), the lead ('lead') or everyone ('all'). "
+                "A working member gets it between its turns; an idle teammate starts working on it."
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "to": {"type": "string", "description": "A teammate's name, 'lead' or 'all'"},
+                    "message": {"type": "string", "description": "What to tell them"},
+                },
+                "required": ["to", "message"],
+            },
+            function=send_message,
+            requires_approval=False,
+        )
+
+    def _make_team_tasks_tool(self) -> ToolSpec:
+        def team_tasks(
+            action: str = "list",
+            title: str = "",
+            task_id: int = 0,
+            note: str = "",
+            timeout: int = 300,
+        ) -> str:
+            if self.team is None:
+                return "Error: there is no team"
+            if action == "wait":
+                return self._wait_for_team(min(max(1, int(timeout)), 600))
+            return self.team.task_action(self.team_name, action, title, task_id, note)
+
+        return ToolSpec(
+            name="team_tasks",
+            description=(
+                "The team's shared task list and members. action: list (members and tasks), "
+                "add (title), claim (task_id; before working on it), done (task_id, note), "
+                "wait (until a message comes for you or, for the lead, every teammate is "
+                "idle; timeout seconds, max 600)."
+            ),
+            parameters={
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "enum": ["list", "add", "claim", "done", "wait"],
+                    },
+                    "title": {"type": "string"},
+                    "task_id": {"type": "integer"},
+                    "note": {"type": "string", "description": "With done: the outcome"},
+                    "timeout": {"type": "integer", "description": "With wait: seconds"},
+                },
+                "required": ["action"],
+            },
+            function=team_tasks,
+            requires_approval=False,
+        )
+
+    def _wait_for_team(self, timeout: int) -> str:
+        """team_tasks(wait): until a message comes in (or, for the lead, all are idle)."""
+        team = self.team
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            with team.lock:
+                waiting = (
+                    team.lead_inbox
+                    if self.team_name == "lead"
+                    else (team.members[self.team_name].inbox)
+                )
+                if waiting:
+                    break
+            if self.team_name == "lead" and not team.running():
+                break
+            time.sleep(0.2)
+        messages = self._team_messages()
+        if messages:
+            return "\n\n".join(messages)
+        if self.team_name == "lead" and not team.running():
+            return "Every teammate is idle and there are no new messages."
+        return f"No message in {timeout}s.\n{team.describe()}"
 
     def _finished_background_tasks(self) -> List[str]:
         """Answers of background tasks that finished since last time, as notes for the model."""

@@ -166,6 +166,7 @@ to your user config.
 | `skill` | Load a skill's instructions (when skills exist) | no |
 | `task` | Delegate research to a read-only sub-agent, or (`edit: true`) changes to one working in its own git worktree; `background: true` runs a read-only one while the agent goes on | no |
 | `task_output` | The answer of a background task, or that it's still running (loaded when one starts) | no |
+| `spawn_teammate`, `send_message`, `team_tasks` | Agent teams: start a teammate, message members, share a task list (see Agent teams; the last two once a team exists) | no |
 | MCP tools | Tools from configured MCP servers (loaded on demand with `load_tools` when there are many) | yes |
 
 ### Parallel tool calls
@@ -421,6 +422,26 @@ sub-agent (below), and its changes are applied to your working tree when it
 finishes (or kept on its branch if they don't apply); the report says which.
 It can't ask for approval from the background, so what would ask is refused:
 use it in accept-edits, auto or bypass mode.
+
+### Agent teams
+
+For larger work split between agents that need to talk, the main agent (the
+lead) starts **teammates** with `spawn_teammate` (name, role, first task; up to
+5). Each works at the same time on its own thread and keeps its conversation:
+when it finishes a run it goes idle and its answer is sent to the lead.
+
+- `send_message(to, message)`: to a teammate, `lead` or `all`. A working member
+  gets it between its turns; an idle teammate starts a new run with it.
+- `team_tasks`: a task list the whole team shares (`list`, `add`, `claim`,
+  `done`), and `wait` until a message comes in (for the lead: or every
+  teammate is idle).
+- Teammates are read-only unless started with `edit: true`: then each run works
+  in its own git worktree, applied to your working tree when the run ends.
+  Like background tasks they can't ask for approval, so what would ask is
+  refused: use accept-edits, auto or bypass mode for editing teammates.
+
+`/team` shows the members and tasks; `/team <name> <message>` sends a teammate
+a message from you. The bar under the input counts working teammates.
 
 ### Sub-agents that edit
 

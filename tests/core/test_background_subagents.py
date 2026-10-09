@@ -110,7 +110,7 @@ def test_still_running_is_told_once_and_delivered_with_the_next_message(workspac
     response = agent.run("go")
     assert response.text == "Done, the survey will follow."
     told = client.main_requests[2][-1]["content"]
-    assert "[Background tasks still running:" in told and "slow survey" in told
+    assert "still running: " in told and "slow survey" in told
     gate.set()
     wait_done(agent)
     agent.run("and?")
