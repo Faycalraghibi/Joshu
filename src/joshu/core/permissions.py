@@ -54,6 +54,7 @@ class PermissionMode(str, Enum):
     DEFAULT = "default"  # ask before edits, shell and other approval-required tools
     ACCEPT_EDITS = "accept_edits"  # file edits run freely; shell still asks
     PLAN = "plan"  # read-only: anything that changes state is denied
+    AUTO = "auto"  # edits run; other actions that would ask are reviewed by a model
     BYPASS = "bypass"  # everything runs, except commands flagged unsafe
 
     @classmethod
@@ -207,6 +208,9 @@ class PermissionManager:
         self.rules = rules
         self._always_allowed_tools: Set[str] = set()
         self._always_allowed_commands: Set[str] = set()
+        # Auto mode: decides an action that would ask (joshu.core.auto_mode);
+        # set by the agent, which knows the request and has a model
+        self.reviewer: Optional[Callable[[str, Dict[str, Any]], Any]] = None
 
     @property
     def mode(self) -> PermissionMode:
@@ -267,7 +271,10 @@ class PermissionManager:
         if tool_name == SHELL_TOOL and is_read_only_command(str(arguments.get("command", ""))):
             return PermissionDecision(True)
 
-        if self.mode == PermissionMode.ACCEPT_EDITS and tool_name in EDIT_TOOLS:
+        if (
+            self.mode in (PermissionMode.ACCEPT_EDITS, PermissionMode.AUTO)
+            and tool_name in EDIT_TOOLS
+        ):
             return PermissionDecision(True)
 
         if not requires_approval:
@@ -279,7 +286,22 @@ class PermissionManager:
         if self._is_always_allowed(tool_name, arguments):
             return PermissionDecision(True)
 
+        if self.mode == PermissionMode.AUTO and self.reviewer is not None:
+            return self._auto_review(tool_name, arguments)
+
         return self._ask(tool_name, arguments, None, allow_always=True)
+
+    def _auto_review(self, tool_name: str, arguments: Dict[str, Any]) -> PermissionDecision:
+        """Auto mode: run what the reviewer allows; ask about (or refuse) the rest."""
+        review = self.reviewer(tool_name, arguments) if self.reviewer else None
+        if review is not None and review.allowed:
+            return PermissionDecision(True)
+        reason = review.reason if review is not None else "the review gave no answer"
+        if self.approver is None:
+            return PermissionDecision(
+                False, f"Auto mode blocked this: {reason} Do it another way, or ask the user."
+            )
+        return self._ask(tool_name, arguments, f"Auto mode: {reason}", allow_always=True)
 
     def _ask(
         self,

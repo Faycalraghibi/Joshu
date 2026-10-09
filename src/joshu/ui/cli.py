@@ -541,7 +541,8 @@ def run(
     permission_mode: Optional[str] = typer.Option(
         None,
         "--permission-mode",
-        help="Agent permissions: default, accept_edits, plan (read-only) or bypass.",
+        help="Agent permissions: default, accept_edits, auto (a model reviews risky actions), "
+        "plan (read-only) or bypass.",
     ),
     print_mode: bool = typer.Option(
         False,

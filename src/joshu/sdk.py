@@ -149,7 +149,7 @@ class Session:
         """
         Args:
             model, provider: Override the configured model / provider
-            permission_mode: default, accept_edits, plan or bypass
+            permission_mode: default, accept_edits, auto, plan or bypass
             cwd: Project directory (file tools work inside it)
             tools: Only offer these tools (default: all)
             can_use_tool: Decides calls that need approval (default: deny them)

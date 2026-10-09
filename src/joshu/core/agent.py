@@ -544,6 +544,10 @@ class Agent:
         # Notes for the model about things that happened outside the loop (e.g. undo)
         self._pending_notes: List[str] = []
         self._think_hard = False  # the request asked for more thinking (THINK_HARD)
+        self._request_text = ""  # the user's current request (for the auto mode review)
+        self._auto_client: Optional[ChatClient] = None
+        if not is_subagent and self.permissions.reviewer is None:
+            self.permissions.reviewer = self._review_action
         # Sub-agents started with task(background=true), by id
         self.background_tasks: Dict[str, BackgroundTask] = {}
         # Identical consecutive tool calls with identical results (loop detection)
@@ -790,6 +794,7 @@ class Agent:
 
         self._request_count += 1
         self._think_hard = bool(THINK_HARD.search(prompt))
+        self._request_text = prompt
         self.checkpoints.begin(prompt, self._request_count)
         content = prompt
         notes = list(self._pending_notes)
@@ -1942,6 +1947,21 @@ class Agent:
             parameters=PARAMETERS,
             function=ask_user,
             requires_approval=False,
+        )
+
+    def _review_action(self, tool_name: str, arguments: Dict[str, Any]) -> Any:
+        """Auto mode: ask a model whether this action may run (joshu.core.auto_mode)."""
+        from joshu.core.auto_mode import review_action
+
+        if self._auto_client is None:
+            model = str(get_config_manager().get("auto_mode_model", "") or "")
+            try:
+                self._auto_client = create_chat_client(model) if model else self.client
+            except LLMError as e:
+                logger.warning(f"auto_mode_model unusable ({e}); reviewing with the main model")
+                self._auto_client = self.client
+        return review_action(
+            self._auto_client, self._request_text, tool_name, arguments, str(self.cwd)
         )
 
     def _make_exit_plan_tool(self) -> ToolSpec:

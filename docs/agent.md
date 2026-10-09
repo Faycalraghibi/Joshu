@@ -76,6 +76,7 @@ Every tool call passes a permission check before it runs.
 |---|---|
 | `default` | Read-only tools run freely; edits, shell commands, web fetch and MCP tools ask first |
 | `accept_edits` | File edits run without asking; shell commands still ask |
+| `auto` | File edits run without asking; other actions that would ask (shell commands, web fetch, MCP tools) are reviewed by a model against your request: allowed ones run, blocked ones ask you with the reason (and are refused in headless runs). `auto_mode_model` picks the reviewing model (default: the main one) |
 | `plan` | Read-only: anything that changes state is denied |
 | `bypass` | Everything runs |
 
