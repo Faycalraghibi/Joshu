@@ -135,7 +135,8 @@ to your user config.
 | `write_todos` | Track steps | no |
 | `memory` | Save, read or delete notes kept across sessions | no |
 | `skill` | Load a skill's instructions (when skills exist) | no |
-| `task` | Delegate research to a read-only sub-agent, or (`edit: true`) changes to one working in its own git worktree | no |
+| `task` | Delegate research to a read-only sub-agent, or (`edit: true`) changes to one working in its own git worktree; `background: true` runs a read-only one while the agent goes on | no |
+| `task_output` | The answer of a background task, or that it's still running (loaded when one starts) | no |
 | MCP tools | Tools from configured MCP servers (loaded on demand with `load_tools` when there are many) | yes |
 
 ### Parallel tool calls
@@ -375,6 +376,16 @@ researcher that splits a large survey in parts. These nested sub-agents are
 read-only. How deep it goes is the `subagent_depth` setting: `2` (default) lets
 sub-agents start their own, which can't go further; `1` keeps sub-agents from
 delegating at all.
+
+### Background sub-agents
+
+With `background: true` the main agent starts a read-only sub-agent and goes on
+with other work (or finishes its reply) while it runs. The answer comes back by
+itself: between the agent's turns, or with your next message if the request
+has ended. The agent can also read it, or wait for it, with `task_output`.
+Before finishing a reply while some are still running, the agent is told once,
+so it can wait for an answer it needs. The bar under the input shows
+`N agents working`. A background sub-agent shows no tool calls of its own.
 
 ### Sub-agents that edit
 

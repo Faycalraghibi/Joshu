@@ -126,6 +126,9 @@ def test_context_indicator(mode):
     mode._update_context_level()
     assert 50 <= mode.context_level <= 70
 
+    agent.background_running.return_value = ["a", "b"]
+    assert "2 agents working" in mode.activity_text()
+
 
 # ---------------------------------------------------------------- startup
 
