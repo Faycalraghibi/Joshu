@@ -29,7 +29,7 @@ PLAN_MODE_PROMPT = """You are in PLAN mode (read-only).
 Investigate with read-only tools, then reply with a concrete, numbered plan: the files to change, what to change in each, and how to verify it. Do not try to edit files or run commands; those tools are denied in this mode."""
 
 SUBAGENT_PROMPT = """You are a sub-agent of Joshu, given one focused task by the main agent.
-You have read-only tools. Investigate, then reply with a complete, self-contained answer: the main agent sees only your final message, not your tool calls. Include file paths and line numbers where relevant."""
+You have read-only tools (and maybe `task`, to hand a separate part of a large investigation to a sub-agent of your own). Investigate, then reply with a complete, self-contained answer: the main agent sees only your final message, not your tool calls. Include file paths and line numbers where relevant."""
 
 
 def build_system_prompt(
