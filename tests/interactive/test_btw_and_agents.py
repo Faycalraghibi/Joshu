@@ -167,3 +167,33 @@ def test_btw_slash_command(mode):
     agent.side_question.assert_called_once_with("why is it slow?")
     output = mode.agent_ui.console.file.getvalue()
     assert "btw" in output and "Because of caching." in output
+
+
+def test_editing_keys_while_a_request_runs():
+    from joshu.ui.key_listener import CTRL_U, DELETE, END, HOME, LEFT, RIGHT
+
+    listener = key_listener.KeyListener()
+    for key in ["a", "d", LEFT, "c", HOME, "x", END, "e", LEFT, LEFT, "\x08", RIGHT, DELETE]:
+        listener._add(key)
+    # ad, a|d, acd, |acd, xacd, xacd|, xacde, xac|de, xa|de (backspace), xad| (delete)
+    assert listener.typed == "xad" and listener._cursor == 3
+    listener._add(HOME)
+    listener._add(DELETE)
+    assert listener.typed == "ad" and listener._cursor == 0
+    listener._add(CTRL_U)
+    assert listener.typed == "" and listener._cursor == 0
+    listener._add("\x01")  # Ctrl+A on an empty line does nothing odd
+    assert listener._cursor == 0
+
+
+def test_the_caret_is_drawn_where_the_cursor_is():
+    from joshu.ui.key_listener import LEFT
+
+    console = Console(file=io.StringIO(), width=60, color_system=None)
+    listener = key_listener.KeyListener()
+    listener._thread = MagicMock()
+    for key in ["f", "i", "x", LEFT, LEFT]:
+        listener._add(key)
+    with patch.object(key_listener, "_active", listener):
+        console.print(_Working("Thinking"))
+    assert "> f▌ix" in console.file.getvalue()

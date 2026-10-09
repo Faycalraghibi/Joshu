@@ -143,7 +143,9 @@ def _one_line(text: str, width: int) -> str:
     return text if len(text) <= width else text[: max(1, width - 1)] + "…"
 
 
-def input_box(width: int, typed: str, queued: List[str]) -> List[Text]:
+def input_box(
+    width: int, typed: str, queued: List[str], cursor: Optional[int] = None
+) -> List[Text]:
     """
     The input box drawn under the working line while a request runs, so the
     place to type stays at the bottom like the prompt: what was typed so far,
@@ -157,11 +159,12 @@ def input_box(width: int, typed: str, queued: List[str]) -> List[Text]:
         rows.append(Text(f"    +{len(queued) - QUEUED_SHOWN} more queued", style="dim"))
     rows.append(rule)
     prompt = ("> ", _s("accent", "bold"))
-    cursor = ("▌", _s("accent"))
+    caret = ("▌", _s("accent"))
     if typed:
-        rows.append(Text.assemble(prompt, (typed, ""), cursor))
+        at = len(typed) if cursor is None else max(0, min(cursor, len(typed)))
+        rows.append(Text.assemble(prompt, (typed[:at], ""), caret, (typed[at:], "")))
     else:
-        rows.append(Text.assemble(prompt, cursor, ("Type to queue a message", "dim italic")))
+        rows.append(Text.assemble(prompt, caret, ("Type to queue a message", "dim italic")))
     rows.append(rule)
     if typed.lstrip().startswith("/btw"):
         hint = "enter asks it now, without stopping the request"
@@ -205,10 +208,12 @@ class _Working:
             (f"{self.label}… ", _s("accent")),
             (f"({' · '.join(details)})", "dim"),
         )
-        from joshu.ui.key_listener import listening, typing_now
+        from joshu.ui.key_listener import listening, typing_cursor, typing_now
 
         if listening():  # interactive mode: keys typed now are read
-            yield from input_box(options.max_width, typing_now(), queued_messages())
+            yield from input_box(
+                options.max_width, typing_now(), queued_messages(), typing_cursor()
+            )
 
 
 class _Trimmed:

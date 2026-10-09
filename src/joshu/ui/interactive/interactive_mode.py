@@ -552,6 +552,9 @@ class InteractiveMode:
                     complete_while_typing=True,
                     vi_mode=self.vim_enabled,
                     pre_run=self._start_background_work,
+                    # Redraws the bar under the input: background shells and
+                    # agents finish while the prompt waits
+                    refresh_interval=1.0,
                 )
 
                 if not self._handle_user_input(user_input):
