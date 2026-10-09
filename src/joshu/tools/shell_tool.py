@@ -771,22 +771,80 @@ def run_shell_command_tool(
 
 @register_tool(
     name="bash_output",
-    description="Read new output, status and exit code of a background command.",
+    description=(
+        "Read new output, status and exit code of a background command. To wait instead of "
+        "polling: `until` (a regex) waits for output matching it, e.g. a server's "
+        "'Listening on'; `timeout` alone waits for the command to finish (seconds, max 600)."
+    ),
     parameters={
         "type": "object",
         "properties": {
             "process_id": {
                 "type": "string",
                 "description": "The process_id returned when the command was started",
-            }
+            },
+            "until": {
+                "type": "string",
+                "description": "Wait until new output matches this regex (or the command ends)",
+            },
+            "timeout": {
+                "type": "integer",
+                "description": "Seconds to wait at most (default 60 with until, else 0)",
+            },
         },
         "required": ["process_id"],
     },
     enabled=True,
     requires_approval=False,
 )
-def bash_output_tool(process_id: str) -> Dict[str, Any]:
+def bash_output_tool(
+    process_id: str, until: Optional[str] = None, timeout: Optional[int] = None
+) -> Dict[str, Any]:
+    if timeout is None:
+        timeout = 60 if until else 0
+    if (until or timeout) and process_id in _background_processes:
+        try:
+            pattern = re.compile(until) if until else None
+        except re.error as e:
+            return {"success": False, "error": f"Invalid regex for until: {e}"}
+        waited, matched = wait_for_output(
+            _background_processes[process_id], pattern, min(max(0, int(timeout)), MAX_WAIT_SECONDS)
+        )
+        result = get_process_status(process_id)
+        result["waited_seconds"] = round(waited, 1)
+        if pattern is not None:
+            result["matched"] = matched
+        return result
     return get_process_status(process_id)
+
+
+# Longest bash_output waits for a background command
+MAX_WAIT_SECONDS = 600
+
+
+def wait_for_output(
+    info: ProcessInfo, pattern: Optional["re.Pattern[str]"], timeout: float
+) -> Tuple[float, bool]:
+    """
+    Wait until the output not read yet matches `pattern` (or, without one, until
+    the command ends), the command ends, or `timeout` passes. Nothing is
+    consumed: the caller reads the output afterwards.
+
+    Returns:
+        Seconds waited, and whether the pattern matched
+    """
+    started = time.monotonic()
+    while True:
+        if pattern is not None and info.log_path is not None and info.log_path.is_file():
+            new = info.log_path.read_bytes()[info.read_offset :]
+            text = strip_ansi_codes(new.decode("utf-8", errors="replace"))
+            if pattern.search(text):
+                return time.monotonic() - started, True
+        if info.process.poll() is not None:
+            return time.monotonic() - started, False
+        if time.monotonic() - started >= timeout:
+            return time.monotonic() - started, False
+        time.sleep(0.2)
 
 
 @register_tool(
