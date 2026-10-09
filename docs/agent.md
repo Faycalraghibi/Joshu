@@ -158,7 +158,7 @@ to your user config.
 | `notebook_edit` | Replace, insert or delete a Jupyter notebook cell (loaded on demand) | yes |
 | `code_nav` | Definition, references or hover from the language server (loaded on demand) | no |
 | `run_shell_command` | Run a command (fresh shell each call; `background: true` for long-running ones) | yes |
-| `bash_output`, `kill_bash` | Read the output of / stop a background command (loaded when one starts) | no |
+| `bash_output`, `kill_bash` | Read the output of / stop a background command (loaded when one starts); `bash_output` can wait, `until` its output matches a regex (a server's "Listening on") or, with `timeout` alone, until it ends | no |
 | `web_search` / `web_fetch` | Search the web / fetch a URL | no / yes |
 | `write_todos` | Track steps | no |
 | `memory` | Save, read or delete notes kept across sessions | no |

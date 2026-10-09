@@ -5,6 +5,7 @@ All notable changes to the Joshu project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- `bash_output` can wait for a background command instead of the agent polling it: `until` (a regex) waits for matching output, such as a server's "Listening on", and `timeout` alone waits for the command to finish (up to 600 s).
 - Plan approval: in plan mode the agent shows its finished plan (`exit_plan_mode`) and asks whether to carry it out. Approving switches to accept-edits or default mode and the agent implements the plan in the same request; otherwise it keeps planning with your feedback. Before, you had to switch modes yourself and ask again.
 - The input box shown while a task runs can be edited: ←/→, Home/End (Ctrl+A/Ctrl+E), Delete and Ctrl+U (clear the line), with the cursor drawn where it is. The bar under the prompt redraws every second, so running shells and background agents update without a key press.
 - Flags for scripted runs (`joshu run`, `-p`), with Claude Code's `claude -p` spellings: `--allowed-tools` / `--disallowed-tools` (permission rules; `Bash(git log:*)`, `Edit` and other Claude Code names work), `--system-prompt`, `--append-system-prompt`, `--max-turns`, `--add-dir`, `--mcp-config` (a `.mcp.json`-style file), `--settings` (JSON or a file, this run only), `--session-id` and `--fork-session`. A tool denied by a rule without a pattern is no longer offered to the model.
