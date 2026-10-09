@@ -163,7 +163,28 @@ ANNOUNCED_STEP_NOTE = (
     "[You described your next step but didn't call a tool, so nothing happened. Call the "
     "tool now, or give your final answer if you are done.]"
 )
+CUT_OFF_NOTE = (
+    "[Your reply stopped in the middle (an unfinished sentence or code block), so it isn't "
+    "an answer. Continue: carry on with the task (call tools for any changes), then reply.]"
+)
 STILL_BROKEN_AFTER = 2  # edits in a row leaving the same file broken
+
+
+def looks_cut_off(text: str) -> bool:
+    """
+    A reply that stops mid-way: an open code fence, a last line with an
+    unclosed bracket, or a last word followed by ':' or ','. Seen when a
+    stream ends early ("... B.end (1.1") with finish_reason "stop".
+    """
+    text = text.rstrip()
+    if not text:
+        return False
+    if text.count("```") % 2:
+        return True
+    last = text.splitlines()[-1]
+    if last.count("(") > last.count(")") or last.count("[") > last.count("]"):
+        return True
+    return text[-1] in ",:" and not last.lstrip().startswith(("#", "|", "-", "*"))
 
 
 def still_broken_note(path: Path, problems: str, edits: int) -> str:
@@ -256,6 +277,8 @@ def malformed_reply(
     # "Let me read the files..." as the whole answer, before doing anything
     if not changed_anything and len(text) < 600 and ANNOUNCED_STEP.search(text[-300:]):
         return ANNOUNCED_STEP_NOTE
+    if looks_cut_off(text):
+        return CUT_OFF_NOTE
     return None
 
 
